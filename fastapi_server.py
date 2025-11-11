@@ -80,11 +80,11 @@ HTML_PAGE = """
                            autocomplete="off">
                     <div id="autocomplete" class="absolute z-10 w-full bg-gray-700 rounded mt-1 shadow-lg hidden max-h-60 overflow-y-auto"></div>
                 </div>
-                <button onclick="toggleFavorite()" id="btnFavorite" class="bg-yellow-600 hover:bg-yellow-700 px-4 py-2 rounded" title="Add to favorites">
+                <button onclick="toggleFavorite()" id="btnFavorite" class="bg-yellow-600 hover:bg-yellow-700 px-2 py-1 rounded text-sm" title="Add to favorites">
                     ★
                 </button>
-                <button onclick="changeRepo()" class="bg-purple-600 hover:bg-purple-700 px-6 py-2 rounded">
-                    Switch Repo
+                <button onclick="changeRepo()" class="bg-purple-600 hover:bg-purple-700 px-3 py-1 rounded text-sm">
+                    Switch
                 </button>
             </div>
             <div id="currentRepo" class="text-gray-500 text-xs mt-2"></div>
@@ -107,11 +107,11 @@ HTML_PAGE = """
             <div class="flex justify-between items-center mb-4">
                 <h2 class="text-2xl font-bold">Branches</h2>
                 <div class="flex gap-2">
-                    <button onclick="showBranchView('list')" id="btnListView" class="px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded">
-                        List View
+                    <button onclick="showBranchView('list')" id="btnListView" class="px-3 py-1 bg-gray-700 hover:bg-gray-600 rounded text-sm">
+                        List
                     </button>
-                    <button onclick="showBranchView('graph')" id="btnGraphView" class="px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded">
-                        Graph View
+                    <button onclick="showBranchView('graph')" id="btnGraphView" class="px-3 py-1 bg-gray-700 hover:bg-gray-600 rounded text-sm">
+                        Graph
                     </button>
                 </div>
             </div>
@@ -122,18 +122,18 @@ HTML_PAGE = """
         <!-- Actions -->
         <div class="bg-gray-800 rounded-lg p-6 mb-6">
             <h2 class="text-2xl font-bold mb-4">Actions</h2>
-            <div class="flex gap-4 flex-wrap">
+            <div class="flex gap-2 flex-wrap">
                 <div class="flex gap-2">
                     <input type="text" id="saveMessage" placeholder="Save message..."
-                           class="bg-gray-700 px-4 py-2 rounded flex-1 min-w-64">
-                    <button onclick="save()" class="bg-green-600 hover:bg-green-700 px-6 py-2 rounded">
+                           class="bg-gray-700 px-3 py-1 rounded flex-1 min-w-64 text-sm">
+                    <button onclick="save()" class="bg-green-600 hover:bg-green-700 px-3 py-1 rounded text-sm">
                         Save
                     </button>
                 </div>
-                <button onclick="quickSave()" class="bg-yellow-600 hover:bg-yellow-700 px-6 py-2 rounded">
+                <button onclick="quickSave()" class="bg-yellow-600 hover:bg-yellow-700 px-3 py-1 rounded text-sm">
                     Quick Save
                 </button>
-                <button onclick="undo()" class="bg-orange-600 hover:bg-orange-700 px-6 py-2 rounded">
+                <button onclick="undo()" class="bg-orange-600 hover:bg-orange-700 px-3 py-1 rounded text-sm">
                     Undo
                 </button>
             </div>
@@ -150,10 +150,10 @@ HTML_PAGE = """
             <h2 class="text-2xl font-bold mb-4">Experiments</h2>
             <div class="flex gap-2 mb-4">
                 <input type="text" id="expName" placeholder="Experiment name..."
-                       class="bg-gray-700 px-4 py-2 rounded">
+                       class="bg-gray-700 px-3 py-1 rounded text-sm">
                 <input type="text" id="expDesc" placeholder="Description..."
-                       class="bg-gray-700 px-4 py-2 rounded flex-1">
-                <button onclick="createExperiment()" class="bg-blue-600 hover:bg-blue-700 px-6 py-2 rounded">
+                       class="bg-gray-700 px-3 py-1 rounded flex-1 text-sm">
+                <button onclick="createExperiment()" class="bg-blue-600 hover:bg-blue-700 px-3 py-1 rounded text-sm">
                     Create
                 </button>
             </div>
@@ -420,7 +420,7 @@ HTML_PAGE = """
                         <div class="text-sm mt-1">${cp.message}</div>
                     </div>
                     <button onclick="restore('${cp.short_id}')"
-                            class="bg-blue-600 hover:bg-blue-700 px-4 py-1 rounded text-sm">
+                            class="bg-blue-600 hover:bg-blue-700 px-3 py-1 rounded text-xs">
                         Restore
                     </button>
                 </div>
@@ -438,9 +438,9 @@ HTML_PAGE = """
                         ${exp.description ? `<div class="text-sm text-gray-400 mt-1">${exp.description}</div>` : ''}
                     </div>
                     <div class="flex gap-2">
-                        ${!exp.is_active ? `<button onclick="switchExperiment('${exp.name}')" class="bg-blue-600 hover:bg-blue-700 px-4 py-1 rounded text-sm">Switch</button>` : ''}
-                        <button onclick="keepExperiment('${exp.name}')" class="bg-green-600 hover:bg-green-700 px-4 py-1 rounded text-sm">Keep</button>
-                        <button onclick="discardExperiment('${exp.name}')" class="bg-red-600 hover:bg-red-700 px-4 py-1 rounded text-sm">Discard</button>
+                        ${!exp.is_active ? `<button onclick="switchExperiment('${exp.name}')" class="bg-blue-600 hover:bg-blue-700 px-3 py-1 rounded text-xs">Switch</button>` : ''}
+                        <button onclick="keepExperiment('${exp.name}')" class="bg-green-600 hover:bg-green-700 px-3 py-1 rounded text-xs">Keep</button>
+                        <button onclick="discardExperiment('${exp.name}')" class="bg-red-600 hover:bg-red-700 px-3 py-1 rounded text-xs">Discard</button>
                     </div>
                 </div>
             `).join('');
@@ -469,7 +469,7 @@ HTML_PAGE = """
                         </div>
                         <div class="text-sm mt-1">${branch.message}</div>
                     </div>
-                    ${!branch.is_current ? `<button onclick="switchBranch('${branch.name}')" class="bg-blue-600 hover:bg-blue-700 px-4 py-2 rounded ml-4">Switch</button>` : ''}
+                    ${!branch.is_current ? `<button onclick="switchBranch('${branch.name}')" class="bg-blue-600 hover:bg-blue-700 px-3 py-1 rounded text-sm ml-4">Switch</button>` : ''}
                 </div>
             `).join('');
             document.getElementById('branchListView').innerHTML = html || '<div class="text-gray-400">No branches</div>';
