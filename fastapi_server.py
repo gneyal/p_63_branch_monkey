@@ -523,41 +523,18 @@ HTML_PAGE = """
             drawCommitTree(data);
         }
 
-        // Pan and zoom state
-        let panOffset = { x: 0, y: 0 };
-        let zoomLevel = 1.0;
-        let isDragging = false;
-        let dragStart = { x: 0, y: 0 };
-
         function drawCommitTree(data) {
             const canvas = document.getElementById('commitTree');
             const ctx = canvas.getContext('2d');
 
-            // Set canvas size to match displayed size (only if not set or changed)
-            const rect = canvas.getBoundingClientRect();
-            const needsResize = canvas.width !== rect.width || canvas.height !== rect.height;
-            if (needsResize) {
-                canvas.width = rect.width;
-                canvas.height = rect.height;
-            }
-
-            // Get theme colors
-            const isLight = getTheme() === 'light';
-            const bgColor = isLight ? '#f9fafb' : '#111827';
-            const textColor = isLight ? '#111827' : '#f3f4f6';
-            const textSecondary = isLight ? '#6b7280' : '#9ca3af';
-            const lineColor = isLight ? '#d1d5db' : '#4b5563';
-
-            // Reset transformations and clear entire canvas
-            ctx.setTransform(1, 0, 0, 1, 0, 0);
-            ctx.fillStyle = bgColor;
-            ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-            // Apply pan and zoom transformations
-            ctx.translate(panOffset.x, panOffset.y);
-            ctx.scale(zoomLevel, zoomLevel);
-
             if (!data.commits || data.commits.length === 0) {
+                canvas.width = 800;
+                canvas.height = 400;
+                const isLight = getTheme() === 'light';
+                const bgColor = isLight ? '#f9fafb' : '#111827';
+                const textSecondary = isLight ? '#6b7280' : '#9ca3af';
+                ctx.fillStyle = bgColor;
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
                 ctx.fillStyle = textSecondary;
                 ctx.font = '14px monospace';
                 ctx.fillText('No commits yet', 20, 30);
@@ -622,6 +599,22 @@ HTML_PAGE = """
                     commit: commit
                 };
             });
+
+            // Calculate canvas size based on content
+            const maxX = Math.max(...commitPositions.map(p => p.x)) + 600; // Add space for text
+            const maxY = Math.max(...commitPositions.map(p => p.y)) + 100;
+            canvas.width = Math.max(maxX, 800);
+            canvas.height = Math.max(maxY, 500);
+
+            // Get theme colors and draw background
+            const isLight = getTheme() === 'light';
+            const bgColor = isLight ? '#f9fafb' : '#111827';
+            const textColor = isLight ? '#111827' : '#f3f4f6';
+            const textSecondary = isLight ? '#6b7280' : '#9ca3af';
+            const lineColor = isLight ? '#d1d5db' : '#4b5563';
+
+            ctx.fillStyle = bgColor;
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
 
             // Draw connecting lines first (with branch colors)
             ctx.lineWidth = 3;
@@ -691,8 +684,8 @@ HTML_PAGE = """
                 if (commit.branches.length > 0) {
                     commit.branches.forEach((branch, idx) => {
                         const branchY = y + 25 + idx * 12;
-                        // Use the commit's branch color for the label background
-                        ctx.fillStyle = commit.color;
+                        // All branch labels use the same background color (gray)
+                        ctx.fillStyle = isLight ? '#6b7280' : '#4b5563';
                         ctx.fillRect(x + 20, branchY - 10, ctx.measureText(branch).width + 6, 12);
                         ctx.fillStyle = '#ffffff';
                         ctx.font = 'bold 9px sans-serif';
@@ -711,80 +704,41 @@ HTML_PAGE = """
             });
         }
 
-        // Helper function to transform screen coordinates to canvas coordinates
-        function screenToCanvas(x, y) {
-            return {
-                x: (x - panOffset.x) / zoomLevel,
-                y: (y - panOffset.y) / zoomLevel
-            };
-        }
-
-        // Add event handlers for commit tree
+        // Initialize panzoom for commit tree
         document.addEventListener('DOMContentLoaded', () => {
             const canvas = document.getElementById('commitTree');
+            const container = document.getElementById('canvasContainer');
 
-            // Mouse down - start dragging
-            canvas.addEventListener('mousedown', (e) => {
-                isDragging = true;
-                dragStart = { x: e.clientX - panOffset.x, y: e.clientY - panOffset.y };
-                canvas.style.cursor = 'grabbing';
+            // Initialize panzoom on the canvas
+            const panzoomInstance = Panzoom(canvas, {
+                maxScale: 5,
+                minScale: 0.3,
+                startScale: 0.7,
+                contain: 'outside',
+                cursor: 'move'
             });
 
-            // Mouse up - stop dragging
-            canvas.addEventListener('mouseup', () => {
-                isDragging = false;
-                canvas.style.cursor = 'default';
-            });
+            // Enable mouse wheel zooming
+            container.addEventListener('wheel', panzoomInstance.zoomWithWheel);
 
-            // Mouse leave - stop dragging
-            canvas.addEventListener('mouseleave', () => {
-                isDragging = false;
-                canvas.style.cursor = 'default';
-            });
-
-            // Mouse move - handle dragging and hover
-            canvas.addEventListener('mousemove', (e) => {
-                if (isDragging) {
-                    // Update pan offset
-                    panOffset.x = e.clientX - dragStart.x;
-                    panOffset.y = e.clientY - dragStart.y;
-                    if (commitTreeData) {
-                        drawCommitTree(commitTreeData);
-                    }
-                    return;
-                }
-
-                // Check hover for cursor change
-                if (!canvas.clickAreas) return;
-
-                const rect = canvas.getBoundingClientRect();
-                const screenX = e.clientX - rect.left;
-                const screenY = e.clientY - rect.top;
-                const canvasCoords = screenToCanvas(screenX, screenY);
-
-                let isOverNode = false;
-                canvas.clickAreas.forEach(area => {
-                    if (canvasCoords.x >= area.x && canvasCoords.x <= area.x + area.width &&
-                        canvasCoords.y >= area.y && canvasCoords.y <= area.y + area.height) {
-                        isOverNode = true;
-                    }
-                });
-
-                canvas.style.cursor = isOverNode ? 'pointer' : 'grab';
-            });
-
-            // Click handler with coordinate transformation
+            // Add click handler for navigation (with transform-aware coordinate calculation)
             canvas.addEventListener('click', (e) => {
                 if (!canvas.clickAreas) return;
 
+                // Get the transform matrix
+                const transform = panzoomInstance.getTransform();
+                const scale = panzoomInstance.getScale();
+
+                // Calculate canvas coordinates
                 const rect = canvas.getBoundingClientRect();
                 const screenX = e.clientX - rect.left;
                 const screenY = e.clientY - rect.top;
-                const canvasCoords = screenToCanvas(screenX, screenY);
+                const canvasX = (screenX - transform.x) / scale;
+                const canvasY = (screenY - transform.y) / scale;
 
                 canvas.clickAreas.forEach(area => {
-                    if (canvasCoords.x >= area.x && canvasCoords.x <= area.x + area.width &&
-                        canvasCoords.y >= area.y && canvasCoords.y <= area.y + area.height) {
+                    if (canvasX >= area.x && canvasX <= area.x + area.width &&
+                        canvasY >= area.y && canvasY <= area.y + area.height) {
                         const commit = area.commit;
 
                         // If commit has branches, switch to the first branch
@@ -800,32 +754,27 @@ HTML_PAGE = """
                 });
             });
 
-            // Wheel handler for zooming
-            canvas.addEventListener('wheel', (e) => {
-                e.preventDefault();
+            // Show pointer cursor over nodes
+            canvas.addEventListener('mousemove', (e) => {
+                if (!canvas.clickAreas) return;
 
+                const transform = panzoomInstance.getTransform();
+                const scale = panzoomInstance.getScale();
                 const rect = canvas.getBoundingClientRect();
-                const mouseX = e.clientX - rect.left;
-                const mouseY = e.clientY - rect.top;
+                const screenX = e.clientX - rect.left;
+                const screenY = e.clientY - rect.top;
+                const canvasX = (screenX - transform.x) / scale;
+                const canvasY = (screenY - transform.y) / scale;
 
-                // Get canvas coordinates before zoom
-                const canvasBefore = screenToCanvas(mouseX, mouseY);
+                let isOverNode = false;
+                canvas.clickAreas.forEach(area => {
+                    if (canvasX >= area.x && canvasX <= area.x + area.width &&
+                        canvasY >= area.y && canvasY <= area.y + area.height) {
+                        isOverNode = true;
+                    }
+                });
 
-                // Update zoom level
-                const zoomFactor = e.deltaY > 0 ? 0.9 : 1.1;
-                zoomLevel *= zoomFactor;
-                zoomLevel = Math.max(0.1, Math.min(5, zoomLevel)); // Clamp between 0.1 and 5
-
-                // Get canvas coordinates after zoom
-                const canvasAfter = screenToCanvas(mouseX, mouseY);
-
-                // Adjust pan offset to keep mouse position fixed
-                panOffset.x += (canvasAfter.x - canvasBefore.x) * zoomLevel;
-                panOffset.y += (canvasAfter.y - canvasBefore.y) * zoomLevel;
-
-                if (commitTreeData) {
-                    drawCommitTree(commitTreeData);
-                }
+                canvas.style.cursor = isOverNode ? 'pointer' : 'move';
             });
         });
 
