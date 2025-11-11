@@ -145,6 +145,164 @@ HTML_PAGE = """
             border-bottom-left-radius: 0.375rem;
             border-bottom-right-radius: 0.375rem;
         }
+
+        /* Modal Dialog */
+        #modalOverlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: rgba(0, 0, 0, 0.7);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 2000;
+            backdrop-filter: blur(4px);
+        }
+
+        #modalDialog {
+            background-color: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            border-radius: 0.75rem;
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.5);
+            max-width: 500px;
+            width: 90%;
+            padding: 1.5rem;
+            animation: modalSlideIn 0.2s ease-out;
+        }
+
+        @keyframes modalSlideIn {
+            from {
+                opacity: 0;
+                transform: translateY(-20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        #modalTitle {
+            font-size: 1.25rem;
+            font-weight: bold;
+            color: var(--text-primary);
+            margin-bottom: 1rem;
+        }
+
+        #modalMessage {
+            color: var(--text-primary);
+            margin-bottom: 1.5rem;
+            white-space: pre-wrap;
+            line-height: 1.6;
+            font-size: 0.875rem;
+        }
+
+        #modalButtons {
+            display: flex;
+            gap: 0.75rem;
+            justify-content: flex-end;
+        }
+
+        .modal-btn {
+            padding: 0.5rem 1rem;
+            border-radius: 0.375rem;
+            font-size: 0.875rem;
+            font-weight: 500;
+            cursor: pointer;
+            border: none;
+            transition: all 0.15s;
+        }
+
+        .modal-btn-primary {
+            background-color: #3b82f6;
+            color: white;
+        }
+
+        .modal-btn-primary:hover {
+            background-color: #2563eb;
+        }
+
+        .modal-btn-danger {
+            background-color: #ef4444;
+            color: white;
+        }
+
+        .modal-btn-danger:hover {
+            background-color: #dc2626;
+        }
+
+        .modal-btn-secondary {
+            background-color: var(--bg-tertiary);
+            color: var(--text-primary);
+        }
+
+        .modal-btn-secondary:hover {
+            background-color: #4b5563;
+        }
+
+        /* Toast Notifications */
+        #toastContainer {
+            position: fixed;
+            top: 1rem;
+            right: 1rem;
+            z-index: 3000;
+            display: flex;
+            flex-direction: column;
+            gap: 0.75rem;
+        }
+
+        .toast {
+            background-color: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            border-radius: 0.5rem;
+            padding: 1rem;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3);
+            min-width: 300px;
+            max-width: 400px;
+            animation: toastSlideIn 0.3s ease-out;
+            display: flex;
+            align-items: start;
+            gap: 0.75rem;
+        }
+
+        @keyframes toastSlideIn {
+            from {
+                opacity: 0;
+                transform: translateX(100%);
+            }
+            to {
+                opacity: 1;
+                transform: translateX(0);
+            }
+        }
+
+        .toast-icon {
+            font-size: 1.25rem;
+            flex-shrink: 0;
+        }
+
+        .toast-content {
+            flex: 1;
+            color: var(--text-primary);
+            font-size: 0.875rem;
+        }
+
+        .toast-success {
+            border-left: 4px solid #10b981;
+        }
+
+        .toast-error {
+            border-left: 4px solid #ef4444;
+        }
+
+        .toast-info {
+            border-left: 4px solid #3b82f6;
+        }
+
+        .toast-warning {
+            border-left: 4px solid #f59e0b;
+        }
     </style>
 </head>
 <body class="transition-colors duration-200">
@@ -228,6 +386,18 @@ HTML_PAGE = """
     <!-- Context Menu (dynamically populated) -->
     <div id="contextMenu"></div>
 
+    <!-- Modal Dialog -->
+    <div id="modalOverlay" onclick="if(event.target === this) closeModal()">
+        <div id="modalDialog">
+            <div id="modalTitle"></div>
+            <div id="modalMessage"></div>
+            <div id="modalButtons"></div>
+        </div>
+    </div>
+
+    <!-- Toast Container -->
+    <div id="toastContainer"></div>
+
     <script>
         // Theme management
         function getTheme() {
@@ -259,6 +429,90 @@ HTML_PAGE = """
             setTheme(getTheme());
         });
 
+        // Modal Dialog System
+        let modalResolve = null;
+
+        function showModal(title, message, options = {}) {
+            return new Promise((resolve) => {
+                modalResolve = resolve;
+
+                document.getElementById('modalTitle').textContent = title;
+                document.getElementById('modalMessage').textContent = message;
+
+                const buttonsDiv = document.getElementById('modalButtons');
+                buttonsDiv.innerHTML = '';
+
+                // Default options
+                const {
+                    confirmText = 'OK',
+                    cancelText = 'Cancel',
+                    showCancel = false,
+                    confirmClass = 'modal-btn-primary',
+                    onConfirm = null,
+                    onCancel = null
+                } = options;
+
+                if (showCancel) {
+                    const cancelBtn = document.createElement('button');
+                    cancelBtn.className = 'modal-btn modal-btn-secondary';
+                    cancelBtn.textContent = cancelText;
+                    cancelBtn.onclick = () => {
+                        closeModal();
+                        if (onCancel) onCancel();
+                        resolve(false);
+                    };
+                    buttonsDiv.appendChild(cancelBtn);
+                }
+
+                const confirmBtn = document.createElement('button');
+                confirmBtn.className = `modal-btn ${confirmClass}`;
+                confirmBtn.textContent = confirmText;
+                confirmBtn.onclick = () => {
+                    closeModal();
+                    if (onConfirm) onConfirm();
+                    resolve(true);
+                };
+                buttonsDiv.appendChild(confirmBtn);
+
+                document.getElementById('modalOverlay').style.display = 'flex';
+            });
+        }
+
+        function closeModal() {
+            document.getElementById('modalOverlay').style.display = 'none';
+            if (modalResolve) {
+                modalResolve(false);
+                modalResolve = null;
+            }
+        }
+
+        // Toast Notification System
+        function showToast(message, type = 'info', duration = 4000) {
+            const container = document.getElementById('toastContainer');
+            const toast = document.createElement('div');
+            toast.className = `toast toast-${type}`;
+
+            const icons = {
+                success: '✓',
+                error: '✕',
+                info: 'ℹ',
+                warning: '⚠'
+            };
+
+            toast.innerHTML = `
+                <div class="toast-icon">${icons[type] || icons.info}</div>
+                <div class="toast-content">${message}</div>
+            `;
+
+            container.appendChild(toast);
+
+            setTimeout(() => {
+                toast.style.opacity = '0';
+                toast.style.transform = 'translateX(100%)';
+                setTimeout(() => toast.remove(), 300);
+            }, duration);
+        }
+
         async function api(endpoint, method = 'GET', body = null) {
             try {
                 const options = { method };
@@ -271,7 +525,7 @@ HTML_PAGE = """
                 if (!response.ok) throw new Error(data.detail || 'Request failed');
                 return data;
             } catch (error) {
-                alert('Error: ' + error.message);
+                showToast('Error: ' + error.message, 'error');
                 throw error;
             }
         }
@@ -305,11 +559,11 @@ HTML_PAGE = """
             if (index >= 0) {
                 // Remove from favorites
                 favorites.splice(index, 1);
-                alert('Removed from favorites');
+                showToast('Removed from favorites', 'info');
             } else {
                 // Add to favorites
                 favorites.push(currentPath);
-                alert('Added to favorites!');
+                showToast('Added to favorites!', 'success');
             }
 
             saveFavorites(favorites);
@@ -484,10 +738,13 @@ HTML_PAGE = """
 
         async function changeRepo() {
             const path = document.getElementById('repoPath').value;
-            if (!path) return alert('Please enter a repository path');
+            if (!path) {
+                showToast('Please enter a repository path', 'warning');
+                return;
+            }
             try {
                 await api('/repo/set', 'POST', { path });
-                alert('Repository changed! Reloading...');
+                showToast('Repository changed!', 'success');
                 loadAll();
             } catch (error) {
                 // Error already shown by api() function
@@ -823,9 +1080,14 @@ HTML_PAGE = """
         });
 
         async function switchBranch(name) {
-            if (confirm(`Switch to branch "${name}"?`)) {
-                // Simple git checkout via API
+            const confirmed = await showModal(
+                'Switch Branch',
+                `Switch to branch "${name}"?`,
+                { showCancel: true, confirmText: 'Switch' }
+            );
+            if (confirmed) {
                 await api('/branch/switch', 'POST', { name });
+                showToast(`Switched to ${name}`, 'success');
                 loadAll();
             }
         }
@@ -921,27 +1183,12 @@ HTML_PAGE = """
 
         // Context menu functions
         function showCommitDetails() {
-            console.log('showCommitDetails called!');
-            console.log('selectedCommit:', selectedCommit);
-            if (!selectedCommit) {
-                console.log('No selected commit, returning');
-                return;
-            }
+            if (!selectedCommit) return;
             const commit = selectedCommit;
-            console.log('Commit object:', commit);
-            console.log('Commit properties:', {
-                sha: commit.sha,
-                message: commit.message,
-                author: commit.author,
-                date: commit.date,
-                branches: commit.branches
-            });
-            alert(`Commit Details\n\n` +
-                  `SHA: ${commit.sha}\n` +
-                  `Message: ${commit.message}\n` +
-                  `Author: ${commit.author}\n` +
-                  `Date: ${commit.date}\n` +
-                  `Branches: ${commit.branches.join(', ') || 'none'}`);
+
+            const message = `SHA: ${commit.sha}\nMessage: ${commit.message}\nAuthor: ${commit.author}\nDate: ${commit.age}\nBranches: ${commit.branches.join(', ') || 'none'}`;
+
+            showModal('Commit Details', message);
             document.getElementById('contextMenu').style.display = 'none';
         }
 
@@ -949,17 +1196,19 @@ HTML_PAGE = """
             if (!selectedCommit) return;
             const commit = selectedCommit;
 
-            const message = `View commit in detached HEAD state?\n\n` +
-                `⚠️ WARNING: Detached HEAD State\n\n` +
-                `This will checkout commit:\n${commit.sha}\n"${commit.message}"\n\n` +
-                `You'll be in a "detached HEAD" state where:\n` +
-                `• You can view the code at this point in history\n` +
-                `• Any commits you make won't belong to any branch\n` +
-                `• Changes may be lost when you switch branches\n\n` +
-                `💡 TIP: If you want to make changes, use "Create Branch & Switch" instead!\n\n` +
-                `Continue with detached HEAD?`;
+            const message = `⚠️  WARNING: Detached HEAD State\n\nThis will checkout commit:\n${commit.sha}\n"${commit.message}"\n\nYou'll be in a "detached HEAD" state where:\n• You can view the code at this point in history\n• Any commits you make won't belong to any branch\n• Changes may be lost when you switch branches\n\n💡 TIP: If you want to make changes, use "Create Branch & Switch" instead!`;
 
-            if (confirm(message)) {
+            const confirmed = await showModal(
+                'View Commit (Detached HEAD)',
+                message,
+                {
+                    showCancel: true,
+                    confirmText: 'Continue',
+                    confirmClass: 'modal-btn-danger'
+                }
+            );
+
+            if (confirmed) {
                 checkoutCommit(commit.sha);
             }
             document.getElementById('contextMenu').style.display = 'none';
@@ -988,7 +1237,7 @@ HTML_PAGE = """
                     // Then switch to it
                     await switchBranch(branchName.trim());
 
-                    alert(`✓ Created and switched to branch "${branchName}"`);
+                    showToast(`Created and switched to branch "${branchName}"`, 'success');
                 } catch (error) {
                     // Error already shown by api() function
                 }
@@ -999,36 +1248,53 @@ HTML_PAGE = """
         function copySHA() {
             if (!selectedCommit) return;
             navigator.clipboard.writeText(selectedCommit.sha).then(() => {
-                alert(`Copied to clipboard:\n${selectedCommit.sha}`);
+                showToast(`Copied SHA: ${selectedCommit.sha}`, 'success');
             }).catch(err => {
-                alert(`Failed to copy: ${err}`);
+                showToast(`Failed to copy: ${err}`, 'error');
             });
             document.getElementById('contextMenu').style.display = 'none';
         }
 
         async function save() {
             const message = document.getElementById('saveMessage').value;
-            if (!message) return alert('Please enter a message');
+            if (!message) {
+                showToast('Please enter a message', 'warning');
+                return;
+            }
             await api('/save', 'POST', { message });
             document.getElementById('saveMessage').value = '';
+            showToast('Saved!', 'success');
             loadAll();
         }
 
         async function quickSave() {
             await api('/quick-save', 'POST', { message: 'Quick save' });
+            showToast('Quick saved!', 'success');
             loadAll();
         }
 
         async function undo() {
-            if (confirm('Undo to previous checkpoint?')) {
+            const confirmed = await showModal(
+                'Undo Changes',
+                'Undo to previous checkpoint?',
+                { showCancel: true, confirmText: 'Undo', confirmClass: 'modal-btn-danger' }
+            );
+            if (confirmed) {
                 await api('/undo', 'POST');
+                showToast('Undone to previous checkpoint', 'success');
                 loadAll();
             }
         }
 
         async function restore(checkpoint_id) {
-            if (confirm(`Restore to ${checkpoint_id}?`)) {
+            const confirmed = await showModal(
+                'Restore Checkpoint',
+                `Restore to ${checkpoint_id}?`,
+                { showCancel: true, confirmText: 'Restore' }
+            );
+            if (confirmed) {
                 await api('/restore', 'POST', { checkpoint_id });
+                showToast(`Restored to ${checkpoint_id}`, 'success');
                 loadAll();
             }
         }
@@ -1036,28 +1302,45 @@ HTML_PAGE = """
         async function createExperiment() {
             const name = document.getElementById('expName').value;
             const description = document.getElementById('expDesc').value;
-            if (!name) return alert('Please enter a name');
+            if (!name) {
+                showToast('Please enter a name', 'warning');
+                return;
+            }
             await api('/experiment/create', 'POST', { name, description });
             document.getElementById('expName').value = '';
             document.getElementById('expDesc').value = '';
+            showToast(`Created experiment "${name}"`, 'success');
             loadAll();
         }
 
         async function switchExperiment(name) {
             await api('/experiment/switch', 'POST', { name });
+            showToast(`Switched to "${name}"`, 'success');
             loadAll();
         }
 
         async function keepExperiment(name) {
-            if (confirm(`Keep experiment "${name}"?`)) {
+            const confirmed = await showModal(
+                'Keep Experiment',
+                `Merge experiment "${name}" into main branch?`,
+                { showCancel: true, confirmText: 'Keep', confirmClass: 'modal-btn-primary' }
+            );
+            if (confirmed) {
                 await api('/experiment/keep', 'POST', { name });
+                showToast(`Kept experiment "${name}"`, 'success');
                 loadAll();
             }
         }
 
         async function discardExperiment(name) {
-            if (confirm(`Discard experiment "${name}"? This cannot be undone.`)) {
+            const confirmed = await showModal(
+                'Discard Experiment',
+                `Discard experiment "${name}"?\n\nThis cannot be undone.`,
+                { showCancel: true, confirmText: 'Discard', confirmClass: 'modal-btn-danger' }
+            );
+            if (confirmed) {
                 await api('/experiment/discard', 'POST', { name });
+                showToast(`Discarded experiment "${name}"`, 'info');
                 loadAll();
             }
         }
