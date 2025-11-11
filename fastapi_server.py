@@ -65,10 +65,57 @@ HTML_PAGE = """
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Branch Monkey</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        :root {
+            --bg-primary: #111827;
+            --bg-secondary: #1f2937;
+            --bg-tertiary: #374151;
+            --text-primary: #f3f4f6;
+            --text-secondary: #9ca3af;
+            --border-color: #4b5563;
+            --canvas-bg: #111827;
+        }
+
+        [data-theme="light"] {
+            --bg-primary: #ffffff;
+            --bg-secondary: #f3f4f6;
+            --bg-tertiary: #e5e7eb;
+            --text-primary: #111827;
+            --text-secondary: #6b7280;
+            --border-color: #d1d5db;
+            --canvas-bg: #f9fafb;
+        }
+
+        body {
+            background-color: var(--bg-primary);
+            color: var(--text-primary);
+        }
+
+        .bg-themed {
+            background-color: var(--bg-secondary);
+        }
+
+        .bg-canvas {
+            background-color: var(--canvas-bg);
+        }
+
+        .text-themed {
+            color: var(--text-primary);
+        }
+
+        .text-secondary-themed {
+            color: var(--text-secondary);
+        }
+    </style>
 </head>
-<body class="bg-gray-900 text-gray-100">
+<body class="transition-colors duration-200">
     <div class="container mx-auto p-3 max-w-6xl">
-        <h1 class="text-lg font-bold mb-2">🐵 Branch Monkey</h1>
+        <div class="flex justify-between items-center mb-2">
+            <h1 class="text-lg font-bold">🐵 Branch Monkey</h1>
+            <button onclick="toggleTheme()" id="themeToggle" class="px-2 py-1 rounded text-xs bg-gray-700 hover:bg-gray-600" title="Toggle theme">
+                <span id="themeIcon">🌙</span>
+            </button>
+        </div>
 
         <!-- Repository Selector - Compact -->
         <div class="bg-gray-800 rounded p-2 mb-3">
@@ -96,7 +143,7 @@ HTML_PAGE = """
                 <h2 class="text-lg font-bold">🌳 Commit Tree</h2>
                 <div class="text-xs text-gray-400">Click nodes to navigate</div>
             </div>
-            <canvas id="commitTree" class="w-full bg-gray-900 rounded cursor-pointer" height="500"></canvas>
+            <canvas id="commitTree" class="w-full bg-canvas rounded cursor-pointer" height="500"></canvas>
         </div>
 
         <!-- Actions -->
@@ -150,6 +197,36 @@ HTML_PAGE = """
     </div>
 
     <script>
+        // Theme management
+        function getTheme() {
+            return localStorage.getItem('branchMonkeyTheme') || 'dark';
+        }
+
+        function setTheme(theme) {
+            localStorage.setItem('branchMonkeyTheme', theme);
+            document.documentElement.setAttribute('data-theme', theme);
+
+            // Update icon
+            const icon = document.getElementById('themeIcon');
+            icon.textContent = theme === 'light' ? '🌙' : '☀️';
+
+            // Redraw canvas with new theme
+            if (commitTreeData) {
+                drawCommitTree(commitTreeData);
+            }
+        }
+
+        function toggleTheme() {
+            const currentTheme = getTheme();
+            const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+            setTheme(newTheme);
+        }
+
+        // Initialize theme on load
+        document.addEventListener('DOMContentLoaded', () => {
+            setTheme(getTheme());
+        });
+
         async function api(endpoint, method = 'GET', body = null) {
             try {
                 const options = { method };
@@ -451,12 +528,19 @@ HTML_PAGE = """
             const rect = canvas.getBoundingClientRect();
             canvas.width = rect.width;
 
+            // Get theme colors
+            const isLight = getTheme() === 'light';
+            const bgColor = isLight ? '#f9fafb' : '#111827';
+            const textColor = isLight ? '#111827' : '#f3f4f6';
+            const textSecondary = isLight ? '#6b7280' : '#9ca3af';
+            const lineColor = isLight ? '#d1d5db' : '#4b5563';
+
             // Clear canvas
-            ctx.fillStyle = '#111827';
+            ctx.fillStyle = bgColor;
             ctx.fillRect(0, 0, canvas.width, canvas.height);
 
             if (!data.commits || data.commits.length === 0) {
-                ctx.fillStyle = '#9ca3af';
+                ctx.fillStyle = textSecondary;
                 ctx.font = '14px monospace';
                 ctx.fillText('No commits yet', 20, 30);
                 return;
@@ -502,7 +586,7 @@ HTML_PAGE = """
                     const parentIdx = commitMap[parentSha];
                     if (parentIdx !== undefined) {
                         const parentPos = commitPositions[parentIdx];
-                        ctx.strokeStyle = '#4b5563';
+                        ctx.strokeStyle = lineColor;
                         ctx.beginPath();
                         ctx.moveTo(pos.x, pos.y);
                         ctx.lineTo(parentPos.x, parentPos.y);
@@ -534,14 +618,14 @@ HTML_PAGE = """
                 }
 
                 // Draw commit message (truncated)
-                ctx.fillStyle = '#f3f4f6';
+                ctx.fillStyle = textColor;
                 ctx.font = 'bold 11px monospace';
                 const maxLen = 40;
                 const message = commit.message.length > maxLen ? commit.message.substring(0, maxLen) + '...' : commit.message;
                 ctx.fillText(message, x + 20, y);
 
                 // Draw SHA and age
-                ctx.fillStyle = '#9ca3af';
+                ctx.fillStyle = textSecondary;
                 ctx.font = '10px monospace';
                 ctx.fillText(`${commit.sha} • ${commit.age}`, x + 20, y + 12);
 
