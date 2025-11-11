@@ -564,32 +564,47 @@ HTML_PAGE = """
             branchToColumn['master'] = 0;
             let nextColumn = 1;
 
-            // First pass: assign columns based on branch names
+            // First pass: only assign columns to commits with branch labels
             commits.forEach((commit, i) => {
                 if (commit.branches.length > 0) {
-                    // Commit has branches - assign it to a column for that branch
                     const mainBranch = commit.branches[0];
                     if (branchToColumn[mainBranch] === undefined) {
                         branchToColumn[mainBranch] = nextColumn++;
                     }
                     commit.column = branchToColumn[mainBranch];
                     commit.color = branchColors[commit.column % branchColors.length];
-                } else if (commit.parents.length > 0) {
-                    // No branch label - inherit from parent
-                    const parentIdx = commitMap[commit.parents[0]];
-                    if (parentIdx !== undefined && commits[parentIdx].column !== undefined) {
-                        commit.column = commits[parentIdx].column;
-                        commit.color = commits[parentIdx].color;
-                    } else {
-                        commit.column = 0;
-                        commit.color = branchColors[0];
-                    }
-                } else {
-                    // Root commit
+                    usedColumns.add(commit.column);
+                }
+            });
+
+            // Second pass: propagate column assignments backwards to ancestors
+            commits.forEach((commit, i) => {
+                if (commit.column !== undefined && commit.parents.length > 0) {
+                    // This commit has a column - propagate it to parents
+                    commit.parents.forEach(parentSha => {
+                        const parentIdx = commitMap[parentSha];
+                        if (parentIdx !== undefined) {
+                            const parent = commits[parentIdx];
+                            // Only assign if parent doesn't have a column yet OR has the same column
+                            // This prevents overwriting merge commits or commits on other branches
+                            if (parent.column === undefined) {
+                                parent.column = commit.column;
+                                parent.color = commit.color;
+                                usedColumns.add(parent.column);
+                            }
+                        }
+                    });
+                }
+            });
+
+            // Third pass: handle any remaining unassigned commits (fallback)
+            commits.forEach((commit, i) => {
+                if (commit.column === undefined) {
+                    // Default to column 0 (main branch)
                     commit.column = 0;
                     commit.color = branchColors[0];
+                    usedColumns.add(commit.column);
                 }
-                usedColumns.add(commit.column);
             });
 
             const commitPositions = commits.map((commit, i) => {
