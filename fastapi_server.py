@@ -80,11 +80,20 @@ HTML_PAGE = """
                            autocomplete="off">
                     <div id="autocomplete" class="absolute z-10 w-full bg-gray-700 rounded mt-1 shadow-lg hidden max-h-60 overflow-y-auto"></div>
                 </div>
+                <button onclick="toggleFavorite()" id="btnFavorite" class="bg-yellow-600 hover:bg-yellow-700 px-4 py-2 rounded" title="Add to favorites">
+                    ★
+                </button>
                 <button onclick="changeRepo()" class="bg-purple-600 hover:bg-purple-700 px-6 py-2 rounded">
                     Switch Repo
                 </button>
             </div>
             <div id="currentRepo" class="text-gray-500 text-xs mt-2"></div>
+
+            <!-- Favorites -->
+            <div id="favorites" class="mt-4 hidden">
+                <div class="text-sm text-gray-400 mb-2">Favorites:</div>
+                <div id="favoritesList" class="flex flex-wrap gap-2"></div>
+            </div>
         </div>
 
         <!-- Status -->
@@ -176,10 +185,109 @@ HTML_PAGE = """
             }
         }
 
+        // Favorites management
+        function getFavorites() {
+            const favs = localStorage.getItem('branchMonkeyFavorites');
+            return favs ? JSON.parse(favs) : [];
+        }
+
+        function saveFavorites(favorites) {
+            localStorage.setItem('branchMonkeyFavorites', JSON.stringify(favorites));
+        }
+
+        function isFavorite(path) {
+            const favorites = getFavorites();
+            return favorites.includes(path);
+        }
+
+        function toggleFavorite() {
+            const data = branchesData;
+            if (!data) return;
+
+            const currentPath = document.getElementById('currentRepo').textContent.replace('Current: ', '');
+            const favorites = getFavorites();
+            const index = favorites.indexOf(currentPath);
+
+            if (index >= 0) {
+                // Remove from favorites
+                favorites.splice(index, 1);
+                alert('Removed from favorites');
+            } else {
+                // Add to favorites
+                favorites.push(currentPath);
+                alert('Added to favorites!');
+            }
+
+            saveFavorites(favorites);
+            updateFavoriteButton(currentPath);
+            renderFavorites();
+        }
+
+        function updateFavoriteButton(path) {
+            const btn = document.getElementById('btnFavorite');
+            if (isFavorite(path)) {
+                btn.classList.remove('bg-yellow-600', 'hover:bg-yellow-700');
+                btn.classList.add('bg-yellow-400', 'hover:bg-yellow-500');
+                btn.title = 'Remove from favorites';
+            } else {
+                btn.classList.remove('bg-yellow-400', 'hover:bg-yellow-500');
+                btn.classList.add('bg-yellow-600', 'hover:bg-yellow-700');
+                btn.title = 'Add to favorites';
+            }
+        }
+
+        function renderFavorites() {
+            const favorites = getFavorites();
+            const container = document.getElementById('favorites');
+            const list = document.getElementById('favoritesList');
+
+            if (favorites.length === 0) {
+                container.classList.add('hidden');
+                return;
+            }
+
+            container.classList.remove('hidden');
+
+            const html = favorites.map(path => {
+                const shortPath = path.split('/').slice(-2).join('/');
+                return `
+                    <div class="flex items-center gap-2 bg-gray-700 px-3 py-1 rounded text-sm">
+                        <button onclick="switchToFavorite('${path}')" class="hover:text-blue-400 font-mono" title="${path}">
+                            ${shortPath}
+                        </button>
+                        <button onclick="removeFavorite('${path}')" class="text-red-400 hover:text-red-300 ml-1" title="Remove">
+                            ×
+                        </button>
+                    </div>
+                `;
+            }).join('');
+
+            list.innerHTML = html;
+        }
+
+        async function switchToFavorite(path) {
+            document.getElementById('repoPath').value = path;
+            await changeRepo();
+        }
+
+        function removeFavorite(path) {
+            const favorites = getFavorites();
+            const index = favorites.indexOf(path);
+            if (index >= 0) {
+                favorites.splice(index, 1);
+                saveFavorites(favorites);
+                renderFavorites();
+                updateFavoriteButton(document.getElementById('currentRepo').textContent.replace('Current: ', ''));
+            }
+        }
+
         async function loadRepoInfo() {
             const data = await api('/repo/info');
-            document.getElementById('currentRepo').textContent = `Current: ${data.path}`;
-            document.getElementById('repoPath').placeholder = data.path;
+            const currentPath = data.path;
+            document.getElementById('currentRepo').textContent = `Current: ${currentPath}`;
+            document.getElementById('repoPath').placeholder = currentPath;
+            updateFavoriteButton(currentPath);
+            renderFavorites();
         }
 
         let autocompleteTimeout = null;
