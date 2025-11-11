@@ -67,103 +67,85 @@ HTML_PAGE = """
     <script src="https://cdn.tailwindcss.com"></script>
 </head>
 <body class="bg-gray-900 text-gray-100">
-    <div class="container mx-auto p-6 max-w-6xl">
-        <h1 class="text-4xl font-bold mb-6">🐵 Branch Monkey</h1>
+    <div class="container mx-auto p-3 max-w-6xl">
+        <h1 class="text-lg font-bold mb-2">🐵 Branch Monkey</h1>
 
-        <!-- Repository Selector -->
-        <div class="bg-gray-800 rounded-lg p-4 mb-6">
-            <div class="flex items-center gap-4">
-                <span class="text-gray-400 text-sm">Repository:</span>
-                <div class="flex-1 relative">
-                    <input type="text" id="repoPath" placeholder="Enter repository path..."
-                           class="bg-gray-700 px-4 py-2 rounded w-full text-sm font-mono"
+        <!-- Repository Selector - Compact -->
+        <div class="bg-gray-800 rounded p-2 mb-3">
+            <div class="flex gap-2 items-center">
+                <button onclick="toggleFavorite()" id="btnFavorite" class="bg-yellow-600 hover:bg-yellow-700 px-2 py-1 rounded text-xs flex-none" title="Favorite">★</button>
+                <div class="relative flex-1">
+                    <input type="text" id="repoPath" placeholder="Repository path..."
+                           class="bg-gray-700 px-2 py-1 rounded w-full text-xs font-mono"
                            autocomplete="off">
                     <div id="autocomplete" class="absolute z-10 w-full bg-gray-700 rounded mt-1 shadow-lg hidden max-h-60 overflow-y-auto"></div>
                 </div>
-                <button onclick="toggleFavorite()" id="btnFavorite" class="bg-yellow-600 hover:bg-yellow-700 px-2 py-1 rounded text-sm" title="Add to favorites">
-                    ★
-                </button>
-                <button onclick="changeRepo()" class="bg-purple-600 hover:bg-purple-700 px-3 py-1 rounded text-sm">
-                    Switch
-                </button>
+                <button onclick="changeRepo()" class="bg-purple-600 hover:bg-purple-700 px-2 py-1 rounded text-xs flex-none">Switch</button>
             </div>
-            <div id="currentRepo" class="text-gray-500 text-xs mt-2"></div>
+            <div id="currentRepo" class="text-gray-500 text-xs mt-1 truncate" title=""></div>
 
-            <!-- Favorites -->
-            <div id="favorites" class="mt-4 hidden">
-                <div class="text-sm text-gray-400 mb-2">Favorites:</div>
-                <div id="favoritesList" class="flex flex-wrap gap-2"></div>
+            <!-- Favorites - Collapsible -->
+            <div id="favorites" class="mt-2 hidden">
+                <div id="favoritesList" class="flex flex-col gap-1"></div>
             </div>
         </div>
 
-        <!-- Status -->
-        <div class="bg-gray-800 rounded-lg p-6 mb-6">
-            <h2 class="text-2xl font-bold mb-4">Status</h2>
-            <div id="status" class="text-gray-400">Loading...</div>
-        </div>
-
-        <!-- Branches -->
-        <div class="bg-gray-800 rounded-lg p-6 mb-6">
-            <div class="flex justify-between items-center mb-4">
-                <h2 class="text-2xl font-bold">Branches</h2>
-                <div class="flex gap-2">
-                    <button onclick="showBranchView('list')" id="btnListView" class="px-3 py-1 bg-gray-700 hover:bg-gray-600 rounded text-sm">
-                        List
-                    </button>
-                    <button onclick="showBranchView('graph')" id="btnGraphView" class="px-3 py-1 bg-gray-700 hover:bg-gray-600 rounded text-sm">
-                        Graph
-                    </button>
-                </div>
+        <!-- MAIN FEATURE: Commit Tree Visualization -->
+        <div class="bg-gray-800 rounded-lg p-3 mb-3">
+            <div class="flex justify-between items-center mb-2">
+                <h2 class="text-lg font-bold">🌳 Commit Tree</h2>
+                <div class="text-xs text-gray-400">Click nodes to navigate</div>
             </div>
-            <div id="branchListView" class="space-y-2"></div>
-            <canvas id="branchGraphView" class="hidden w-full" height="400"></canvas>
+            <canvas id="commitTree" class="w-full bg-gray-900 rounded cursor-pointer" height="500"></canvas>
         </div>
 
         <!-- Actions -->
-        <div class="bg-gray-800 rounded-lg p-6 mb-6">
-            <h2 class="text-2xl font-bold mb-4">Actions</h2>
-            <div class="flex gap-2 flex-wrap">
+        <div class="bg-gray-800 rounded-lg p-3 mb-3">
+            <h2 class="text-lg font-bold mb-2">Actions</h2>
+            <div class="space-y-2">
                 <div class="flex gap-2">
                     <input type="text" id="saveMessage" placeholder="Save message..."
-                           class="bg-gray-700 px-3 py-1 rounded flex-1 min-w-64 text-sm">
-                    <button onclick="save()" class="bg-green-600 hover:bg-green-700 px-3 py-1 rounded text-sm">
+                           class="bg-gray-700 px-2 py-1 rounded flex-1 text-xs">
+                    <button onclick="save()" class="bg-green-600 hover:bg-green-700 px-2 py-1 rounded text-xs flex-none">
                         Save
                     </button>
                 </div>
-                <button onclick="quickSave()" class="bg-yellow-600 hover:bg-yellow-700 px-3 py-1 rounded text-sm">
-                    Quick Save
-                </button>
-                <button onclick="undo()" class="bg-orange-600 hover:bg-orange-700 px-3 py-1 rounded text-sm">
-                    Undo
-                </button>
+                <div class="flex gap-2">
+                    <button onclick="quickSave()" class="bg-yellow-600 hover:bg-yellow-700 px-2 py-1 rounded text-xs flex-1">
+                        Quick Save
+                    </button>
+                    <button onclick="undo()" class="bg-orange-600 hover:bg-orange-700 px-2 py-1 rounded text-xs flex-1">
+                        Undo
+                    </button>
+                </div>
             </div>
         </div>
 
         <!-- Checkpoints -->
-        <div class="bg-gray-800 rounded-lg p-6 mb-6">
-            <h2 class="text-2xl font-bold mb-4">Checkpoints</h2>
-            <div id="checkpoints" class="space-y-2"></div>
+        <div class="bg-gray-800 rounded-lg p-3 mb-3">
+            <h2 class="text-lg font-bold mb-2">Checkpoints</h2>
+            <div id="checkpoints" class="space-y-1"></div>
         </div>
 
         <!-- Experiments -->
-        <div class="bg-gray-800 rounded-lg p-6 mb-6">
-            <h2 class="text-2xl font-bold mb-4">Experiments</h2>
-            <div class="flex gap-2 mb-4">
-                <input type="text" id="expName" placeholder="Experiment name..."
-                       class="bg-gray-700 px-3 py-1 rounded text-sm">
+        <div class="bg-gray-800 rounded-lg p-3 mb-3">
+            <h2 class="text-lg font-bold mb-2">Experiments</h2>
+            <div class="space-y-2 mb-2">
+                <input type="text" id="expName" placeholder="Name..."
+                       class="bg-gray-700 px-2 py-1 rounded text-xs w-full">
                 <input type="text" id="expDesc" placeholder="Description..."
-                       class="bg-gray-700 px-3 py-1 rounded flex-1 text-sm">
-                <button onclick="createExperiment()" class="bg-blue-600 hover:bg-blue-700 px-3 py-1 rounded text-sm">
+                       class="bg-gray-700 px-2 py-1 rounded text-xs w-full">
+                <button onclick="createExperiment()" class="bg-blue-600 hover:bg-blue-700 px-2 py-1 rounded text-xs w-full">
                     Create
                 </button>
             </div>
-            <div id="experiments" class="space-y-2"></div>
+            <div id="experiments" class="space-y-1"></div>
         </div>
 
         <!-- History -->
-        <div class="bg-gray-800 rounded-lg p-6">
-            <h2 class="text-2xl font-bold mb-4">History</h2>
-            <div id="history" class="space-y-2"></div>
+        <div class="bg-gray-800 rounded-lg p-3">
+            <h2 class="text-lg font-bold mb-2">History</h2>
+            <div id="history" class="space-y-1"></div>
         </div>
     </div>
 
@@ -251,11 +233,11 @@ HTML_PAGE = """
             const html = favorites.map(path => {
                 const shortPath = path.split('/').slice(-2).join('/');
                 return `
-                    <div class="flex items-center gap-2 bg-gray-700 px-3 py-1 rounded text-sm">
-                        <button onclick="switchToFavorite('${path}')" class="hover:text-blue-400 font-mono" title="${path}">
+                    <div class="flex items-center gap-2 bg-gray-700 px-2 py-1 rounded text-xs">
+                        <button onclick="switchToFavorite('${path}')" class="hover:text-blue-400 font-mono truncate flex-1 text-left" title="${path}">
                             ${shortPath}
                         </button>
-                        <button onclick="removeFavorite('${path}')" class="text-red-400 hover:text-red-300 ml-1" title="Remove">
+                        <button onclick="removeFavorite('${path}')" class="text-red-400 hover:text-red-300 flex-none" title="Remove">
                             ×
                         </button>
                     </div>
@@ -319,7 +301,7 @@ HTML_PAGE = """
 
             selectedIndex = -1;
             const html = suggestions.map((path, idx) => `
-                <div class="px-4 py-2 hover:bg-gray-600 cursor-pointer text-sm font-mono autocomplete-item"
+                <div class="px-2 py-1 hover:bg-gray-600 cursor-pointer text-xs font-mono autocomplete-item"
                      data-path="${path}"
                      data-index="${idx}"
                      onclick="selectPath('${path}')">
@@ -402,8 +384,12 @@ HTML_PAGE = """
 
         async function loadStatus() {
             const data = await api('/status');
+            const branchData = await api('/branches');
+            const currentBranch = branchData.current;
+
             document.getElementById('status').innerHTML = `
-                <div class="space-y-2">
+                <div class="space-y-1 text-xs">
+                    <div>🐵 Current: <span class="text-green-400 font-bold">${currentBranch}</span></div>
                     <div>Changes: <span class="${data.has_changes ? 'text-yellow-400' : 'text-green-400'}">${data.has_changes ? 'Yes' : 'No'}</span></div>
                     ${data.current_experiment ? `<div>Experiment: <span class="text-blue-400">${data.current_experiment.name}</span></div>` : ''}
                 </div>
@@ -413,187 +399,181 @@ HTML_PAGE = """
         async function loadCheckpoints() {
             const data = await api('/checkpoints');
             const html = data.checkpoints.map(cp => `
-                <div class="flex justify-between items-center bg-gray-700 p-3 rounded">
-                    <div>
-                        <span class="text-cyan-400 font-mono">${cp.short_id}</span>
-                        <span class="text-gray-400 text-sm ml-3">${cp.age}</span>
-                        <div class="text-sm mt-1">${cp.message}</div>
+                <div class="flex justify-between items-start bg-gray-700 p-2 rounded">
+                    <div class="flex-1 min-w-0">
+                        <div>
+                            <span class="text-cyan-400 font-mono text-xs">${cp.short_id}</span>
+                            <span class="text-gray-400 text-xs ml-2">${cp.age}</span>
+                        </div>
+                        <div class="text-xs mt-1 truncate">${cp.message}</div>
                     </div>
                     <button onclick="restore('${cp.short_id}')"
-                            class="bg-blue-600 hover:bg-blue-700 px-3 py-1 rounded text-xs">
+                            class="bg-blue-600 hover:bg-blue-700 px-2 py-1 rounded text-xs ml-2 flex-none">
                         Restore
                     </button>
                 </div>
             `).join('');
-            document.getElementById('checkpoints').innerHTML = html || '<div class="text-gray-400">No checkpoints yet</div>';
+            document.getElementById('checkpoints').innerHTML = html || '<div class="text-gray-400 text-xs">No checkpoints yet</div>';
         }
 
         async function loadExperiments() {
             const data = await api('/experiments');
             const html = data.experiments.map(exp => `
-                <div class="flex justify-between items-center bg-gray-700 p-3 rounded ${exp.is_active ? 'border-2 border-blue-500' : ''}">
-                    <div>
-                        <span class="font-bold">${exp.name}</span>
-                        ${exp.is_active ? '<span class="text-blue-400 ml-2">● Active</span>' : ''}
-                        ${exp.description ? `<div class="text-sm text-gray-400 mt-1">${exp.description}</div>` : ''}
+                <div class="bg-gray-700 p-2 rounded ${exp.is_active ? 'border-2 border-blue-500' : ''}">
+                    <div class="mb-2">
+                        <span class="font-bold text-xs">${exp.name}</span>
+                        ${exp.is_active ? '<span class="text-blue-400 ml-2 text-xs">● Active</span>' : ''}
+                        ${exp.description ? `<div class="text-xs text-gray-400 mt-1 truncate">${exp.description}</div>` : ''}
                     </div>
-                    <div class="flex gap-2">
-                        ${!exp.is_active ? `<button onclick="switchExperiment('${exp.name}')" class="bg-blue-600 hover:bg-blue-700 px-3 py-1 rounded text-xs">Switch</button>` : ''}
-                        <button onclick="keepExperiment('${exp.name}')" class="bg-green-600 hover:bg-green-700 px-3 py-1 rounded text-xs">Keep</button>
-                        <button onclick="discardExperiment('${exp.name}')" class="bg-red-600 hover:bg-red-700 px-3 py-1 rounded text-xs">Discard</button>
+                    <div class="flex gap-1">
+                        ${!exp.is_active ? `<button onclick="switchExperiment('${exp.name}')" class="bg-blue-600 hover:bg-blue-700 px-2 py-1 rounded text-xs flex-1">Switch</button>` : ''}
+                        <button onclick="keepExperiment('${exp.name}')" class="bg-green-600 hover:bg-green-700 px-2 py-1 rounded text-xs flex-1">Keep</button>
+                        <button onclick="discardExperiment('${exp.name}')" class="bg-red-600 hover:bg-red-700 px-2 py-1 rounded text-xs flex-1">Discard</button>
                     </div>
                 </div>
             `).join('');
-            document.getElementById('experiments').innerHTML = html || '<div class="text-gray-400">No experiments yet</div>';
+            document.getElementById('experiments').innerHTML = html || '<div class="text-gray-400 text-xs">No experiments yet</div>';
         }
 
-        let currentBranchView = 'list';
-        let branchesData = null;
+        let commitTreeData = null;
 
-        async function loadBranches() {
-            const data = await api('/branches');
-            branchesData = data;
-
-            // Update list view
-            const html = data.branches.map(branch => `
-                <div class="flex justify-between items-center bg-gray-700 p-4 rounded ${branch.is_current ? 'border-2 border-green-500' : ''}">
-                    <div class="flex-1">
-                        <div class="flex items-center gap-3">
-                            <span class="text-lg font-bold ${branch.is_current ? 'text-green-400' : 'text-blue-400'}">${branch.name}</span>
-                            ${branch.is_current ? '<span class="text-green-400 text-sm">● Current</span>' : ''}
-                        </div>
-                        <div class="text-sm text-gray-400 mt-1">
-                            <span class="font-mono">${branch.sha}</span>
-                            <span class="mx-2">•</span>
-                            <span>${branch.age}</span>
-                        </div>
-                        <div class="text-sm mt-1">${branch.message}</div>
-                    </div>
-                    ${!branch.is_current ? `<button onclick="switchBranch('${branch.name}')" class="bg-blue-600 hover:bg-blue-700 px-3 py-1 rounded text-sm ml-4">Switch</button>` : ''}
-                </div>
-            `).join('');
-            document.getElementById('branchListView').innerHTML = html || '<div class="text-gray-400">No branches</div>';
-
-            // Update graph view if that's the current view
-            if (currentBranchView === 'graph') {
-                drawBranchGraph(data);
-            }
+        async function loadCommitTree() {
+            const data = await api('/commit-tree');
+            commitTreeData = data;
+            drawCommitTree(data);
         }
 
-        function showBranchView(view) {
-            currentBranchView = view;
-            const listView = document.getElementById('branchListView');
-            const graphView = document.getElementById('branchGraphView');
-            const btnList = document.getElementById('btnListView');
-            const btnGraph = document.getElementById('btnGraphView');
-
-            if (view === 'list') {
-                listView.classList.remove('hidden');
-                graphView.classList.add('hidden');
-                btnList.classList.add('bg-blue-600');
-                btnList.classList.remove('bg-gray-700');
-                btnGraph.classList.remove('bg-blue-600');
-                btnGraph.classList.add('bg-gray-700');
-            } else {
-                listView.classList.add('hidden');
-                graphView.classList.remove('hidden');
-                btnGraph.classList.add('bg-blue-600');
-                btnGraph.classList.remove('bg-gray-700');
-                btnList.classList.remove('bg-blue-600');
-                btnList.classList.add('bg-gray-700');
-                if (branchesData) {
-                    drawBranchGraph(branchesData);
-                }
-            }
-        }
-
-        function drawBranchGraph(data) {
-            const canvas = document.getElementById('branchGraphView');
+        function drawCommitTree(data) {
+            const canvas = document.getElementById('commitTree');
             const ctx = canvas.getContext('2d');
 
+            // Set canvas size to match displayed size
+            const rect = canvas.getBoundingClientRect();
+            canvas.width = rect.width;
+
             // Clear canvas
-            ctx.fillStyle = '#1f2937';
+            ctx.fillStyle = '#111827';
             ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-            if (!data.branches || data.branches.length === 0) {
+            if (!data.commits || data.commits.length === 0) {
                 ctx.fillStyle = '#9ca3af';
                 ctx.font = '14px monospace';
-                ctx.fillText('No branches', 20, 30);
+                ctx.fillText('No commits yet', 20, 30);
                 return;
             }
 
-            const branches = data.branches;
-            const nodeRadius = 8;
-            const horizontalSpacing = 150;
-            const verticalSpacing = 80;
-            const startX = 100;
-            const startY = 50;
+            const commits = data.commits;
+            const nodeRadius = 10;
+            const verticalSpacing = 60;
+            const startX = 60;
+            const startY = 30;
+            const branchColors = ['#60a5fa', '#34d399', '#fbbf24', '#f472b6', '#a78bfa'];
 
-            // Draw lines first (so they appear behind nodes)
-            ctx.strokeStyle = '#4b5563';
-            ctx.lineWidth = 2;
-
-            // Simple layout: arrange branches vertically
-            branches.forEach((branch, i) => {
-                const y = startY + i * verticalSpacing;
-
-                // Draw line to parent (simplified - just draw to previous for now)
-                if (i > 0) {
-                    ctx.beginPath();
-                    ctx.moveTo(startX, startY + (i-1) * verticalSpacing);
-                    ctx.lineTo(startX, y);
-                    ctx.stroke();
-                }
+            // Simple vertical layout for now (topological sort would be better)
+            // Build a map of commits for parent lookup
+            const commitMap = {};
+            commits.forEach((commit, i) => {
+                commitMap[commit.sha] = i;
             });
 
-            // Draw nodes and labels
-            branches.forEach((branch, i) => {
-                const x = startX;
-                const y = startY + i * verticalSpacing;
+            // Calculate column for each commit (simple algorithm)
+            const commitPositions = commits.map((commit, i) => {
+                let column = 0;
+                // If commit has parents, try to place it near parent
+                if (commit.parents.length > 0) {
+                    const parentIdx = commitMap[commit.parents[0]];
+                    if (parentIdx !== undefined && parentIdx < i) {
+                        column = commits[parentIdx].column || 0;
+                    }
+                }
+                commit.column = column;
+                return {
+                    x: startX + column * 40,
+                    y: startY + i * verticalSpacing,
+                    commit: commit
+                };
+            });
+
+            // Draw connecting lines first
+            ctx.lineWidth = 2;
+            commitPositions.forEach((pos, i) => {
+                const commit = pos.commit;
+                commit.parents.forEach(parentSha => {
+                    const parentIdx = commitMap[parentSha];
+                    if (parentIdx !== undefined) {
+                        const parentPos = commitPositions[parentIdx];
+                        ctx.strokeStyle = '#4b5563';
+                        ctx.beginPath();
+                        ctx.moveTo(pos.x, pos.y);
+                        ctx.lineTo(parentPos.x, parentPos.y);
+                        ctx.stroke();
+                    }
+                });
+            });
+
+            // Draw commit nodes
+            canvas.clickAreas = [];
+            commitPositions.forEach((pos, i) => {
+                const commit = pos.commit;
+                const x = pos.x;
+                const y = pos.y;
 
                 // Draw node circle
                 ctx.beginPath();
                 ctx.arc(x, y, nodeRadius, 0, 2 * Math.PI);
-                ctx.fillStyle = branch.is_current ? '#34d399' : '#60a5fa';
+                ctx.fillStyle = commit.is_head ? '#fbbf24' : branchColors[commit.column % branchColors.length];
                 ctx.fill();
-                ctx.strokeStyle = branch.is_current ? '#10b981' : '#3b82f6';
+                ctx.strokeStyle = commit.is_head ? '#f59e0b' : '#374151';
                 ctx.lineWidth = 2;
                 ctx.stroke();
 
-                // Draw branch name
-                ctx.fillStyle = '#f3f4f6';
-                ctx.font = 'bold 14px monospace';
-                ctx.fillText(branch.name, x + 20, y + 5);
-
-                // Draw commit info
-                ctx.fillStyle = '#9ca3af';
-                ctx.font = '12px monospace';
-                ctx.fillText(`${branch.sha} • ${branch.age}`, x + 20, y + 22);
-
-                // Draw current indicator
-                if (branch.is_current) {
-                    ctx.fillStyle = '#34d399';
-                    ctx.font = '12px sans-serif';
-                    ctx.fillText('● Current', x + 20, y - 10);
+                // Draw monkey emoji at HEAD
+                if (commit.is_head) {
+                    ctx.font = '20px sans-serif';
+                    ctx.fillText('🐵', x - 10, y - 15);
                 }
 
-                // Make it clickable (store click areas)
-                if (!canvas.clickAreas) canvas.clickAreas = [];
-                canvas.clickAreas[i] = {
+                // Draw commit message (truncated)
+                ctx.fillStyle = '#f3f4f6';
+                ctx.font = 'bold 11px monospace';
+                const maxLen = 40;
+                const message = commit.message.length > maxLen ? commit.message.substring(0, maxLen) + '...' : commit.message;
+                ctx.fillText(message, x + 20, y);
+
+                // Draw SHA and age
+                ctx.fillStyle = '#9ca3af';
+                ctx.font = '10px monospace';
+                ctx.fillText(`${commit.sha} • ${commit.age}`, x + 20, y + 12);
+
+                // Draw branch labels
+                if (commit.branches.length > 0) {
+                    commit.branches.forEach((branch, idx) => {
+                        const branchY = y + 25 + idx * 12;
+                        ctx.fillStyle = '#3b82f6';
+                        ctx.fillRect(x + 20, branchY - 10, ctx.measureText(branch).width + 6, 12);
+                        ctx.fillStyle = '#ffffff';
+                        ctx.font = 'bold 9px sans-serif';
+                        ctx.fillText(branch, x + 23, branchY);
+                    });
+                }
+
+                // Store click area
+                canvas.clickAreas.push({
                     x: x - nodeRadius,
                     y: y - nodeRadius,
                     width: nodeRadius * 2,
                     height: nodeRadius * 2,
-                    branch: branch
-                };
+                    commit: commit
+                });
             });
         }
 
-        // Add click handler for graph view
+        // Add click handler for commit tree
         document.addEventListener('DOMContentLoaded', () => {
-            const canvas = document.getElementById('branchGraphView');
+            const canvas = document.getElementById('commitTree');
+
             canvas.addEventListener('click', (e) => {
-                if (currentBranchView !== 'graph' || !canvas.clickAreas) return;
+                if (!canvas.clickAreas) return;
 
                 const rect = canvas.getBoundingClientRect();
                 const x = e.clientX - rect.left;
@@ -602,8 +582,16 @@ HTML_PAGE = """
                 canvas.clickAreas.forEach(area => {
                     if (x >= area.x && x <= area.x + area.width &&
                         y >= area.y && y <= area.y + area.height) {
-                        if (!area.branch.is_current) {
-                            switchBranch(area.branch.name);
+                        const commit = area.commit;
+
+                        // If commit has branches, switch to the first branch
+                        if (commit.branches.length > 0) {
+                            switchBranch(commit.branches[0]);
+                        } else if (!commit.is_head) {
+                            // Otherwise checkout the commit SHA directly
+                            if (confirm(`Checkout commit ${commit.sha}?\n\n${commit.message}\n\nThis will put you in detached HEAD state.`)) {
+                                checkoutCommit(commit.sha);
+                            }
                         }
                     }
                 });
@@ -611,7 +599,7 @@ HTML_PAGE = """
 
             // Show cursor pointer on hover
             canvas.addEventListener('mousemove', (e) => {
-                if (currentBranchView !== 'graph' || !canvas.clickAreas) return;
+                if (!canvas.clickAreas) return;
 
                 const rect = canvas.getBoundingClientRect();
                 const x = e.clientX - rect.left;
@@ -627,24 +615,21 @@ HTML_PAGE = """
 
                 canvas.style.cursor = isOverNode ? 'pointer' : 'default';
             });
-
-            // Initialize with list view
-            showBranchView('list');
         });
 
         async function loadHistory() {
             const data = await api('/history');
             const html = data.entries.slice(0, 10).map(entry => `
-                <div class="bg-gray-700 p-3 rounded">
-                    <div class="flex items-center gap-3">
+                <div class="bg-gray-700 p-2 rounded">
+                    <div class="flex items-center gap-2 text-xs">
                         <span class="text-cyan-400 font-mono">${entry.short_sha}</span>
-                        <span class="text-gray-400 text-sm">${entry.age}</span>
-                        <span class="text-yellow-400 text-sm">${entry.author}</span>
+                        <span class="text-gray-400">${entry.age}</span>
+                        <span class="text-yellow-400 truncate">${entry.author}</span>
                     </div>
-                    <div class="text-sm mt-1">${entry.message.split('\\n')[0]}</div>
+                    <div class="text-xs mt-1 truncate">${entry.message.split('\\n')[0]}</div>
                 </div>
             `).join('');
-            document.getElementById('history').innerHTML = html || '<div class="text-gray-400">No history yet</div>';
+            document.getElementById('history').innerHTML = html || '<div class="text-gray-400 text-xs">No history yet</div>';
         }
 
         async function switchBranch(name) {
@@ -653,6 +638,11 @@ HTML_PAGE = """
                 await api('/branch/switch', 'POST', { name });
                 loadAll();
             }
+        }
+
+        async function checkoutCommit(sha) {
+            await api('/branch/switch', 'POST', { name: sha });
+            loadAll();
         }
 
         async function save() {
@@ -713,8 +703,8 @@ HTML_PAGE = """
 
         function loadAll() {
             loadRepoInfo();
+            loadCommitTree();
             loadStatus();
-            loadBranches();
             loadCheckpoints();
             loadExperiments();
             loadHistory();
@@ -812,6 +802,68 @@ def get_branches():
                 })
 
         return {"success": True, "branches": branches, "current": current}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/commit-tree")
+def get_commit_tree():
+    """Get commit tree with parent relationships for visualization."""
+    import subprocess
+    try:
+        # Get current HEAD
+        current_sha = subprocess.check_output(
+            ["git", "rev-parse", "HEAD"],
+            cwd=REPO_PATH,
+            text=True
+        ).strip()[:7]
+
+        # Get all branches with their SHAs
+        branch_output = subprocess.check_output(
+            ["git", "branch", "-a", "--format=%(refname:short)|%(objectname:short)"],
+            cwd=REPO_PATH,
+            text=True
+        ).strip()
+
+        # Map SHA to branch names
+        sha_to_branches = {}
+        for line in branch_output.split('\n'):
+            if not line:
+                continue
+            parts = line.split('|')
+            if len(parts) >= 2:
+                branch_name, sha = parts
+                if sha not in sha_to_branches:
+                    sha_to_branches[sha] = []
+                sha_to_branches[sha].append(branch_name)
+
+        # Get commit log with parents (limit to last 50 commits for performance)
+        log_output = subprocess.check_output(
+            ["git", "log", "--all", "--format=%H|%h|%p|%s|%an|%ar", "-50"],
+            cwd=REPO_PATH,
+            text=True
+        ).strip()
+
+        commits = []
+        for line in log_output.split('\n'):
+            if not line:
+                continue
+            parts = line.split('|', 5)
+            if len(parts) >= 6:
+                full_sha, short_sha, parents, subject, author, age = parts
+                parent_list = [p[:7] for p in parents.split()] if parents else []
+
+                commits.append({
+                    "sha": short_sha,
+                    "message": subject,
+                    "author": author,
+                    "age": age,
+                    "parents": parent_list,
+                    "branches": sha_to_branches.get(short_sha, []),
+                    "is_head": short_sha == current_sha
+                })
+
+        return {"success": True, "commits": commits, "current_sha": current_sha}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -1018,7 +1070,7 @@ def search_repo_paths(request: PathSearchRequest):
         return {"success": True, "suggestions": []}
 
 
-def run_server(repo_path: Optional[Path] = None, port: int = 8080, open_browser: bool = True):
+def run_server(repo_path: Optional[Path] = None, port: int = 8081, open_browser: bool = True):
     """Run the FastAPI server."""
     global REPO_PATH
     REPO_PATH = repo_path
