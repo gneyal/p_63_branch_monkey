@@ -11,6 +11,7 @@ from textual.binding import Binding
 from ..core.checkpoint import CheckpointManager
 from ..core.experiment import ExperimentManager
 from ..core.history import HistoryNavigator
+from .screens.graph import GraphScreen
 from .screens.timeline import TimelineScreen
 from .screens.checkpoints import CheckpointsScreen
 from .screens.experiments import ExperimentsScreen
@@ -78,6 +79,46 @@ class BranchMonkeyApp(App):
         background: $primary 20%;
         color: $text;
     }
+
+    /* Graph view styling */
+    CommitLine {
+        padding: 0 1;
+    }
+
+    CommitLine.selected {
+        background: $accent 40%;
+        color: $text;
+        text-style: bold;
+    }
+
+    .connector {
+        color: $text-muted;
+    }
+
+    GraphView {
+        height: 100%;
+        border: solid $primary;
+    }
+
+    /* Confirm dialog */
+    #confirm_dialog {
+        width: 60;
+        height: auto;
+        background: $surface;
+        border: thick $warning;
+        padding: 2;
+    }
+
+    .confirm_message {
+        text-align: center;
+        padding: 1;
+    }
+
+    .button_row {
+        align: center middle;
+        padding: 1;
+        height: auto;
+    }
     """
 
     TITLE = "Branch Monkey"
@@ -86,9 +127,10 @@ class BranchMonkeyApp(App):
     BINDINGS = [
         Binding("q", "quit", "Quit"),
         Binding("?", "help", "Help"),
-        Binding("1", "switch_tab('timeline')", "Timeline", show=False),
-        Binding("2", "switch_tab('checkpoints')", "Checkpoints", show=False),
-        Binding("3", "switch_tab('experiments')", "Experiments", show=False),
+        Binding("1", "switch_tab('graph')", "Graph", show=False),
+        Binding("2", "switch_tab('timeline')", "Timeline", show=False),
+        Binding("3", "switch_tab('checkpoints')", "Checkpoints", show=False),
+        Binding("4", "switch_tab('experiments')", "Experiments", show=False),
         Binding("r", "refresh", "Refresh"),
     ]
 
@@ -126,7 +168,11 @@ class BranchMonkeyApp(App):
             )
         else:
             yield TabbedContent(
-                TabPane("Welcome", Welcome(), id="welcome"),
+                TabPane(
+                    "Graph",
+                    GraphScreen(self.repo_path),
+                    id="graph",
+                ),
                 TabPane(
                     "Timeline",
                     TimelineScreen(self.history_nav),
