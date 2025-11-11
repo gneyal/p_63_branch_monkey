@@ -107,6 +107,44 @@ HTML_PAGE = """
         .text-secondary-themed {
             color: var(--text-secondary);
         }
+
+        #contextMenu {
+            position: fixed;
+            background-color: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            border-radius: 0.375rem;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3);
+            z-index: 1000;
+            min-width: 180px;
+            display: none;
+        }
+
+        .context-menu-item {
+            padding: 0.5rem 0.75rem;
+            cursor: pointer;
+            color: var(--text-primary);
+            font-size: 0.875rem;
+            border-bottom: 1px solid var(--border-color);
+            transition: background-color 0.15s;
+        }
+
+        .context-menu-item:last-child {
+            border-bottom: none;
+        }
+
+        .context-menu-item:hover {
+            background-color: var(--bg-tertiary);
+        }
+
+        .context-menu-item:first-child {
+            border-top-left-radius: 0.375rem;
+            border-top-right-radius: 0.375rem;
+        }
+
+        .context-menu-item:last-child {
+            border-bottom-left-radius: 0.375rem;
+            border-bottom-right-radius: 0.375rem;
+        }
     </style>
 </head>
 <body class="transition-colors duration-200">
@@ -171,12 +209,6 @@ HTML_PAGE = """
             </div>
         </div>
 
-        <!-- Checkpoints -->
-        <div class="bg-gray-800 rounded-lg p-3 mb-3">
-            <h2 class="text-lg font-bold mb-2">Checkpoints</h2>
-            <div id="checkpoints" class="space-y-1"></div>
-        </div>
-
         <!-- Experiments -->
         <div class="bg-gray-800 rounded-lg p-3 mb-3">
             <h2 class="text-lg font-bold mb-2">Experiments</h2>
@@ -191,12 +223,14 @@ HTML_PAGE = """
             </div>
             <div id="experiments" class="space-y-1"></div>
         </div>
+    </div>
 
-        <!-- History -->
-        <div class="bg-gray-800 rounded-lg p-3">
-            <h2 class="text-lg font-bold mb-2">History</h2>
-            <div id="history" class="space-y-1"></div>
-        </div>
+    <!-- Context Menu -->
+    <div id="contextMenu">
+        <div class="context-menu-item" onclick="showCommitDetails()">📄 Show Details</div>
+        <div class="context-menu-item" onclick="jumpToCommit()">🔄 Jump to Commit</div>
+        <div class="context-menu-item" onclick="createBranchFromCommit()">🌿 Create Branch</div>
+        <div class="context-menu-item" onclick="copySHA()">📋 Copy SHA</div>
     </div>
 
     <script>
@@ -246,6 +280,9 @@ HTML_PAGE = """
                 throw error;
             }
         }
+
+        // Global variable to store selected commit for context menu
+        let selectedCommit = null;
 
         // Favorites management
         function getFavorites() {
@@ -467,33 +504,16 @@ HTML_PAGE = """
             const branchData = await api('/branches');
             const currentBranch = branchData.current;
 
-            document.getElementById('status').innerHTML = `
-                <div class="space-y-1 text-xs">
-                    <div>🐵 Current: <span class="text-green-400 font-bold">${currentBranch}</span></div>
-                    <div>Changes: <span class="${data.has_changes ? 'text-yellow-400' : 'text-green-400'}">${data.has_changes ? 'Yes' : 'No'}</span></div>
-                    ${data.current_experiment ? `<div>Experiment: <span class="text-blue-400">${data.current_experiment.name}</span></div>` : ''}
-                </div>
-            `;
-        }
-
-        async function loadCheckpoints() {
-            const data = await api('/checkpoints');
-            const html = data.checkpoints.map(cp => `
-                <div class="flex justify-between items-start bg-gray-700 p-2 rounded">
-                    <div class="flex-1 min-w-0">
-                        <div>
-                            <span class="text-cyan-400 font-mono text-xs">${cp.short_id}</span>
-                            <span class="text-gray-400 text-xs ml-2">${cp.age}</span>
-                        </div>
-                        <div class="text-xs mt-1 truncate">${cp.message}</div>
+            const statusElement = document.getElementById('status');
+            if (statusElement) {
+                statusElement.innerHTML = `
+                    <div class="space-y-1 text-xs">
+                        <div>🐵 Current: <span class="text-green-400 font-bold">${currentBranch}</span></div>
+                        <div>Changes: <span class="${data.has_changes ? 'text-yellow-400' : 'text-green-400'}">${data.has_changes ? 'Yes' : 'No'}</span></div>
+                        ${data.current_experiment ? `<div>Experiment: <span class="text-blue-400">${data.current_experiment.name}</span></div>` : ''}
                     </div>
-                    <button onclick="restore('${cp.short_id}')"
-                            class="bg-blue-600 hover:bg-blue-700 px-2 py-1 rounded text-xs ml-2 flex-none">
-                        Restore
-                    </button>
-                </div>
-            `).join('');
-            document.getElementById('checkpoints').innerHTML = html || '<div class="text-gray-400 text-xs">No checkpoints yet</div>';
+                `;
+            }
         }
 
         async function loadExperiments() {
@@ -736,50 +756,66 @@ HTML_PAGE = """
             // Enable mouse wheel zooming
             container.addEventListener('wheel', panzoomInstance.zoomWithWheel);
 
-            // Add click handler for navigation (with transform-aware coordinate calculation)
+            // Store selected commit for context menu
+            let selectedCommit = null;
+
+            // Add click handler to show context menu
             canvas.addEventListener('click', (e) => {
-                if (!canvas.clickAreas) return;
+                console.log('Canvas clicked!');
+                if (!canvas.clickAreas) {
+                    console.log('No clickAreas defined');
+                    return;
+                }
 
-                // Get the transform matrix
-                const transform = panzoomInstance.getTransform();
-                const scale = panzoomInstance.getScale();
+                console.log('clickAreas:', canvas.clickAreas.length);
 
-                // Calculate canvas coordinates
+                // Calculate canvas coordinates (accounting for panzoom transform)
                 const rect = canvas.getBoundingClientRect();
                 const screenX = e.clientX - rect.left;
                 const screenY = e.clientY - rect.top;
-                const canvasX = (screenX - transform.x) / scale;
-                const canvasY = (screenY - transform.y) / scale;
 
-                canvas.clickAreas.forEach(area => {
+                // Convert screen coordinates to canvas pixel coordinates
+                // The rect is already transformed by panzoom, so we scale by the ratio
+                const canvasX = (screenX / rect.width) * canvas.width;
+                const canvasY = (screenY / rect.height) * canvas.height;
+
+                console.log('Click coords - screenX:', screenX, 'screenY:', screenY);
+                console.log('Canvas coords - canvasX:', canvasX, 'canvasY:', canvasY);
+
+                let foundCommit = false;
+                canvas.clickAreas.forEach((area, idx) => {
+                    console.log(`Area ${idx}:`, area.x, area.y, area.width, area.height);
                     if (canvasX >= area.x && canvasX <= area.x + area.width &&
                         canvasY >= area.y && canvasY <= area.y + area.height) {
-                        const commit = area.commit;
+                        console.log('Found commit!', area.commit);
+                        foundCommit = true;
+                        selectedCommit = area.commit;
 
-                        // If commit has branches, switch to the first branch
-                        if (commit.branches.length > 0) {
-                            switchBranch(commit.branches[0]);
-                        } else if (!commit.is_head) {
-                            // Otherwise checkout the commit SHA directly
-                            if (confirm(`Checkout commit ${commit.sha}?\n\n${commit.message}\n\nThis will put you in detached HEAD state.`)) {
-                                checkoutCommit(commit.sha);
-                            }
-                        }
+                        // Show context menu at click position
+                        const menu = document.getElementById('contextMenu');
+                        menu.style.display = 'block';
+                        menu.style.left = e.clientX + 'px';
+                        menu.style.top = e.clientY + 'px';
+                        console.log('Menu displayed at', e.clientX, e.clientY);
                     }
                 });
+
+                // Hide menu if clicked outside a commit
+                if (!foundCommit) {
+                    console.log('No commit found, hiding menu');
+                    document.getElementById('contextMenu').style.display = 'none';
+                }
             });
 
             // Show pointer cursor over nodes
             canvas.addEventListener('mousemove', (e) => {
                 if (!canvas.clickAreas) return;
 
-                const transform = panzoomInstance.getTransform();
-                const scale = panzoomInstance.getScale();
                 const rect = canvas.getBoundingClientRect();
                 const screenX = e.clientX - rect.left;
                 const screenY = e.clientY - rect.top;
-                const canvasX = (screenX - transform.x) / scale;
-                const canvasY = (screenY - transform.y) / scale;
+                const canvasX = (screenX / rect.width) * canvas.width;
+                const canvasY = (screenY / rect.height) * canvas.height;
 
                 let isOverNode = false;
                 canvas.clickAreas.forEach(area => {
@@ -793,21 +829,6 @@ HTML_PAGE = """
             });
         });
 
-        async function loadHistory() {
-            const data = await api('/history');
-            const html = data.entries.slice(0, 10).map(entry => `
-                <div class="bg-gray-700 p-2 rounded">
-                    <div class="flex items-center gap-2 text-xs">
-                        <span class="text-cyan-400 font-mono">${entry.short_sha}</span>
-                        <span class="text-gray-400">${entry.age}</span>
-                        <span class="text-yellow-400 truncate">${entry.author}</span>
-                    </div>
-                    <div class="text-xs mt-1 truncate">${entry.message.split('\\n')[0]}</div>
-                </div>
-            `).join('');
-            document.getElementById('history').innerHTML = html || '<div class="text-gray-400 text-xs">No history yet</div>';
-        }
-
         async function switchBranch(name) {
             if (confirm(`Switch to branch "${name}"?`)) {
                 // Simple git checkout via API
@@ -819,6 +840,68 @@ HTML_PAGE = """
         async function checkoutCommit(sha) {
             await api('/branch/switch', 'POST', { name: sha });
             loadAll();
+        }
+
+        // Context menu functions
+        function showCommitDetails() {
+            console.log('showCommitDetails called!');
+            console.log('selectedCommit:', selectedCommit);
+            if (!selectedCommit) {
+                console.log('No selected commit, returning');
+                return;
+            }
+            const commit = selectedCommit;
+            console.log('Commit object:', commit);
+            console.log('Commit properties:', {
+                sha: commit.sha,
+                message: commit.message,
+                author: commit.author,
+                date: commit.date,
+                branches: commit.branches
+            });
+            alert(`Commit Details\n\n` +
+                  `SHA: ${commit.sha}\n` +
+                  `Message: ${commit.message}\n` +
+                  `Author: ${commit.author}\n` +
+                  `Date: ${commit.date}\n` +
+                  `Branches: ${commit.branches.join(', ') || 'none'}`);
+            document.getElementById('contextMenu').style.display = 'none';
+        }
+
+        function jumpToCommit() {
+            if (!selectedCommit) return;
+            const commit = selectedCommit;
+
+            // If commit has branches, switch to the first branch
+            if (commit.branches.length > 0) {
+                switchBranch(commit.branches[0]);
+            } else if (!commit.is_head) {
+                // Otherwise checkout the commit SHA directly
+                if (confirm(`Checkout commit ${commit.sha}?\n\n${commit.message}\n\nThis will put you in detached HEAD state.`)) {
+                    checkoutCommit(commit.sha);
+                }
+            }
+            document.getElementById('contextMenu').style.display = 'none';
+        }
+
+        function createBranchFromCommit() {
+            if (!selectedCommit) return;
+            const branchName = prompt(`Create new branch from commit ${selectedCommit.sha.substring(0, 7)}?\n\nEnter branch name:`);
+            if (branchName) {
+                // TODO: Implement branch creation API
+                alert(`Branch creation not yet implemented.\nWould create branch "${branchName}" from commit ${selectedCommit.sha}`);
+            }
+            document.getElementById('contextMenu').style.display = 'none';
+        }
+
+        function copySHA() {
+            if (!selectedCommit) return;
+            navigator.clipboard.writeText(selectedCommit.sha).then(() => {
+                alert(`Copied to clipboard:\n${selectedCommit.sha}`);
+            }).catch(err => {
+                alert(`Failed to copy: ${err}`);
+            });
+            document.getElementById('contextMenu').style.display = 'none';
         }
 
         async function save() {
@@ -881,10 +964,16 @@ HTML_PAGE = """
             loadRepoInfo();
             loadCommitTree();
             loadStatus();
-            loadCheckpoints();
             loadExperiments();
-            loadHistory();
         }
+
+        // Hide context menu on click outside
+        document.addEventListener('click', (e) => {
+            const menu = document.getElementById('contextMenu');
+            if (!menu.contains(e.target) && !e.target.closest('canvas')) {
+                menu.style.display = 'none';
+            }
+        });
 
         // Load on startup
         loadAll();
