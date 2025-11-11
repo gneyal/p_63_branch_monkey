@@ -95,8 +95,19 @@ HTML_PAGE = """
 
         <!-- Branches -->
         <div class="bg-gray-800 rounded-lg p-6 mb-6">
-            <h2 class="text-2xl font-bold mb-4">Branches</h2>
-            <div id="branches" class="space-y-2"></div>
+            <div class="flex justify-between items-center mb-4">
+                <h2 class="text-2xl font-bold">Branches</h2>
+                <div class="flex gap-2">
+                    <button onclick="showBranchView('list')" id="btnListView" class="px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded">
+                        List View
+                    </button>
+                    <button onclick="showBranchView('graph')" id="btnGraphView" class="px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded">
+                        Graph View
+                    </button>
+                </div>
+            </div>
+            <div id="branchListView" class="space-y-2"></div>
+            <canvas id="branchGraphView" class="hidden w-full" height="400"></canvas>
         </div>
 
         <!-- Actions -->
@@ -328,8 +339,14 @@ HTML_PAGE = """
             document.getElementById('experiments').innerHTML = html || '<div class="text-gray-400">No experiments yet</div>';
         }
 
+        let currentBranchView = 'list';
+        let branchesData = null;
+
         async function loadBranches() {
             const data = await api('/branches');
+            branchesData = data;
+
+            // Update list view
             const html = data.branches.map(branch => `
                 <div class="flex justify-between items-center bg-gray-700 p-4 rounded ${branch.is_current ? 'border-2 border-green-500' : ''}">
                     <div class="flex-1">
@@ -347,8 +364,165 @@ HTML_PAGE = """
                     ${!branch.is_current ? `<button onclick="switchBranch('${branch.name}')" class="bg-blue-600 hover:bg-blue-700 px-4 py-2 rounded ml-4">Switch</button>` : ''}
                 </div>
             `).join('');
-            document.getElementById('branches').innerHTML = html || '<div class="text-gray-400">No branches</div>';
+            document.getElementById('branchListView').innerHTML = html || '<div class="text-gray-400">No branches</div>';
+
+            // Update graph view if that's the current view
+            if (currentBranchView === 'graph') {
+                drawBranchGraph(data);
+            }
         }
+
+        function showBranchView(view) {
+            currentBranchView = view;
+            const listView = document.getElementById('branchListView');
+            const graphView = document.getElementById('branchGraphView');
+            const btnList = document.getElementById('btnListView');
+            const btnGraph = document.getElementById('btnGraphView');
+
+            if (view === 'list') {
+                listView.classList.remove('hidden');
+                graphView.classList.add('hidden');
+                btnList.classList.add('bg-blue-600');
+                btnList.classList.remove('bg-gray-700');
+                btnGraph.classList.remove('bg-blue-600');
+                btnGraph.classList.add('bg-gray-700');
+            } else {
+                listView.classList.add('hidden');
+                graphView.classList.remove('hidden');
+                btnGraph.classList.add('bg-blue-600');
+                btnGraph.classList.remove('bg-gray-700');
+                btnList.classList.remove('bg-blue-600');
+                btnList.classList.add('bg-gray-700');
+                if (branchesData) {
+                    drawBranchGraph(branchesData);
+                }
+            }
+        }
+
+        function drawBranchGraph(data) {
+            const canvas = document.getElementById('branchGraphView');
+            const ctx = canvas.getContext('2d');
+
+            // Clear canvas
+            ctx.fillStyle = '#1f2937';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            if (!data.branches || data.branches.length === 0) {
+                ctx.fillStyle = '#9ca3af';
+                ctx.font = '14px monospace';
+                ctx.fillText('No branches', 20, 30);
+                return;
+            }
+
+            const branches = data.branches;
+            const nodeRadius = 8;
+            const horizontalSpacing = 150;
+            const verticalSpacing = 80;
+            const startX = 100;
+            const startY = 50;
+
+            // Draw lines first (so they appear behind nodes)
+            ctx.strokeStyle = '#4b5563';
+            ctx.lineWidth = 2;
+
+            // Simple layout: arrange branches vertically
+            branches.forEach((branch, i) => {
+                const y = startY + i * verticalSpacing;
+
+                // Draw line to parent (simplified - just draw to previous for now)
+                if (i > 0) {
+                    ctx.beginPath();
+                    ctx.moveTo(startX, startY + (i-1) * verticalSpacing);
+                    ctx.lineTo(startX, y);
+                    ctx.stroke();
+                }
+            });
+
+            // Draw nodes and labels
+            branches.forEach((branch, i) => {
+                const x = startX;
+                const y = startY + i * verticalSpacing;
+
+                // Draw node circle
+                ctx.beginPath();
+                ctx.arc(x, y, nodeRadius, 0, 2 * Math.PI);
+                ctx.fillStyle = branch.is_current ? '#34d399' : '#60a5fa';
+                ctx.fill();
+                ctx.strokeStyle = branch.is_current ? '#10b981' : '#3b82f6';
+                ctx.lineWidth = 2;
+                ctx.stroke();
+
+                // Draw branch name
+                ctx.fillStyle = '#f3f4f6';
+                ctx.font = 'bold 14px monospace';
+                ctx.fillText(branch.name, x + 20, y + 5);
+
+                // Draw commit info
+                ctx.fillStyle = '#9ca3af';
+                ctx.font = '12px monospace';
+                ctx.fillText(`${branch.sha} • ${branch.age}`, x + 20, y + 22);
+
+                // Draw current indicator
+                if (branch.is_current) {
+                    ctx.fillStyle = '#34d399';
+                    ctx.font = '12px sans-serif';
+                    ctx.fillText('● Current', x + 20, y - 10);
+                }
+
+                // Make it clickable (store click areas)
+                if (!canvas.clickAreas) canvas.clickAreas = [];
+                canvas.clickAreas[i] = {
+                    x: x - nodeRadius,
+                    y: y - nodeRadius,
+                    width: nodeRadius * 2,
+                    height: nodeRadius * 2,
+                    branch: branch
+                };
+            });
+        }
+
+        // Add click handler for graph view
+        document.addEventListener('DOMContentLoaded', () => {
+            const canvas = document.getElementById('branchGraphView');
+            canvas.addEventListener('click', (e) => {
+                if (currentBranchView !== 'graph' || !canvas.clickAreas) return;
+
+                const rect = canvas.getBoundingClientRect();
+                const x = e.clientX - rect.left;
+                const y = e.clientY - rect.top;
+
+                canvas.clickAreas.forEach(area => {
+                    if (x >= area.x && x <= area.x + area.width &&
+                        y >= area.y && y <= area.y + area.height) {
+                        if (!area.branch.is_current) {
+                            switchBranch(area.branch.name);
+                        }
+                    }
+                });
+            });
+
+            // Show cursor pointer on hover
+            canvas.addEventListener('mousemove', (e) => {
+                if (currentBranchView !== 'graph' || !canvas.clickAreas) return;
+
+                const rect = canvas.getBoundingClientRect();
+                const x = e.clientX - rect.left;
+                const y = e.clientY - rect.top;
+
+                let isOverNode = false;
+                canvas.clickAreas.forEach(area => {
+                    if (x >= area.x && x <= area.x + area.width &&
+                        y >= area.y && y <= area.y + area.height) {
+                        isOverNode = true;
+                    }
+                });
+
+                canvas.style.cursor = isOverNode ? 'pointer' : 'default';
+            });
+
+            // Initialize with list view
+            showBranchView('list');
+        });
 
         async function loadHistory() {
             const data = await api('/history');
