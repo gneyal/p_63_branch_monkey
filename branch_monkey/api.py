@@ -1,12 +1,43 @@
 """Public API for Claude Code and programmatic usage."""
 
 from pathlib import Path
-from typing import List, Optional, Dict
-from dataclasses import asdict
+from typing import List, Optional, Dict, Any
+from dataclasses import asdict, fields
 
 from .core.checkpoint import CheckpointManager, Checkpoint
 from .core.experiment import ExperimentManager, Experiment
 from .core.history import HistoryNavigator, HistoryEntry
+
+
+def to_dict(obj: Any) -> Dict:
+    """
+    Convert dataclass to dict, including properties.
+
+    Args:
+        obj: Dataclass instance
+
+    Returns:
+        Dictionary with all fields and properties
+    """
+    # Start with basic fields
+    result = asdict(obj)
+
+    # Add properties
+    for attr_name in dir(obj):
+        # Skip private attributes and methods
+        if attr_name.startswith('_'):
+            continue
+
+        attr = getattr(type(obj), attr_name, None)
+
+        # Check if it's a property
+        if isinstance(attr, property):
+            try:
+                result[attr_name] = getattr(obj, attr_name)
+            except Exception:
+                pass  # Skip properties that raise errors
+
+    return result
 
 
 class BranchMonkey:
@@ -54,7 +85,7 @@ class BranchMonkey:
             >>> monkey.save("Before trying refactor")
         """
         checkpoint = self.checkpoints.create(message, include_untracked)
-        return asdict(checkpoint)
+        return to_dict(checkpoint)
 
     def quick_save(self, message: str = "Quick save") -> Dict:
         """
@@ -72,7 +103,7 @@ class BranchMonkey:
             >>> monkey.quick_save("Before pulling changes")
         """
         checkpoint = self.checkpoints.create_temporary(message)
-        return asdict(checkpoint)
+        return to_dict(checkpoint)
 
     def undo(self, keep_changes: bool = True) -> None:
         """
@@ -132,7 +163,7 @@ class BranchMonkey:
             ...     print(f"{save['short_id']}: {save['message']}")
         """
         checkpoints = self.checkpoints.list_checkpoints(limit)
-        return [asdict(cp) for cp in checkpoints]
+        return [to_dict(cp) for cp in checkpoints]
 
     def has_changes(self) -> bool:
         """
@@ -169,7 +200,7 @@ class BranchMonkey:
             >>> monkey.try_something("refactor", "Trying new architecture")
         """
         experiment = self.experiments.create(name, description, base)
-        return asdict(experiment)
+        return to_dict(experiment)
 
     def switch_to(self, experiment_name: str) -> None:
         """
@@ -265,7 +296,7 @@ class BranchMonkey:
             ...     print(f"{exp['name']}: {exp['description']}")
         """
         experiments = self.experiments.list_experiments()
-        return [asdict(exp) for exp in experiments]
+        return [to_dict(exp) for exp in experiments]
 
     def current_experiment(self) -> Optional[Dict]:
         """
@@ -280,7 +311,7 @@ class BranchMonkey:
             ...     print(f"Currently in: {exp['name']}")
         """
         experiment = self.experiments.get_active_experiment()
-        return asdict(experiment) if experiment else None
+        return to_dict(experiment) if experiment else None
 
     # === History API ===
 
@@ -300,7 +331,7 @@ class BranchMonkey:
             ...     print(f"{entry['short_sha']}: {entry['message']}")
         """
         entries = self.history.get_history(limit)
-        return [asdict(entry) for entry in entries]
+        return [to_dict(entry) for entry in entries]
 
     def search(self, query: str, search_in: str = "message") -> List[Dict]:
         """
@@ -318,7 +349,7 @@ class BranchMonkey:
             >>> results = monkey.search("Alice", search_in="author")
         """
         entries = self.history.search_history(query, search_in)
-        return [asdict(entry) for entry in entries]
+        return [to_dict(entry) for entry in entries]
 
     def show_changes(self, checkpoint_id: str) -> str:
         """
@@ -364,7 +395,7 @@ class BranchMonkey:
         """
         file_changes, diff = self.history.compare_commits(id1, id2)
         return {
-            "files": [asdict(fc) for fc in file_changes],
+            "files": [to_dict(fc) for fc in file_changes],
             "diff": diff,
         }
 
