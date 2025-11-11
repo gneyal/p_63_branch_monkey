@@ -65,6 +65,7 @@ HTML_PAGE = """
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Branch Monkey</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/@panzoom/panzoom@4.5.1/dist/panzoom.min.js"></script>
     <style>
         :root {
             --bg-primary: #111827;
@@ -141,9 +142,11 @@ HTML_PAGE = """
         <div class="bg-gray-800 rounded-lg p-3 mb-3">
             <div class="flex justify-between items-center mb-2">
                 <h2 class="text-lg font-bold">🌳 Commit Tree</h2>
-                <div class="text-xs text-gray-400">Click nodes to navigate</div>
+                <div class="text-xs text-gray-400">Drag to pan, scroll to zoom, click nodes to navigate</div>
             </div>
-            <canvas id="commitTree" class="w-full bg-canvas rounded cursor-pointer" height="500"></canvas>
+            <div id="canvasContainer" class="w-full rounded overflow-hidden" style="height: 500px;">
+                <canvas id="commitTree" class="bg-canvas" style="display: block;"></canvas>
+            </div>
         </div>
 
         <!-- Actions -->
@@ -520,13 +523,23 @@ HTML_PAGE = """
             drawCommitTree(data);
         }
 
+        // Pan and zoom state
+        let panOffset = { x: 0, y: 0 };
+        let zoomLevel = 1.0;
+        let isDragging = false;
+        let dragStart = { x: 0, y: 0 };
+
         function drawCommitTree(data) {
             const canvas = document.getElementById('commitTree');
             const ctx = canvas.getContext('2d');
 
-            // Set canvas size to match displayed size
+            // Set canvas size to match displayed size (only if not set or changed)
             const rect = canvas.getBoundingClientRect();
-            canvas.width = rect.width;
+            const needsResize = canvas.width !== rect.width || canvas.height !== rect.height;
+            if (needsResize) {
+                canvas.width = rect.width;
+                canvas.height = rect.height;
+            }
 
             // Get theme colors
             const isLight = getTheme() === 'light';
@@ -535,9 +548,14 @@ HTML_PAGE = """
             const textSecondary = isLight ? '#6b7280' : '#9ca3af';
             const lineColor = isLight ? '#d1d5db' : '#4b5563';
 
-            // Clear canvas
+            // Reset transformations and clear entire canvas
+            ctx.setTransform(1, 0, 0, 1, 0, 0);
             ctx.fillStyle = bgColor;
             ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            // Apply pan and zoom transformations
+            ctx.translate(panOffset.x, panOffset.y);
+            ctx.scale(zoomLevel, zoomLevel);
 
             if (!data.commits || data.commits.length === 0) {
                 ctx.fillStyle = textSecondary;
@@ -563,7 +581,11 @@ HTML_PAGE = """
             // Assign columns to commits based on branches
             const branchToColumn = {};
             const usedColumns = new Set();
-            let nextColumn = 0;
+
+            // Reserve column 0 for main/master branch
+            branchToColumn['main'] = 0;
+            branchToColumn['master'] = 0;
+            let nextColumn = 1;
 
             // First pass: assign columns based on branch names
             commits.forEach((commit, i) => {
@@ -689,20 +711,80 @@ HTML_PAGE = """
             });
         }
 
-        // Add click handler for commit tree
+        // Helper function to transform screen coordinates to canvas coordinates
+        function screenToCanvas(x, y) {
+            return {
+                x: (x - panOffset.x) / zoomLevel,
+                y: (y - panOffset.y) / zoomLevel
+            };
+        }
+
+        // Add event handlers for commit tree
         document.addEventListener('DOMContentLoaded', () => {
             const canvas = document.getElementById('commitTree');
 
+            // Mouse down - start dragging
+            canvas.addEventListener('mousedown', (e) => {
+                isDragging = true;
+                dragStart = { x: e.clientX - panOffset.x, y: e.clientY - panOffset.y };
+                canvas.style.cursor = 'grabbing';
+            });
+
+            // Mouse up - stop dragging
+            canvas.addEventListener('mouseup', () => {
+                isDragging = false;
+                canvas.style.cursor = 'default';
+            });
+
+            // Mouse leave - stop dragging
+            canvas.addEventListener('mouseleave', () => {
+                isDragging = false;
+                canvas.style.cursor = 'default';
+            });
+
+            // Mouse move - handle dragging and hover
+            canvas.addEventListener('mousemove', (e) => {
+                if (isDragging) {
+                    // Update pan offset
+                    panOffset.x = e.clientX - dragStart.x;
+                    panOffset.y = e.clientY - dragStart.y;
+                    if (commitTreeData) {
+                        drawCommitTree(commitTreeData);
+                    }
+                    return;
+                }
+
+                // Check hover for cursor change
+                if (!canvas.clickAreas) return;
+
+                const rect = canvas.getBoundingClientRect();
+                const screenX = e.clientX - rect.left;
+                const screenY = e.clientY - rect.top;
+                const canvasCoords = screenToCanvas(screenX, screenY);
+
+                let isOverNode = false;
+                canvas.clickAreas.forEach(area => {
+                    if (canvasCoords.x >= area.x && canvasCoords.x <= area.x + area.width &&
+                        canvasCoords.y >= area.y && canvasCoords.y <= area.y + area.height) {
+                        isOverNode = true;
+                    }
+                });
+
+                canvas.style.cursor = isOverNode ? 'pointer' : 'grab';
+            });
+
+            // Click handler with coordinate transformation
             canvas.addEventListener('click', (e) => {
                 if (!canvas.clickAreas) return;
 
                 const rect = canvas.getBoundingClientRect();
-                const x = e.clientX - rect.left;
-                const y = e.clientY - rect.top;
+                const screenX = e.clientX - rect.left;
+                const screenY = e.clientY - rect.top;
+                const canvasCoords = screenToCanvas(screenX, screenY);
 
                 canvas.clickAreas.forEach(area => {
-                    if (x >= area.x && x <= area.x + area.width &&
-                        y >= area.y && y <= area.y + area.height) {
+                    if (canvasCoords.x >= area.x && canvasCoords.x <= area.x + area.width &&
+                        canvasCoords.y >= area.y && canvasCoords.y <= area.y + area.height) {
                         const commit = area.commit;
 
                         // If commit has branches, switch to the first branch
@@ -718,23 +800,32 @@ HTML_PAGE = """
                 });
             });
 
-            // Show cursor pointer on hover
-            canvas.addEventListener('mousemove', (e) => {
-                if (!canvas.clickAreas) return;
+            // Wheel handler for zooming
+            canvas.addEventListener('wheel', (e) => {
+                e.preventDefault();
 
                 const rect = canvas.getBoundingClientRect();
-                const x = e.clientX - rect.left;
-                const y = e.clientY - rect.top;
+                const mouseX = e.clientX - rect.left;
+                const mouseY = e.clientY - rect.top;
 
-                let isOverNode = false;
-                canvas.clickAreas.forEach(area => {
-                    if (x >= area.x && x <= area.x + area.width &&
-                        y >= area.y && y <= area.y + area.height) {
-                        isOverNode = true;
-                    }
-                });
+                // Get canvas coordinates before zoom
+                const canvasBefore = screenToCanvas(mouseX, mouseY);
 
-                canvas.style.cursor = isOverNode ? 'pointer' : 'default';
+                // Update zoom level
+                const zoomFactor = e.deltaY > 0 ? 0.9 : 1.1;
+                zoomLevel *= zoomFactor;
+                zoomLevel = Math.max(0.1, Math.min(5, zoomLevel)); // Clamp between 0.1 and 5
+
+                // Get canvas coordinates after zoom
+                const canvasAfter = screenToCanvas(mouseX, mouseY);
+
+                // Adjust pan offset to keep mouse position fixed
+                panOffset.x += (canvasAfter.x - canvasBefore.x) * zoomLevel;
+                panOffset.y += (canvasAfter.y - canvasBefore.y) * zoomLevel;
+
+                if (commitTreeData) {
+                    drawCommitTree(commitTreeData);
+                }
             });
         });
 
