@@ -549,47 +549,83 @@ HTML_PAGE = """
             const commits = data.commits;
             const nodeRadius = 10;
             const verticalSpacing = 60;
+            const columnSpacing = 50;
             const startX = 60;
             const startY = 30;
-            const branchColors = ['#60a5fa', '#34d399', '#fbbf24', '#f472b6', '#a78bfa'];
+            const branchColors = ['#60a5fa', '#34d399', '#fbbf24', '#f472b6', '#a78bfa', '#fb923c', '#c084fc'];
 
-            // Simple vertical layout for now (topological sort would be better)
-            // Build a map of commits for parent lookup
+            // Build commit map
             const commitMap = {};
             commits.forEach((commit, i) => {
                 commitMap[commit.sha] = i;
             });
 
-            // Calculate column for each commit (simple algorithm)
-            const commitPositions = commits.map((commit, i) => {
-                let column = 0;
-                // If commit has parents, try to place it near parent
-                if (commit.parents.length > 0) {
-                    const parentIdx = commitMap[commit.parents[0]];
-                    if (parentIdx !== undefined && parentIdx < i) {
-                        column = commits[parentIdx].column || 0;
+            // Assign columns to commits based on branches
+            const branchToColumn = {};
+            const usedColumns = new Set();
+            let nextColumn = 0;
+
+            // First pass: assign columns based on branch names
+            commits.forEach((commit, i) => {
+                if (commit.branches.length > 0) {
+                    // Commit has branches - assign it to a column for that branch
+                    const mainBranch = commit.branches[0];
+                    if (branchToColumn[mainBranch] === undefined) {
+                        branchToColumn[mainBranch] = nextColumn++;
                     }
+                    commit.column = branchToColumn[mainBranch];
+                    commit.color = branchColors[commit.column % branchColors.length];
+                } else if (commit.parents.length > 0) {
+                    // No branch label - inherit from parent
+                    const parentIdx = commitMap[commit.parents[0]];
+                    if (parentIdx !== undefined && commits[parentIdx].column !== undefined) {
+                        commit.column = commits[parentIdx].column;
+                        commit.color = commits[parentIdx].color;
+                    } else {
+                        commit.column = 0;
+                        commit.color = branchColors[0];
+                    }
+                } else {
+                    // Root commit
+                    commit.column = 0;
+                    commit.color = branchColors[0];
                 }
-                commit.column = column;
+                usedColumns.add(commit.column);
+            });
+
+            const commitPositions = commits.map((commit, i) => {
                 return {
-                    x: startX + column * 40,
+                    x: startX + commit.column * columnSpacing,
                     y: startY + i * verticalSpacing,
                     commit: commit
                 };
             });
 
-            // Draw connecting lines first
-            ctx.lineWidth = 2;
+            // Draw connecting lines first (with branch colors)
+            ctx.lineWidth = 3;
             commitPositions.forEach((pos, i) => {
                 const commit = pos.commit;
                 commit.parents.forEach(parentSha => {
                     const parentIdx = commitMap[parentSha];
                     if (parentIdx !== undefined) {
                         const parentPos = commitPositions[parentIdx];
-                        ctx.strokeStyle = lineColor;
+
+                        // Use the commit's branch color for the line
+                        ctx.strokeStyle = commit.color || lineColor;
                         ctx.beginPath();
                         ctx.moveTo(pos.x, pos.y);
-                        ctx.lineTo(parentPos.x, parentPos.y);
+
+                        // If parent is in different column, draw curved line
+                        if (Math.abs(pos.x - parentPos.x) > 5) {
+                            const midY = (pos.y + parentPos.y) / 2;
+                            ctx.bezierCurveTo(
+                                pos.x, midY,
+                                parentPos.x, midY,
+                                parentPos.x, parentPos.y
+                            );
+                        } else {
+                            ctx.lineTo(parentPos.x, parentPos.y);
+                        }
                         ctx.stroke();
                     }
                 });
@@ -605,9 +641,9 @@ HTML_PAGE = """
                 // Draw node circle
                 ctx.beginPath();
                 ctx.arc(x, y, nodeRadius, 0, 2 * Math.PI);
-                ctx.fillStyle = commit.is_head ? '#fbbf24' : branchColors[commit.column % branchColors.length];
+                ctx.fillStyle = commit.is_head ? '#fbbf24' : commit.color;
                 ctx.fill();
-                ctx.strokeStyle = commit.is_head ? '#f59e0b' : '#374151';
+                ctx.strokeStyle = commit.is_head ? '#f59e0b' : (isLight ? '#374151' : '#1f2937');
                 ctx.lineWidth = 2;
                 ctx.stroke();
 
@@ -633,7 +669,8 @@ HTML_PAGE = """
                 if (commit.branches.length > 0) {
                     commit.branches.forEach((branch, idx) => {
                         const branchY = y + 25 + idx * 12;
-                        ctx.fillStyle = '#3b82f6';
+                        // Use the commit's branch color for the label background
+                        ctx.fillStyle = commit.color;
                         ctx.fillRect(x + 20, branchY - 10, ctx.measureText(branch).width + 6, 12);
                         ctx.fillStyle = '#ffffff';
                         ctx.font = 'bold 9px sans-serif';
