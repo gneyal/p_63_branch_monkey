@@ -48,6 +48,10 @@ class ExperimentRequest(BaseModel):
     description: Optional[str] = ""
 
 
+class RepoRequest(BaseModel):
+    path: str
+
+
 # HTML Frontend
 HTML_PAGE = """
 <!DOCTYPE html>
@@ -61,6 +65,19 @@ HTML_PAGE = """
 <body class="bg-gray-900 text-gray-100">
     <div class="container mx-auto p-6 max-w-6xl">
         <h1 class="text-4xl font-bold mb-6">🐵 Branch Monkey</h1>
+
+        <!-- Repository Selector -->
+        <div class="bg-gray-800 rounded-lg p-4 mb-6">
+            <div class="flex items-center gap-4">
+                <span class="text-gray-400 text-sm">Repository:</span>
+                <input type="text" id="repoPath" placeholder="Enter repository path..."
+                       class="bg-gray-700 px-4 py-2 rounded flex-1 text-sm font-mono">
+                <button onclick="changeRepo()" class="bg-purple-600 hover:bg-purple-700 px-6 py-2 rounded">
+                    Switch Repo
+                </button>
+            </div>
+            <div id="currentRepo" class="text-gray-500 text-xs mt-2"></div>
+        </div>
 
         <!-- Status -->
         <div class="bg-gray-800 rounded-lg p-6 mb-6">
@@ -137,6 +154,24 @@ HTML_PAGE = """
             } catch (error) {
                 alert('Error: ' + error.message);
                 throw error;
+            }
+        }
+
+        async function loadRepoInfo() {
+            const data = await api('/repo/info');
+            document.getElementById('currentRepo').textContent = `Current: ${data.path}`;
+            document.getElementById('repoPath').placeholder = data.path;
+        }
+
+        async function changeRepo() {
+            const path = document.getElementById('repoPath').value;
+            if (!path) return alert('Please enter a repository path');
+            try {
+                await api('/repo/set', 'POST', { path });
+                alert('Repository changed! Reloading...');
+                loadAll();
+            } catch (error) {
+                // Error already shown by api() function
             }
         }
 
@@ -289,6 +324,7 @@ HTML_PAGE = """
         }
 
         function loadAll() {
+            loadRepoInfo();
             loadStatus();
             loadBranches();
             loadCheckpoints();
@@ -495,6 +531,40 @@ def switch_branch(request: ExperimentRequest):
         return {"success": True, "message": message}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/repo/info")
+def get_repo_info():
+    """Get current repository information."""
+    import os
+    path = REPO_PATH if REPO_PATH else Path.cwd()
+    return {
+        "success": True,
+        "path": str(path.absolute()),
+        "exists": path.exists(),
+        "is_git_repo": (path / ".git").exists()
+    }
+
+
+@app.post("/api/repo/set")
+def set_repo_path(request: RepoRequest):
+    """Set the repository path."""
+    global REPO_PATH
+    path = Path(request.path).expanduser().resolve()
+
+    # Validate path
+    if not path.exists():
+        raise HTTPException(status_code=400, detail=f"Path does not exist: {path}")
+
+    if not (path / ".git").exists():
+        raise HTTPException(status_code=400, detail=f"Not a Git repository: {path}")
+
+    REPO_PATH = path
+    return {
+        "success": True,
+        "message": f"Repository changed to {path}",
+        "path": str(path)
+    }
 
 
 def run_server(repo_path: Optional[Path] = None, port: int = 8080, open_browser: bool = True):
