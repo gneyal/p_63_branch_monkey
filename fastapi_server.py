@@ -461,11 +461,38 @@ def switch_branch(request: ExperimentRequest):
     """Switch to a branch."""
     import subprocess
     try:
+        # Check if there are changes
+        result = subprocess.run(
+            ["git", "status", "--porcelain"],
+            cwd=REPO_PATH,
+            capture_output=True,
+            text=True
+        )
+
+        has_changes = bool(result.stdout.strip())
+
+        # If there are changes, stash them first
+        if has_changes:
+            subprocess.check_call(
+                ["git", "stash", "push", "-m", f"Auto-stash before switching to {request.name}"],
+                cwd=REPO_PATH,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL
+            )
+
+        # Switch branch
         subprocess.check_call(
             ["git", "checkout", request.name],
-            cwd=REPO_PATH
+            cwd=REPO_PATH,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL
         )
-        return {"success": True, "message": f"Switched to {request.name}"}
+
+        message = f"Switched to {request.name}"
+        if has_changes:
+            message += " (changes stashed)"
+
+        return {"success": True, "message": message}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
