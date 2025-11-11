@@ -1,0 +1,572 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🐵 Branch Monkey - Git for Humans</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+        }
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+        .tab-button.active {
+            border-bottom: 2px solid #3b82f6;
+            color: #3b82f6;
+        }
+        .animate-spin {
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body class="bg-gray-50">
+    <div class="min-h-screen">
+        <!-- Header -->
+        <header class="bg-white shadow-sm border-b border-gray-200">
+            <div class="max-w-7xl mx-auto px-4 py-4">
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center space-x-3">
+                        <span class="text-3xl">🐵</span>
+                        <div>
+                            <h1 class="text-2xl font-bold text-gray-900">Branch Monkey</h1>
+                            <p class="text-sm text-gray-500">Git for humans - visual, safe, and beginner-friendly</p>
+                        </div>
+                    </div>
+                    <div id="status-indicator" class="flex items-center space-x-2">
+                        <div class="w-2 h-2 bg-green-500 rounded-full"></div>
+                        <span class="text-sm text-gray-600">Connected</span>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <!-- Status Banner -->
+        <div id="status-banner" class="bg-blue-50 border-b border-blue-200">
+            <div class="max-w-7xl mx-auto px-4 py-3">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <span id="experiment-status" class="text-sm font-medium text-blue-900"></span>
+                        <span id="changes-status" class="text-sm text-blue-700 ml-4"></span>
+                    </div>
+                    <button onclick="refreshAll()" class="text-sm text-blue-600 hover:text-blue-800">
+                        🔄 Refresh
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Navigation Tabs -->
+        <div class="bg-white border-b border-gray-200">
+            <div class="max-w-7xl mx-auto px-4">
+                <nav class="flex space-x-8">
+                    <button onclick="switchTab('dashboard')" class="tab-button active py-4 px-1 text-sm font-medium text-gray-900 border-b-2 border-transparent hover:text-blue-600">
+                        Dashboard
+                    </button>
+                    <button onclick="switchTab('history')" class="tab-button py-4 px-1 text-sm font-medium text-gray-500 border-b-2 border-transparent hover:text-blue-600">
+                        Timeline
+                    </button>
+                    <button onclick="switchTab('checkpoints')" class="tab-button py-4 px-1 text-sm font-medium text-gray-500 border-b-2 border-transparent hover:text-blue-600">
+                        Checkpoints
+                    </button>
+                    <button onclick="switchTab('experiments')" class="tab-button py-4 px-1 text-sm font-medium text-gray-500 border-b-2 border-transparent hover:text-blue-600">
+                        Experiments
+                    </button>
+                </nav>
+            </div>
+        </div>
+
+        <!-- Main Content -->
+        <main class="max-w-7xl mx-auto px-4 py-6">
+            <!-- Dashboard Tab -->
+            <div id="dashboard" class="tab-content active">
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    <!-- Quick Actions -->
+                    <div class="bg-white rounded-lg shadow p-6">
+                        <h2 class="text-lg font-semibold mb-4">Quick Actions</h2>
+                        <div class="space-y-3">
+                            <button onclick="showSaveModal()" class="w-full bg-blue-500 hover:bg-blue-600 text-white font-medium py-3 px-4 rounded-lg transition">
+                                💾 Save Checkpoint
+                            </button>
+                            <button onclick="quickSave()" class="w-full bg-green-500 hover:bg-green-600 text-white font-medium py-3 px-4 rounded-lg transition">
+                                ⚡ Quick Save
+                            </button>
+                            <button onclick="showExperimentModal()" class="w-full bg-purple-500 hover:bg-purple-600 text-white font-medium py-3 px-4 rounded-lg transition">
+                                🔬 New Experiment
+                            </button>
+                            <button onclick="undo()" class="w-full bg-orange-500 hover:bg-orange-600 text-white font-medium py-3 px-4 rounded-lg transition">
+                                ↩️ Undo
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Recent Checkpoints -->
+                    <div class="bg-white rounded-lg shadow p-6">
+                        <h2 class="text-lg font-semibold mb-4">Recent Checkpoints</h2>
+                        <div id="recent-checkpoints" class="space-y-2">
+                            <p class="text-sm text-gray-500">Loading...</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- History Tab -->
+            <div id="history" class="tab-content">
+                <div class="bg-white rounded-lg shadow">
+                    <div class="p-6 border-b border-gray-200">
+                        <h2 class="text-lg font-semibold">Timeline</h2>
+                    </div>
+                    <div id="history-list" class="divide-y divide-gray-200">
+                        <p class="p-6 text-sm text-gray-500">Loading...</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Checkpoints Tab -->
+            <div id="checkpoints" class="tab-content">
+                <div class="bg-white rounded-lg shadow">
+                    <div class="p-6 border-b border-gray-200 flex justify-between items-center">
+                        <h2 class="text-lg font-semibold">Checkpoints</h2>
+                        <button onclick="showSaveModal()" class="bg-blue-500 hover:bg-blue-600 text-white text-sm font-medium py-2 px-4 rounded transition">
+                            ➕ New Checkpoint
+                        </button>
+                    </div>
+                    <div id="checkpoints-list" class="divide-y divide-gray-200">
+                        <p class="p-6 text-sm text-gray-500">Loading...</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Experiments Tab -->
+            <div id="experiments" class="tab-content">
+                <div class="bg-white rounded-lg shadow">
+                    <div class="p-6 border-b border-gray-200 flex justify-between items-center">
+                        <h2 class="text-lg font-semibold">Experiments</h2>
+                        <button onclick="showExperimentModal()" class="bg-purple-500 hover:bg-purple-600 text-white text-sm font-medium py-2 px-4 rounded transition">
+                            ➕ New Experiment
+                        </button>
+                    </div>
+                    <div id="experiments-list" class="divide-y divide-gray-200">
+                        <p class="p-6 text-sm text-gray-500">Loading...</p>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Save Checkpoint Modal -->
+    <div id="save-modal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div class="bg-white rounded-lg shadow-xl max-w-md w-full mx-4">
+            <div class="p-6">
+                <h3 class="text-lg font-semibold mb-4">Save Checkpoint</h3>
+                <input id="save-message" type="text" placeholder="Description of what you're saving" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+                <div class="mt-4 flex justify-end space-x-3">
+                    <button onclick="hideSaveModal()" class="px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-lg transition">
+                        Cancel
+                    </button>
+                    <button onclick="saveCheckpoint()" class="px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg transition">
+                        Save
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Create Experiment Modal -->
+    <div id="experiment-modal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div class="bg-white rounded-lg shadow-xl max-w-md w-full mx-4">
+            <div class="p-6">
+                <h3 class="text-lg font-semibold mb-4">Create Experiment</h3>
+                <input id="exp-name" type="text" placeholder="Experiment name (e.g., 'new-feature')" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 mb-3">
+                <input id="exp-description" type="text" placeholder="What are you trying? (optional)" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500">
+                <div class="mt-4 flex justify-end space-x-3">
+                    <button onclick="hideExperimentModal()" class="px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-lg transition">
+                        Cancel
+                    </button>
+                    <button onclick="createExperiment()" class="px-4 py-2 bg-purple-500 hover:bg-purple-600 text-white rounded-lg transition">
+                        Create
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Notification Toast -->
+    <div id="toast" class="hidden fixed top-4 right-4 bg-white shadow-lg rounded-lg p-4 max-w-sm z-50 border-l-4">
+        <p id="toast-message" class="text-sm"></p>
+    </div>
+
+    <script>
+        // Tab switching
+        function switchTab(tabName) {
+            document.querySelectorAll('.tab-content').forEach(tab => tab.classList.remove('active'));
+            document.querySelectorAll('.tab-button').forEach(btn => btn.classList.remove('active'));
+
+            document.getElementById(tabName).classList.add('active');
+            event.target.classList.add('active');
+
+            // Load data for the active tab
+            if (tabName === 'history') loadHistory();
+            if (tabName === 'checkpoints') loadCheckpoints();
+            if (tabName === 'experiments') loadExperiments();
+        }
+
+        // Notifications
+        function showToast(message, type = 'info') {
+            const toast = document.getElementById('toast');
+            const toastMessage = document.getElementById('toast-message');
+
+            toastMessage.textContent = message;
+            toast.className = `fixed top-4 right-4 bg-white shadow-lg rounded-lg p-4 max-w-sm z-50 border-l-4 ${
+                type === 'success' ? 'border-green-500' :
+                type === 'error' ? 'border-red-500' :
+                type === 'warning' ? 'border-yellow-500' : 'border-blue-500'
+            }`;
+            toast.classList.remove('hidden');
+
+            setTimeout(() => toast.classList.add('hidden'), 3000);
+        }
+
+        // Modals
+        function showSaveModal() {
+            document.getElementById('save-modal').classList.remove('hidden');
+            document.getElementById('save-message').focus();
+        }
+
+        function hideSaveModal() {
+            document.getElementById('save-modal').classList.add('hidden');
+            document.getElementById('save-message').value = '';
+        }
+
+        function showExperimentModal() {
+            document.getElementById('experiment-modal').classList.remove('hidden');
+            document.getElementById('exp-name').focus();
+        }
+
+        function hideExperimentModal() {
+            document.getElementById('experiment-modal').classList.add('hidden');
+            document.getElementById('exp-name').value = '';
+            document.getElementById('exp-description').value = '';
+        }
+
+        // API Calls
+        async function apiCall(endpoint, options = {}) {
+            try {
+                const response = await fetch(`/api${endpoint}`, {
+                    ...options,
+                    headers: {
+                        'Content-Type': 'application/json',
+                        ...options.headers
+                    }
+                });
+                const data = await response.json();
+                if (!data.success) {
+                    throw new Error(data.error || 'Unknown error');
+                }
+                return data;
+            } catch (error) {
+                showToast(error.message, 'error');
+                throw error;
+            }
+        }
+
+        // Load Status
+        async function loadStatus() {
+            try {
+                const data = await apiCall('/status');
+
+                // Update experiment status
+                const expStatus = document.getElementById('experiment-status');
+                if (data.current_experiment) {
+                    expStatus.textContent = `🔬 Experiment: ${data.current_experiment.name}`;
+                } else {
+                    expStatus.textContent = '📍 On main branch';
+                }
+
+                // Update changes status
+                const changesStatus = document.getElementById('changes-status');
+                if (data.has_changes) {
+                    changesStatus.textContent = '✏️ You have unsaved changes';
+                    changesStatus.className = 'text-sm text-yellow-700 ml-4';
+                } else {
+                    changesStatus.textContent = '✓ No unsaved changes';
+                    changesStatus.className = 'text-sm text-green-700 ml-4';
+                }
+
+                // Update recent checkpoints
+                const recentDiv = document.getElementById('recent-checkpoints');
+                if (data.recent_checkpoints && data.recent_checkpoints.length > 0) {
+                    recentDiv.innerHTML = data.recent_checkpoints.map(cp => `
+                        <div class="flex justify-between items-center p-2 hover:bg-gray-50 rounded cursor-pointer" onclick="restoreCheckpoint('${cp.short_id}')">
+                            <div>
+                                <span class="text-sm font-medium text-gray-900">${cp.short_id}</span>
+                                <span class="text-xs text-gray-500 ml-2">${cp.age}</span>
+                                <p class="text-xs text-gray-600 mt-1">${cp.message}</p>
+                            </div>
+                            <button class="text-blue-500 hover:text-blue-700 text-xs">Restore</button>
+                        </div>
+                    `).join('');
+                } else {
+                    recentDiv.innerHTML = '<p class="text-sm text-gray-500">No checkpoints yet</p>';
+                }
+            } catch (error) {
+                console.error('Failed to load status:', error);
+            }
+        }
+
+        // Load History
+        async function loadHistory() {
+            try {
+                const data = await apiCall('/history?limit=30');
+                const historyList = document.getElementById('history-list');
+
+                if (data.entries && data.entries.length > 0) {
+                    historyList.innerHTML = data.entries.map(entry => `
+                        <div class="p-4 hover:bg-gray-50">
+                            <div class="flex justify-between items-start">
+                                <div class="flex-1">
+                                    <div class="flex items-center space-x-2">
+                                        <span class="text-sm font-mono text-blue-600">${entry.short_sha}</span>
+                                        <span class="text-xs text-gray-500">${entry.age}</span>
+                                        <span class="text-xs text-yellow-600">${entry.author}</span>
+                                    </div>
+                                    <p class="text-sm text-gray-900 mt-1">${entry.message.split('\n')[0]}</p>
+                                    <p class="text-xs text-gray-500 mt-1">${entry.summary_stats}</p>
+                                </div>
+                            </div>
+                        </div>
+                    `).join('');
+                } else {
+                    historyList.innerHTML = '<p class="p-6 text-sm text-gray-500">No history yet</p>';
+                }
+            } catch (error) {
+                console.error('Failed to load history:', error);
+            }
+        }
+
+        // Load Checkpoints
+        async function loadCheckpoints() {
+            try {
+                const data = await apiCall('/checkpoints?limit=30');
+                const checkpointsList = document.getElementById('checkpoints-list');
+
+                if (data.checkpoints && data.checkpoints.length > 0) {
+                    checkpointsList.innerHTML = data.checkpoints.map(cp => `
+                        <div class="p-4 hover:bg-gray-50 flex justify-between items-center">
+                            <div class="flex-1">
+                                <div class="flex items-center space-x-2">
+                                    <span class="text-sm font-mono text-blue-600">${cp.short_id}</span>
+                                    <span class="text-xs text-gray-500">${cp.age}</span>
+                                </div>
+                                <p class="text-sm text-gray-900 mt-1">${cp.message}</p>
+                                <p class="text-xs text-gray-500 mt-1">${cp.files_changed} files, +${cp.insertions} -${cp.deletions}</p>
+                            </div>
+                            <button onclick="restoreCheckpoint('${cp.short_id}')" class="ml-4 px-3 py-1 bg-blue-500 hover:bg-blue-600 text-white text-xs rounded transition">
+                                Restore
+                            </button>
+                        </div>
+                    `).join('');
+                } else {
+                    checkpointsList.innerHTML = '<p class="p-6 text-sm text-gray-500">No checkpoints yet. Create one!</p>';
+                }
+            } catch (error) {
+                console.error('Failed to load checkpoints:', error);
+            }
+        }
+
+        // Load Experiments
+        async function loadExperiments() {
+            try {
+                const data = await apiCall('/experiments');
+                const experimentsList = document.getElementById('experiments-list');
+
+                if (data.experiments && data.experiments.length > 0) {
+                    experimentsList.innerHTML = data.experiments.map(exp => `
+                        <div class="p-4 hover:bg-gray-50">
+                            <div class="flex justify-between items-start">
+                                <div class="flex-1">
+                                    <div class="flex items-center space-x-2">
+                                        <span class="text-lg">${exp.is_active ? '🔬' : '⚗️'}</span>
+                                        <span class="text-sm font-medium text-gray-900">${exp.name}</span>
+                                        <span class="text-xs ${exp.is_active ? 'text-green-600' : 'text-gray-500'}">${exp.is_active ? 'Active' : 'Inactive'}</span>
+                                    </div>
+                                    ${exp.description ? `<p class="text-sm text-gray-600 mt-1">${exp.description}</p>` : ''}
+                                    <p class="text-xs text-gray-500 mt-1">${exp.age}</p>
+                                </div>
+                                <div class="flex space-x-2">
+                                    ${!exp.is_active ? `<button onclick="switchToExperiment('${exp.name}')" class="px-3 py-1 bg-purple-500 hover:bg-purple-600 text-white text-xs rounded transition">Switch</button>` : ''}
+                                    ${!exp.is_active ? `<button onclick="keepExperiment('${exp.name}')" class="px-3 py-1 bg-green-500 hover:bg-green-600 text-white text-xs rounded transition">Keep</button>` : ''}
+                                    ${!exp.is_active ? `<button onclick="discardExperiment('${exp.name}')" class="px-3 py-1 bg-red-500 hover:bg-red-600 text-white text-xs rounded transition">Discard</button>` : ''}
+                                </div>
+                            </div>
+                        </div>
+                    `).join('');
+                } else {
+                    experimentsList.innerHTML = '<p class="p-6 text-sm text-gray-500">No experiments yet. Create one to try something new!</p>';
+                }
+            } catch (error) {
+                console.error('Failed to load experiments:', error);
+            }
+        }
+
+        // Actions
+        async function saveCheckpoint() {
+            const message = document.getElementById('save-message').value.trim();
+            if (!message) {
+                showToast('Please enter a description', 'warning');
+                return;
+            }
+
+            try {
+                await apiCall('/save', {
+                    method: 'POST',
+                    body: JSON.stringify({ message, include_untracked: true })
+                });
+                showToast('Checkpoint saved successfully', 'success');
+                hideSaveModal();
+                refreshAll();
+            } catch (error) {
+                // Error already shown by apiCall
+            }
+        }
+
+        async function quickSave() {
+            try {
+                await apiCall('/quick-save', { method: 'POST', body: JSON.stringify({}) });
+                showToast('Quick save created', 'success');
+                refreshAll();
+            } catch (error) {
+                // Error already shown by apiCall
+            }
+        }
+
+        async function undo() {
+            if (!confirm('Restore to previous checkpoint? (Your changes will be kept)')) return;
+
+            try {
+                await apiCall('/undo', { method: 'POST', body: JSON.stringify({ keep_changes: true }) });
+                showToast('Restored to previous checkpoint', 'success');
+                refreshAll();
+            } catch (error) {
+                // Error already shown by apiCall
+            }
+        }
+
+        async function restoreCheckpoint(checkpointId) {
+            if (!confirm(`Restore to checkpoint ${checkpointId}? (Your changes will be kept)`)) return;
+
+            try {
+                await apiCall('/restore', {
+                    method: 'POST',
+                    body: JSON.stringify({ checkpoint_id: checkpointId, keep_changes: true })
+                });
+                showToast(`Restored to ${checkpointId}`, 'success');
+                refreshAll();
+            } catch (error) {
+                // Error already shown by apiCall
+            }
+        }
+
+        async function createExperiment() {
+            const name = document.getElementById('exp-name').value.trim();
+            const description = document.getElementById('exp-description').value.trim();
+
+            if (!name) {
+                showToast('Please enter a name', 'warning');
+                return;
+            }
+
+            try {
+                await apiCall('/experiment/create', {
+                    method: 'POST',
+                    body: JSON.stringify({ name, description })
+                });
+                showToast(`Experiment '${name}' created`, 'success');
+                hideExperimentModal();
+                refreshAll();
+            } catch (error) {
+                // Error already shown by apiCall
+            }
+        }
+
+        async function switchToExperiment(name) {
+            try {
+                await apiCall('/experiment/switch', {
+                    method: 'POST',
+                    body: JSON.stringify({ name })
+                });
+                showToast(`Switched to '${name}'`, 'success');
+                refreshAll();
+            } catch (error) {
+                // Error already shown by apiCall
+            }
+        }
+
+        async function keepExperiment(name) {
+            if (!confirm(`Merge experiment '${name}'?`)) return;
+
+            try {
+                await apiCall('/experiment/keep', {
+                    method: 'POST',
+                    body: JSON.stringify({ name })
+                });
+                showToast('Experiment merged successfully', 'success');
+                refreshAll();
+            } catch (error) {
+                // Error already shown by apiCall
+            }
+        }
+
+        async function discardExperiment(name) {
+            if (!confirm(`Discard experiment '${name}'? This cannot be undone.`)) return;
+
+            try {
+                await apiCall('/experiment/discard', {
+                    method: 'POST',
+                    body: JSON.stringify({ name })
+                });
+                showToast('Experiment discarded', 'success');
+                refreshAll();
+            } catch (error) {
+                // Error already shown by apiCall
+            }
+        }
+
+        // Refresh all data
+        function refreshAll() {
+            loadStatus();
+
+            // Refresh active tab
+            const activeTab = document.querySelector('.tab-content.active');
+            if (activeTab.id === 'history') loadHistory();
+            if (activeTab.id === 'checkpoints') loadCheckpoints();
+            if (activeTab.id === 'experiments') loadExperiments();
+        }
+
+        // Initial load
+        document.addEventListener('DOMContentLoaded', () => {
+            loadStatus();
+
+            // Keyboard shortcuts for modals
+            document.getElementById('save-message').addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') saveCheckpoint();
+            });
+
+            document.getElementById('exp-name').addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') document.getElementById('exp-description').focus();
+            });
+
+            document.getElementById('exp-description').addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') createExperiment();
+            });
+
+            // Auto-refresh every 30 seconds
+            setInterval(loadStatus, 30000);
+        });
+    </script>
+</body>
+</html>
