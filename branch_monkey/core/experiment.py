@@ -168,7 +168,13 @@ class ExperimentManager:
             List of experiments
         """
         experiments = []
-        active_branch = self.repo.active_branch.name
+
+        # Handle detached HEAD state
+        try:
+            active_branch = self.repo.active_branch.name
+        except TypeError:
+            # In detached HEAD state, no active branch
+            active_branch = None
 
         for branch in self.repo.branches:
             # Only include experiment branches

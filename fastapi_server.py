@@ -225,13 +225,8 @@ HTML_PAGE = """
         </div>
     </div>
 
-    <!-- Context Menu -->
-    <div id="contextMenu">
-        <div class="context-menu-item" onclick="showCommitDetails()">📄 Show Details</div>
-        <div class="context-menu-item" onclick="jumpToCommit()">🔄 Jump to Commit</div>
-        <div class="context-menu-item" onclick="createBranchFromCommit()">🌿 Create Branch</div>
-        <div class="context-menu-item" onclick="copySHA()">📋 Copy SHA</div>
-    </div>
+    <!-- Context Menu (dynamically populated) -->
+    <div id="contextMenu"></div>
 
     <script>
         // Theme management
@@ -756,9 +751,6 @@ HTML_PAGE = """
             // Enable mouse wheel zooming
             container.addEventListener('wheel', panzoomInstance.zoomWithWheel);
 
-            // Store selected commit for context menu
-            let selectedCommit = null;
-
             // Add click handler to show context menu
             canvas.addEventListener('click', (e) => {
                 console.log('Canvas clicked!');
@@ -791,7 +783,8 @@ HTML_PAGE = """
                         foundCommit = true;
                         selectedCommit = area.commit;
 
-                        // Show context menu at click position
+                        // Build and show context menu at click position
+                        buildContextMenu(selectedCommit);
                         const menu = document.getElementById('contextMenu');
                         menu.style.display = 'block';
                         menu.style.left = e.clientX + 'px';
@@ -842,6 +835,90 @@ HTML_PAGE = """
             loadAll();
         }
 
+        // Build context menu based on commit state
+        function buildContextMenu(commit) {
+            const menu = document.getElementById('contextMenu');
+            menu.innerHTML = '';
+
+            // Always show details first
+            const detailsItem = document.createElement('div');
+            detailsItem.className = 'context-menu-item';
+            detailsItem.innerHTML = '📄 Show Details';
+            detailsItem.onclick = (e) => {
+                e.stopPropagation();
+                showCommitDetails();
+            };
+            menu.appendChild(detailsItem);
+
+            // If commit is current HEAD, no navigation options
+            if (commit.is_head) {
+                const currentItem = document.createElement('div');
+                currentItem.className = 'context-menu-item';
+                currentItem.innerHTML = '✓ Current Commit';
+                currentItem.style.color = '#9ca3af';
+                currentItem.style.cursor = 'default';
+                menu.appendChild(currentItem);
+            }
+            // If commit has branches, show branch switching options
+            else if (commit.branches.length > 0) {
+                // If multiple branches, show all of them
+                if (commit.branches.length > 1) {
+                    const headerItem = document.createElement('div');
+                    headerItem.className = 'context-menu-item';
+                    headerItem.innerHTML = '🔄 Switch to Branch:';
+                    headerItem.style.color = '#9ca3af';
+                    headerItem.style.cursor = 'default';
+                    headerItem.style.fontSize = '0.75rem';
+                    menu.appendChild(headerItem);
+                }
+
+                // Add a menu item for each branch
+                commit.branches.forEach(branch => {
+                    const branchItem = document.createElement('div');
+                    branchItem.className = 'context-menu-item';
+                    branchItem.innerHTML = commit.branches.length > 1
+                        ? `&nbsp;&nbsp;&nbsp;→ ${branch}`
+                        : `🔄 Switch to ${branch}`;
+                    branchItem.onclick = (e) => {
+                        e.stopPropagation();
+                        switchBranch(branch);
+                        menu.style.display = 'none';
+                    };
+                    menu.appendChild(branchItem);
+                });
+            }
+            // If commit has no branches, offer to create one or view in detached HEAD
+            else {
+                const createBranchItem = document.createElement('div');
+                createBranchItem.className = 'context-menu-item';
+                createBranchItem.innerHTML = '🌿 Create Branch & Switch';
+                createBranchItem.onclick = (e) => {
+                    e.stopPropagation();
+                    createBranchFromCommit();
+                };
+                menu.appendChild(createBranchItem);
+
+                const viewCommitItem = document.createElement('div');
+                viewCommitItem.className = 'context-menu-item';
+                viewCommitItem.innerHTML = '👁️ View Commit (detached HEAD)';
+                viewCommitItem.onclick = (e) => {
+                    e.stopPropagation();
+                    viewCommitDetached();
+                };
+                menu.appendChild(viewCommitItem);
+            }
+
+            // Always show copy SHA
+            const copySHAItem = document.createElement('div');
+            copySHAItem.className = 'context-menu-item';
+            copySHAItem.innerHTML = '📋 Copy SHA';
+            copySHAItem.onclick = (e) => {
+                e.stopPropagation();
+                copySHA();
+            };
+            menu.appendChild(copySHAItem);
+        }
+
         // Context menu functions
         function showCommitDetails() {
             console.log('showCommitDetails called!');
@@ -868,28 +945,53 @@ HTML_PAGE = """
             document.getElementById('contextMenu').style.display = 'none';
         }
 
-        function jumpToCommit() {
+        async function viewCommitDetached() {
             if (!selectedCommit) return;
             const commit = selectedCommit;
 
-            // If commit has branches, switch to the first branch
-            if (commit.branches.length > 0) {
-                switchBranch(commit.branches[0]);
-            } else if (!commit.is_head) {
-                // Otherwise checkout the commit SHA directly
-                if (confirm(`Checkout commit ${commit.sha}?\n\n${commit.message}\n\nThis will put you in detached HEAD state.`)) {
-                    checkoutCommit(commit.sha);
-                }
+            const message = `View commit in detached HEAD state?\n\n` +
+                `⚠️ WARNING: Detached HEAD State\n\n` +
+                `This will checkout commit:\n${commit.sha}\n"${commit.message}"\n\n` +
+                `You'll be in a "detached HEAD" state where:\n` +
+                `• You can view the code at this point in history\n` +
+                `• Any commits you make won't belong to any branch\n` +
+                `• Changes may be lost when you switch branches\n\n` +
+                `💡 TIP: If you want to make changes, use "Create Branch & Switch" instead!\n\n` +
+                `Continue with detached HEAD?`;
+
+            if (confirm(message)) {
+                checkoutCommit(commit.sha);
             }
             document.getElementById('contextMenu').style.display = 'none';
         }
 
-        function createBranchFromCommit() {
+        async function createBranchFromCommit() {
             if (!selectedCommit) return;
-            const branchName = prompt(`Create new branch from commit ${selectedCommit.sha.substring(0, 7)}?\n\nEnter branch name:`);
-            if (branchName) {
-                // TODO: Implement branch creation API
-                alert(`Branch creation not yet implemented.\nWould create branch "${branchName}" from commit ${selectedCommit.sha}`);
+            const commit = selectedCommit;
+
+            const branchName = prompt(
+                `Create new branch from commit ${commit.sha}?\n\n` +
+                `Commit: "${commit.message}"\n` +
+                `Author: ${commit.author}\n` +
+                `Date: ${commit.age}\n\n` +
+                `Enter new branch name:`
+            );
+
+            if (branchName && branchName.trim()) {
+                try {
+                    // First create the branch at the commit
+                    await api('/branch/create', 'POST', {
+                        name: branchName.trim(),
+                        from_commit: commit.sha
+                    });
+
+                    // Then switch to it
+                    await switchBranch(branchName.trim());
+
+                    alert(`✓ Created and switched to branch "${branchName}"`);
+                } catch (error) {
+                    // Error already shown by api() function
+                }
             }
             document.getElementById('contextMenu').style.display = 'none';
         }
@@ -1234,6 +1336,43 @@ def switch_branch(request: ExperimentRequest):
             message += " (changes stashed)"
 
         return {"success": True, "message": message}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+class BranchCreateRequest(BaseModel):
+    name: str
+    from_commit: Optional[str] = None
+
+
+@app.post("/api/branch/create")
+def create_branch(request: BranchCreateRequest):
+    """Create a new branch from a commit."""
+    import subprocess
+    try:
+        # Create branch from specified commit or current HEAD
+        if request.from_commit:
+            subprocess.check_call(
+                ["git", "branch", request.name, request.from_commit],
+                cwd=REPO_PATH,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL
+            )
+        else:
+            subprocess.check_call(
+                ["git", "branch", request.name],
+                cwd=REPO_PATH,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL
+            )
+
+        return {
+            "success": True,
+            "message": f"Created branch {request.name}",
+            "branch": request.name
+        }
+    except subprocess.CalledProcessError as e:
+        raise HTTPException(status_code=400, detail=f"Failed to create branch: {e}")
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
