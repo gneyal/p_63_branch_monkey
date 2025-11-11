@@ -52,6 +52,10 @@ class RepoRequest(BaseModel):
     path: str
 
 
+class PathSearchRequest(BaseModel):
+    query: str
+
+
 # HTML Frontend
 HTML_PAGE = """
 <!DOCTYPE html>
@@ -70,8 +74,12 @@ HTML_PAGE = """
         <div class="bg-gray-800 rounded-lg p-4 mb-6">
             <div class="flex items-center gap-4">
                 <span class="text-gray-400 text-sm">Repository:</span>
-                <input type="text" id="repoPath" placeholder="Enter repository path..."
-                       class="bg-gray-700 px-4 py-2 rounded flex-1 text-sm font-mono">
+                <div class="flex-1 relative">
+                    <input type="text" id="repoPath" placeholder="Enter repository path..."
+                           class="bg-gray-700 px-4 py-2 rounded w-full text-sm font-mono"
+                           autocomplete="off">
+                    <div id="autocomplete" class="absolute z-10 w-full bg-gray-700 rounded mt-1 shadow-lg hidden max-h-60 overflow-y-auto"></div>
+                </div>
                 <button onclick="changeRepo()" class="bg-purple-600 hover:bg-purple-700 px-6 py-2 rounded">
                     Switch Repo
                 </button>
@@ -162,6 +170,104 @@ HTML_PAGE = """
             document.getElementById('currentRepo').textContent = `Current: ${data.path}`;
             document.getElementById('repoPath').placeholder = data.path;
         }
+
+        let autocompleteTimeout = null;
+        let selectedIndex = -1;
+
+        async function searchPaths(query) {
+            if (!query) {
+                hideAutocomplete();
+                return;
+            }
+
+            clearTimeout(autocompleteTimeout);
+            autocompleteTimeout = setTimeout(async () => {
+                try {
+                    const data = await api('/repo/search', 'POST', { query });
+                    showAutocomplete(data.suggestions);
+                } catch (error) {
+                    hideAutocomplete();
+                }
+            }, 300);
+        }
+
+        function showAutocomplete(suggestions) {
+            const container = document.getElementById('autocomplete');
+            if (!suggestions || suggestions.length === 0) {
+                hideAutocomplete();
+                return;
+            }
+
+            selectedIndex = -1;
+            const html = suggestions.map((path, idx) => `
+                <div class="px-4 py-2 hover:bg-gray-600 cursor-pointer text-sm font-mono autocomplete-item"
+                     data-path="${path}"
+                     data-index="${idx}"
+                     onclick="selectPath('${path}')">
+                    ${path}
+                </div>
+            `).join('');
+
+            container.innerHTML = html;
+            container.classList.remove('hidden');
+        }
+
+        function hideAutocomplete() {
+            document.getElementById('autocomplete').classList.add('hidden');
+            selectedIndex = -1;
+        }
+
+        function selectPath(path) {
+            document.getElementById('repoPath').value = path;
+            hideAutocomplete();
+        }
+
+        function handleKeyNavigation(e) {
+            const container = document.getElementById('autocomplete');
+            const items = container.querySelectorAll('.autocomplete-item');
+
+            if (items.length === 0) return;
+
+            if (e.key === 'ArrowDown') {
+                e.preventDefault();
+                selectedIndex = Math.min(selectedIndex + 1, items.length - 1);
+                updateSelection(items);
+            } else if (e.key === 'ArrowUp') {
+                e.preventDefault();
+                selectedIndex = Math.max(selectedIndex - 1, -1);
+                updateSelection(items);
+            } else if (e.key === 'Enter' && selectedIndex >= 0) {
+                e.preventDefault();
+                const path = items[selectedIndex].dataset.path;
+                selectPath(path);
+            } else if (e.key === 'Escape') {
+                hideAutocomplete();
+            }
+        }
+
+        function updateSelection(items) {
+            items.forEach((item, idx) => {
+                if (idx === selectedIndex) {
+                    item.classList.add('bg-gray-600');
+                } else {
+                    item.classList.remove('bg-gray-600');
+                }
+            });
+        }
+
+        // Setup event listeners for autocomplete
+        document.addEventListener('DOMContentLoaded', () => {
+            const input = document.getElementById('repoPath');
+            input.addEventListener('input', (e) => searchPaths(e.target.value));
+            input.addEventListener('keydown', handleKeyNavigation);
+
+            // Hide autocomplete when clicking outside
+            document.addEventListener('click', (e) => {
+                if (!e.target.closest('#repoPath') && !e.target.closest('#autocomplete')) {
+                    hideAutocomplete();
+                }
+            });
+        });
 
         async function changeRepo() {
             const path = document.getElementById('repoPath').value;
@@ -565,6 +671,69 @@ def set_repo_path(request: RepoRequest):
         "message": f"Repository changed to {path}",
         "path": str(path)
     }
+
+
+@app.post("/api/repo/search")
+def search_repo_paths(request: PathSearchRequest):
+    """Search for directory paths matching the query."""
+    import os
+
+    query = request.query.strip()
+    if not query:
+        return {"success": True, "suggestions": []}
+
+    try:
+        # Expand home directory
+        query_path = Path(query).expanduser()
+
+        # Determine the directory to search in
+        if query.endswith('/') or query.endswith(os.sep):
+            # User is typing inside a directory
+            search_dir = query_path
+            prefix = ""
+        else:
+            # User is typing a partial name
+            search_dir = query_path.parent
+            prefix = query_path.name
+
+        # Get absolute path
+        if not search_dir.is_absolute():
+            search_dir = Path.cwd() / search_dir
+
+        suggestions = []
+
+        if search_dir.exists() and search_dir.is_dir():
+            try:
+                # List directories
+                for item in sorted(search_dir.iterdir()):
+                    if item.is_dir() and not item.name.startswith('.'):
+                        # Filter by prefix if typing partial name
+                        if not prefix or item.name.lower().startswith(prefix.lower()):
+                            full_path = str(item)
+                            # Mark Git repos with a special indicator
+                            is_git_repo = (item / ".git").exists()
+                            suggestions.append({
+                                "path": full_path,
+                                "is_git_repo": is_git_repo
+                            })
+
+                # Sort: Git repos first, then alphabetically
+                suggestions.sort(key=lambda x: (not x["is_git_repo"], x["path"]))
+
+                # Limit to 10 suggestions
+                suggestions = suggestions[:10]
+
+                # Extract just the paths
+                paths = [s["path"] for s in suggestions]
+
+                return {"success": True, "suggestions": paths}
+            except PermissionError:
+                return {"success": True, "suggestions": []}
+
+        return {"success": True, "suggestions": []}
+
+    except Exception as e:
+        return {"success": True, "suggestions": []}
 
 
 def run_server(repo_path: Optional[Path] = None, port: int = 8080, open_browser: bool = True):
