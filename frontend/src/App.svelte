@@ -111,22 +111,22 @@
 
   .app-header {
     text-align: center;
-    padding: 12px 20px;
+    padding: 8px 16px;
     background: #1a1a1a;
     border-bottom: 1px solid #333;
   }
 
   .app-title {
-    margin: 0 0 12px 0;
-    font-size: 24px;
-    font-weight: 700;
+    margin: 0 0 8px 0;
+    font-size: 18px;
+    font-weight: 600;
     color: #fff;
   }
 
   .repo-selector-container {
     max-width: 800px;
     margin: 0 auto;
-    padding: 0 20px;
+    padding: 0 16px;
   }
 
   .error-banner {

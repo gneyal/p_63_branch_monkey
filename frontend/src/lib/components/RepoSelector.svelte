@@ -212,9 +212,9 @@
     background: #2d2d2d;
     border: 1px solid #444;
     color: #e0e0e0;
-    padding: 6px 10px;
+    padding: 4px 8px;
     border-radius: 4px;
-    font-size: 12px;
+    font-size: 11px;
     font-family: 'Monaco', 'Courier New', monospace;
     outline: none;
     transition: border-color 0.2s;
@@ -229,12 +229,12 @@
   }
 
   .switch-btn {
-    padding: 6px 12px;
+    padding: 4px 10px;
     background: #444;
     border: 1px solid #555;
     color: #e0e0e0;
     border-radius: 4px;
-    font-size: 11px;
+    font-size: 10px;
     font-weight: 500;
     cursor: pointer;
     transition: all 0.2s;
@@ -280,8 +280,8 @@
   }
 
   .current-repo {
-    margin-top: 8px;
-    font-size: 12px;
+    margin-top: 4px;
+    font-size: 10px;
     color: #808080;
     font-family: 'Monaco', 'Courier New', monospace;
     overflow: hidden;
@@ -290,12 +290,12 @@
   }
 
   .favorite-btn {
-    padding: 8px 12px;
+    padding: 4px 8px;
     background: #2d2d2d;
     border: 1px solid #444;
     color: #808080;
-    border-radius: 6px;
-    font-size: 20px;
+    border-radius: 4px;
+    font-size: 16px;
     cursor: pointer;
     transition: all 0.2s;
     line-height: 1;
@@ -313,18 +313,18 @@
   }
 
   .favorites-section {
-    margin-top: 12px;
+    margin-top: 6px;
   }
 
   .favorites-toggle {
     width: 100%;
     text-align: left;
-    padding: 8px 12px;
+    padding: 4px 8px;
     background: #2d2d2d;
     border: 1px solid #444;
     color: #e0e0e0;
-    border-radius: 6px;
-    font-size: 13px;
+    border-radius: 4px;
+    font-size: 10px;
     font-weight: 600;
     cursor: pointer;
     transition: all 0.2s;
