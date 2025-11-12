@@ -79,9 +79,10 @@
       commitLanes.set(commit.sha, lane);
     });
 
-    // Layout settings
-    const laneSpacing = 420;
-    const commitSpacing = 150;
+    // Layout settings - equal spacing for 45-degree diagonal edges
+    const spacing = 300;
+    const laneSpacing = spacing;
+    const commitSpacing = spacing;
 
     // Calculate centering offset
     const maxLane = Math.max(...commitLanes.values());
@@ -116,7 +117,7 @@
               id: `${commit.sha}-${parentSha}`,
               source: commit.sha,
               target: parentSha,
-              type: 'smoothstep',
+              type: 'straight',
               animated: false,
               style: 'stroke: #888; stroke-width: 6px;'
             });
