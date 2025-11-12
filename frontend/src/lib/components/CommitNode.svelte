@@ -7,6 +7,7 @@
 
   let showMenu = false;
   let showNotes = false;
+  let showTooltip = false;
   let notes = [];
   let newNoteText = '';
   let loadingNotes = false;
@@ -95,8 +96,8 @@
   class="commit-node"
   class:is-head={isHead}
   style="border-color: {borderColor}; background: {backgroundColor};"
-  on:mouseenter={() => showMenu = true}
-  on:mouseleave={() => showMenu = false}
+  on:mouseenter={() => { showMenu = true; showTooltip = true; }}
+  on:mouseleave={() => { showMenu = false; showTooltip = false; }}
 >
   <Handle type="target" position={Position.Top} />
 
@@ -115,6 +116,19 @@
       </div>
     {/if}
   </div>
+
+  {#if showTooltip}
+    <div class="commit-tooltip">
+      <div class="tooltip-row">
+        <span class="tooltip-label">Author:</span>
+        <span class="tooltip-value">{data.author}</span>
+      </div>
+      <div class="tooltip-row">
+        <span class="tooltip-label">Date:</span>
+        <span class="tooltip-value">{data.age}</span>
+      </div>
+    </div>
+  {/if}
 
   {#if showMenu}
     <div class="action-buttons">
@@ -292,6 +306,56 @@
     border-color: #666;
     transform: scale(1.15);
     box-shadow: 0 3px 10px rgba(0, 0, 0, 0.6);
+  }
+
+  .commit-tooltip {
+    position: absolute;
+    top: -80px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: #1e1e1e;
+    border: 2px solid #444;
+    border-radius: 8px;
+    padding: 10px 14px;
+    min-width: 220px;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.6);
+    z-index: 999;
+    animation: tooltipFadeIn 0.2s ease;
+    pointer-events: none;
+  }
+
+  @keyframes tooltipFadeIn {
+    from {
+      opacity: 0;
+      transform: translateX(-50%) translateY(-5px);
+    }
+    to {
+      opacity: 1;
+      transform: translateX(-50%) translateY(0);
+    }
+  }
+
+  .tooltip-row {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 6px;
+    font-size: 12px;
+    line-height: 1.4;
+  }
+
+  .tooltip-row:last-child {
+    margin-bottom: 0;
+  }
+
+  .tooltip-label {
+    color: #808080;
+    font-weight: 600;
+    min-width: 50px;
+  }
+
+  .tooltip-value {
+    color: #e0e0e0;
+    flex: 1;
   }
 
   .notes-panel {
