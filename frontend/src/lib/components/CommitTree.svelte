@@ -146,11 +146,6 @@
 </script>
 
 <div class="commit-tree">
-  <div class="tree-header">
-    <h2 class="tree-title">🌳 Commit Tree</h2>
-    <p class="tree-subtitle">Pan and zoom to explore • Click nodes for details</p>
-  </div>
-
   <div class="tree-main">
     {#if $commitTree && $commitTree.commits}
       <div class="tree-content" class:with-details={selectedCommit}>
@@ -259,25 +254,6 @@
     display: flex;
     flex-direction: column;
     overflow: hidden;
-  }
-
-  .tree-header {
-    padding: 20px 20px 16px 20px;
-    background: #1a1a1a;
-    border-bottom: 1px solid #333;
-  }
-
-  .tree-title {
-    margin: 0;
-    font-size: 28px;
-    color: #e0e0e0;
-    font-weight: 600;
-  }
-
-  .tree-subtitle {
-    margin: 4px 0 0 0;
-    font-size: 14px;
-    color: #808080;
   }
 
   .tree-main {

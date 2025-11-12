@@ -1,19 +1,30 @@
 <script>
   import { onMount } from 'svelte';
-  import { commitTree, isLoading, showToast } from './lib/stores/store.js';
-  import { fetchCommitTree } from './lib/services/api.js';
+  import { commitTree, isLoading, showToast, repoInfo } from './lib/stores/store.js';
+  import { fetchCommitTree, fetchRepoInfo } from './lib/services/api.js';
   import Toast from './lib/components/Toast.svelte';
   import Modal from './lib/components/Modal.svelte';
   import CommitTree from './lib/components/CommitTree.svelte';
+  import RepoSelector from './lib/components/RepoSelector.svelte';
 
   let error = null;
 
   onMount(async () => {
+    await loadRepoInfo();
     await loadData();
     // Refresh data every 5 seconds
     const interval = setInterval(loadData, 5000);
     return () => clearInterval(interval);
   });
+
+  async function loadRepoInfo() {
+    try {
+      const info = await fetchRepoInfo();
+      repoInfo.set(info);
+    } catch (err) {
+      console.error('Failed to load repo info:', err);
+    }
+  }
 
   async function loadData() {
     try {
@@ -38,8 +49,11 @@
 
 <main class="app">
   <header class="app-header">
-    <h1 class="app-title">🐵 Branch Monkey</h1>
+    <h1 class="app-title">Branch Monkey</h1>
     <p class="app-subtitle">Safe branching without the complexity</p>
+    <div class="repo-selector-container">
+      <RepoSelector />
+    </div>
   </header>
 
   {#if error}
@@ -60,12 +74,12 @@
 </main>
 
 <style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
   :global(body) {
     margin: 0;
     padding: 0;
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
-      'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
-      sans-serif;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
     background: #121212;
@@ -104,6 +118,12 @@
     margin: 8px 0 0 0;
     font-size: 16px;
     color: #808080;
+  }
+
+  .repo-selector-container {
+    max-width: 800px;
+    margin: 20px auto 0;
+    padding: 0 20px;
   }
 
   .error-banner {

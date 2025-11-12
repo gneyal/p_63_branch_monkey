@@ -56,6 +56,10 @@ class PathSearchRequest(BaseModel):
     query: str
 
 
+class NoteRequest(BaseModel):
+    text: str
+
+
 # HTML Frontend
 HTML_PAGE = """
 <!DOCTYPE html>
@@ -1755,6 +1759,140 @@ def search_repo_paths(request: PathSearchRequest):
 
     except Exception as e:
         return {"success": True, "suggestions": []}
+
+
+@app.get("/api/notes/{sha}")
+def get_notes(sha: str):
+    """Get notes for a commit."""
+    import subprocess
+    import json
+    try:
+        # Try to get notes for this commit
+        result = subprocess.run(
+            ["git", "notes", "show", sha],
+            cwd=REPO_PATH,
+            capture_output=True,
+            text=True
+        )
+
+        if result.returncode == 0:
+            # Parse JSON notes
+            try:
+                notes_data = json.loads(result.stdout)
+                return {"success": True, "notes": notes_data.get("notes", [])}
+            except json.JSONDecodeError:
+                # Legacy format or plain text - return empty
+                return {"success": True, "notes": []}
+        else:
+            # No notes exist
+            return {"success": True, "notes": []}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/api/notes/{sha}")
+def add_note(sha: str, request: NoteRequest):
+    """Add a note to a commit."""
+    import subprocess
+    import json
+    from datetime import datetime
+
+    try:
+        # Get existing notes
+        result = subprocess.run(
+            ["git", "notes", "show", sha],
+            cwd=REPO_PATH,
+            capture_output=True,
+            text=True
+        )
+
+        # Parse existing notes or create new structure
+        if result.returncode == 0:
+            try:
+                notes_data = json.loads(result.stdout)
+            except json.JSONDecodeError:
+                notes_data = {"notes": []}
+        else:
+            notes_data = {"notes": []}
+
+        # Add new note
+        new_note = {
+            "id": int(datetime.now().timestamp() * 1000),  # millisecond timestamp
+            "text": request.text,
+            "timestamp": datetime.now().isoformat()
+        }
+        notes_data["notes"].append(new_note)
+
+        # Save notes
+        notes_json = json.dumps(notes_data, indent=2)
+
+        # Remove existing notes first
+        subprocess.run(
+            ["git", "notes", "remove", sha],
+            cwd=REPO_PATH,
+            capture_output=True
+        )
+
+        # Add new notes
+        subprocess.run(
+            ["git", "notes", "add", "-m", notes_json, sha],
+            cwd=REPO_PATH,
+            capture_output=True,
+            check=True
+        )
+
+        return {"success": True, "note": new_note, "notes": notes_data["notes"]}
+    except subprocess.CalledProcessError as e:
+        raise HTTPException(status_code=500, detail=f"Failed to add note: {e}")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.delete("/api/notes/{sha}/{note_id}")
+def delete_note(sha: str, note_id: int):
+    """Delete a note from a commit."""
+    import subprocess
+    import json
+
+    try:
+        # Get existing notes
+        result = subprocess.run(
+            ["git", "notes", "show", sha],
+            cwd=REPO_PATH,
+            capture_output=True,
+            text=True,
+            check=True
+        )
+
+        # Parse notes
+        notes_data = json.loads(result.stdout)
+
+        # Remove the note with matching ID
+        notes_data["notes"] = [n for n in notes_data["notes"] if n["id"] != note_id]
+
+        # Remove existing notes
+        subprocess.run(
+            ["git", "notes", "remove", sha],
+            cwd=REPO_PATH,
+            capture_output=True,
+            check=True
+        )
+
+        # If there are remaining notes, add them back
+        if notes_data["notes"]:
+            notes_json = json.dumps(notes_data, indent=2)
+            subprocess.run(
+                ["git", "notes", "add", "-m", notes_json, sha],
+                cwd=REPO_PATH,
+                capture_output=True,
+                check=True
+            )
+
+        return {"success": True, "notes": notes_data["notes"]}
+    except subprocess.CalledProcessError as e:
+        raise HTTPException(status_code=500, detail=f"Failed to delete note: {e}")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 def run_server(repo_path: Optional[Path] = None, port: int = 8081, open_browser: bool = True):
