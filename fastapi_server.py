@@ -1468,14 +1468,14 @@ def get_commit_tree():
             text=True
         ).strip()[:7]
 
-        # Get all branches with their SHAs
+        # Get all branches with their tip SHAs (only show labels at branch tips)
         branch_output = subprocess.check_output(
-            ["git", "branch", "-a", "--format=%(refname:short)|%(objectname:short)"],
+            ["git", "branch", "--format=%(refname:short)|%(objectname:short)"],
             cwd=REPO_PATH,
             text=True
         ).strip()
 
-        # Map SHA to branch names
+        # Map SHA to branch names (only at branch tips)
         sha_to_branches = {}
         for line in branch_output.split('\n'):
             if not line:
