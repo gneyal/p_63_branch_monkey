@@ -6,8 +6,10 @@
   import Modal from './lib/components/Modal.svelte';
   import CommitTree from './lib/components/CommitTree.svelte';
   import RepoSelector from './lib/components/RepoSelector.svelte';
+  import LandingPage from './lib/components/LandingPage.svelte';
 
   let error = null;
+  let showLanding = true;
 
   onMount(async () => {
     await loadRepoInfo();
@@ -45,8 +47,15 @@
   function handleNodeClick(node) {
     showToast(`Selected commit: ${node.sha.substring(0, 7)}`, 'info');
   }
+
+  function handleGetStarted() {
+    showLanding = false;
+  }
 </script>
 
+{#if showLanding}
+  <LandingPage onGetStarted={handleGetStarted} />
+{:else}
 <main class="app">
   <header class="app-header">
     <h1 class="app-title">Branch Monkey</h1>
@@ -71,6 +80,7 @@
   <Toast />
   <Modal />
 </main>
+{/if}
 
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
