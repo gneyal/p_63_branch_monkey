@@ -212,9 +212,9 @@
     background: #2d2d2d;
     border: 1px solid #444;
     color: #e0e0e0;
-    padding: 8px 12px;
-    border-radius: 6px;
-    font-size: 14px;
+    padding: 6px 10px;
+    border-radius: 4px;
+    font-size: 12px;
     font-family: 'Monaco', 'Courier New', monospace;
     outline: none;
     transition: border-color 0.2s;
@@ -229,20 +229,21 @@
   }
 
   .switch-btn {
-    padding: 8px 20px;
-    background: #7c3aed;
-    border: none;
-    color: white;
-    border-radius: 6px;
-    font-size: 14px;
-    font-weight: 600;
+    padding: 6px 12px;
+    background: #444;
+    border: 1px solid #555;
+    color: #e0e0e0;
+    border-radius: 4px;
+    font-size: 11px;
+    font-weight: 500;
     cursor: pointer;
     transition: all 0.2s;
     white-space: nowrap;
   }
 
   .switch-btn:hover {
-    background: #6d28d9;
+    background: #555;
+    border-color: #666;
   }
 
   .suggestions {

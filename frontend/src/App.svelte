@@ -50,7 +50,6 @@
 <main class="app">
   <header class="app-header">
     <h1 class="app-title">Branch Monkey</h1>
-    <p class="app-subtitle">Safe branching without the complexity</p>
     <div class="repo-selector-container">
       <RepoSelector />
     </div>
@@ -102,27 +101,21 @@
 
   .app-header {
     text-align: center;
-    padding: 20px;
+    padding: 12px 20px;
     background: #1a1a1a;
     border-bottom: 1px solid #333;
   }
 
   .app-title {
-    margin: 0;
-    font-size: 36px;
+    margin: 0 0 12px 0;
+    font-size: 24px;
     font-weight: 700;
     color: #fff;
   }
 
-  .app-subtitle {
-    margin: 8px 0 0 0;
-    font-size: 16px;
-    color: #808080;
-  }
-
   .repo-selector-container {
     max-width: 800px;
-    margin: 20px auto 0;
+    margin: 0 auto;
     padding: 0 20px;
   }
 
