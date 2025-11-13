@@ -8,6 +8,7 @@
   let showMenu = false;
   let showNotes = false;
   let showTooltip = false;
+  let showFullMessage = false;
   let notes = [];
   let newNoteText = '';
   let loadingNotes = false;
@@ -52,6 +53,11 @@
       // Load notes from API when opening panel
       await loadNotes();
     }
+  }
+
+  function toggleFullMessage() {
+    showFullMessage = !showFullMessage;
+    showMenu = false;
   }
 
   async function loadNotes() {
@@ -134,6 +140,13 @@
     <div class="action-buttons">
       <button
         class="action-btn"
+        on:click|stopPropagation={toggleFullMessage}
+        title="Show full message"
+      >
+        Details
+      </button>
+      <button
+        class="action-btn"
         on:click|stopPropagation={jumpToCommit}
         title="Jump to commit"
       >
@@ -160,6 +173,32 @@
       >
         Copy
       </button>
+    </div>
+  {/if}
+
+  {#if showFullMessage}
+    <div class="full-message-panel z-50" on:click|stopPropagation>
+      <div class="full-message-header">
+        <h4>Full Message</h4>
+        <button class="close-panel" on:click={toggleFullMessage}>✕</button>
+      </div>
+      <div class="full-message-content">
+        <p class="full-message-text">{data.message}</p>
+        <div class="commit-details">
+          <div class="detail-row">
+            <span class="detail-label">SHA:</span>
+            <span class="detail-value">{data.sha}</span>
+          </div>
+          <div class="detail-row">
+            <span class="detail-label">Author:</span>
+            <span class="detail-value">{data.author}</span>
+          </div>
+          <div class="detail-row">
+            <span class="detail-label">Date:</span>
+            <span class="detail-value">{data.age}</span>
+          </div>
+        </div>
+      </div>
     </div>
   {/if}
 
@@ -264,7 +303,7 @@
 
   .action-buttons {
     position: absolute;
-    right: -8px;
+    left: calc(100% + 12px);
     top: 50%;
     transform: translateY(-50%);
     display: flex;
@@ -526,5 +565,111 @@
 
   .add-note button:hover {
     background: #1976d2;
+  }
+
+  .full-message-panel {
+    position: absolute;
+    left: calc(100% + 12px);
+    top: 0;
+    background: #2d2d2d;
+    border: 2px solid #444;
+    border-radius: 8px;
+    width: 400px;
+    max-width: 90vw;
+    display: flex;
+    flex-direction: column;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.6);
+    z-index: 1000;
+    animation: panelSlideIn 0.2s ease;
+  }
+
+  @keyframes panelSlideIn {
+    from {
+      opacity: 0;
+      transform: translateX(-12px);
+    }
+    to {
+      opacity: 1;
+      transform: translateX(0);
+    }
+  }
+
+  .full-message-header {
+    padding: 12px 16px;
+    border-bottom: 2px solid #444;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .full-message-header h4 {
+    margin: 0;
+    font-size: 16px;
+    font-weight: 600;
+    color: #e0e0e0;
+  }
+
+  .close-panel {
+    background: transparent;
+    border: none;
+    color: #808080;
+    font-size: 20px;
+    cursor: pointer;
+    padding: 0;
+    width: 24px;
+    height: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 4px;
+    transition: all 0.2s;
+  }
+
+  .close-panel:hover {
+    background: #3d3d3d;
+    color: #e0e0e0;
+  }
+
+  .full-message-content {
+    padding: 16px;
+  }
+
+  .full-message-text {
+    color: #e0e0e0;
+    font-size: 15px;
+    line-height: 1.6;
+    margin: 0 0 16px 0;
+    word-wrap: break-word;
+    white-space: pre-wrap;
+  }
+
+  .commit-details {
+    background: #1e1e1e;
+    border: 1px solid #444;
+    border-radius: 6px;
+    padding: 12px;
+  }
+
+  .detail-row {
+    display: flex;
+    gap: 12px;
+    margin-bottom: 8px;
+    font-size: 13px;
+  }
+
+  .detail-row:last-child {
+    margin-bottom: 0;
+  }
+
+  .detail-label {
+    color: #808080;
+    font-weight: 600;
+    min-width: 60px;
+  }
+
+  .detail-value {
+    color: #e0e0e0;
+    flex: 1;
+    font-family: 'Monaco', 'Courier New', monospace;
   }
 </style>

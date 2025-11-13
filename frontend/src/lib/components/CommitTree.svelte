@@ -271,6 +271,7 @@
     border-radius: 8px;
     overflow: hidden;
     transition: all 0.3s ease;
+    margin: 0 32px;
   }
 
   .tree-content.with-details {

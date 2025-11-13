@@ -58,7 +58,7 @@
   <LandingPage onGetStarted={handleGetStarted} />
 {:else}
 <main class="h-screen w-screen flex flex-col overflow-hidden">
-  <header class="flex items-center gap-3 px-4 py-2 bg-zinc-900 border-b border-zinc-800">
+  <header class="flex items-center gap-3 px-12 py-3 mx-8 my-4 bg-zinc-900 border-b border-zinc-800 rounded-lg">
     <h1 class="text-base font-semibold text-white whitespace-nowrap">Branch Monkey</h1>
     <div class="flex-1 max-w-3xl">
       <RepoSelector />
