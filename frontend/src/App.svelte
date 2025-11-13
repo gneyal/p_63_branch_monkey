@@ -9,7 +9,7 @@
   import LandingPage from './lib/components/LandingPage.svelte';
 
   let error = null;
-  let showLanding = true;
+  let showLanding = localStorage.getItem('showLanding') !== 'false';
 
   onMount(async () => {
     await loadRepoInfo();
@@ -50,31 +50,30 @@
 
   function handleGetStarted() {
     showLanding = false;
+    localStorage.setItem('showLanding', 'false');
   }
 </script>
 
 {#if showLanding}
   <LandingPage onGetStarted={handleGetStarted} />
 {:else}
-<main class="app">
-  <header class="app-header">
-    <h1 class="app-title">Branch Monkey</h1>
-    <div class="repo-selector-container">
+<main class="h-screen w-screen flex flex-col overflow-hidden">
+  <header class="flex items-center gap-3 px-4 py-2 bg-zinc-900 border-b border-zinc-800">
+    <h1 class="text-base font-semibold text-white whitespace-nowrap">Branch Monkey</h1>
+    <div class="flex-1 max-w-3xl">
       <RepoSelector />
     </div>
   </header>
 
   {#if error}
-    <div class="error-banner">
+    <div class="flex justify-between items-center px-4 py-3 bg-red-900/40 text-red-400 border border-red-900/60">
       <span>⚠️ {error}</span>
-      <button on:click={loadData} class="retry-btn">Retry</button>
+      <button on:click={loadData} class="px-3 py-1.5 bg-red-900/50 text-red-400 rounded hover:bg-red-900/70 text-xs font-medium transition">Retry</button>
     </div>
   {/if}
 
-  <div class="app-content">
-    <div class="panel tree-panel">
-      <CommitTree onNodeClick={handleNodeClick} />
-    </div>
+  <div class="flex-1 min-h-0 w-full overflow-hidden">
+    <CommitTree onNodeClick={handleNodeClick} />
   </div>
 
   <Toast />
