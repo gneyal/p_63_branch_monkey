@@ -11,16 +11,17 @@
   } from '@xyflow/svelte';
   import '@xyflow/svelte/dist/style.css';
   import CommitNode from './CommitNode.svelte';
+  import FlowController from './FlowController.svelte';
 
   export let onNodeClick = null;
 
   let selectedCommit = null;
   let currentCommitIndex = 0;
   let svelteFlowComponent = null;
+  let commandQueue = [];
 
   const nodes = writable([]);
   const edges = writable([]);
-  const viewport = writable({ x: 0, y: 0, zoom: 1 });
 
   const nodeTypes = {
     commit: CommitNode
@@ -31,24 +32,13 @@
     if ($nodes.length === 0 || index < 0 || index >= $nodes.length) return;
 
     const node = $nodes[index];
-    const viewportEl = document.querySelector('.svelte-flow__viewport');
-    const container = viewportEl?.parentElement;
-
-    if (container) {
-      const containerRect = container.getBoundingClientRect();
-      const currentZoom = $viewport.zoom;
-
-      const nodePosition = node.position;
-      const centerX = containerRect.width / 2;
-      const centerY = containerRect.height / 2;
-
-      const newX = centerX - (nodePosition.x * currentZoom);
-      const newY = centerY - (nodePosition.y * currentZoom);
-
-      viewport.set({ x: newX, y: newY, zoom: currentZoom });
-    }
-
     currentCommitIndex = index;
+
+    // Send command to FlowController to fit to this node
+    commandQueue = [...commandQueue, {
+      type: 'fitToNode',
+      nodeId: node.id
+    }];
   }
 
   // Export function to go to top
@@ -226,12 +216,6 @@
       }
     }
   }
-
-  function handleViewportChange(event) {
-    if (event.detail) {
-      viewport.set(event.detail);
-    }
-  }
 </script>
 
 <div class="commit-tree">
@@ -243,7 +227,6 @@
             bind:this={svelteFlowComponent}
             nodes={$nodes}
             edges={$edges}
-            viewport={$viewport}
             {nodeTypes}
             fitView
             nodesDraggable={false}
@@ -257,13 +240,11 @@
             maxZoom={3}
             defaultZoom={1}
             on:nodeclick={handleNodeClickInternal}
-            on:viewportchange={handleViewportChange}
-            on:move={handleViewportChange}
-            on:moveend={handleViewportChange}
           >
             <Controls showZoom={true} showFitView={true} showInteractive={false} />
             <Background variant={BackgroundVariant.Dots} />
             <MiniMap />
+            <FlowController {commandQueue} />
           </SvelteFlow>
         {:else}
           <div style="color: yellow; padding: 10px;">
