@@ -12,6 +12,7 @@
   let notes = [];
   let newNoteText = '';
   let loadingNotes = false;
+  let hideMenuTimeout = null;
 
   function getBranchColor(branches) {
     if (!branches || branches.length === 0) return 'var(--branch-default)';
@@ -117,14 +118,46 @@
   $: borderColor = getBranchColor(data.branches);
   $: backgroundColor = getBranchBackground(data.branches);
   $: isHead = data.is_head;
+
+  function handleMouseEnter() {
+    if (hideMenuTimeout) {
+      clearTimeout(hideMenuTimeout);
+      hideMenuTimeout = null;
+    }
+    showMenu = true;
+    showTooltip = true;
+  }
+
+  function handleMouseLeave() {
+    // Delay hiding to allow moving cursor to buttons
+    hideMenuTimeout = setTimeout(() => {
+      showMenu = false;
+      showTooltip = false;
+    }, 300);
+  }
+
+  function handleButtonsMouseEnter() {
+    if (hideMenuTimeout) {
+      clearTimeout(hideMenuTimeout);
+      hideMenuTimeout = null;
+    }
+    showMenu = true;
+  }
+
+  function handleButtonsMouseLeave() {
+    hideMenuTimeout = setTimeout(() => {
+      showMenu = false;
+      showTooltip = false;
+    }, 200);
+  }
 </script>
 
 <div
   class="commit-node"
   class:is-head={isHead}
   style="border-color: {borderColor}; background: {backgroundColor};"
-  on:mouseenter={() => { showMenu = true; showTooltip = true; }}
-  on:mouseleave={() => { showMenu = false; showTooltip = false; }}
+  on:mouseenter={handleMouseEnter}
+  on:mouseleave={handleMouseLeave}
 >
   <Handle type="target" position={Position.Top} />
 
@@ -158,7 +191,7 @@
   {/if}
 
   {#if showMenu}
-    <div class="action-buttons">
+    <div class="action-buttons" on:mouseenter={handleButtonsMouseEnter} on:mouseleave={handleButtonsMouseLeave}>
       <button
         class="action-btn"
         on:click|stopPropagation={toggleFullMessage}
