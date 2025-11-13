@@ -187,7 +187,7 @@
           on:mouseenter={startMonkeyAnimation}
           on:mouseleave={stopMonkeyAnimation}
         >
-          branch_monkey
+          branch/monkey
         </h1>
         {#if showMonkey}
           <div class="ascii-monkey">
