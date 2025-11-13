@@ -19,6 +19,66 @@
   let currentOffset = 0;
   let hasMore = false;
   let totalCommits = 0;
+  let showMonkey = false;
+  let monkeyFrame = 0;
+
+  const monkeyFrames = [
+    // Frame 1: Monkey on left branch
+    `        ___
+       {. .}
+        >o<
+       /|||\\
+      // \\\\\\\\
+=========
+     ||
+     ||`,
+    // Frame 2: Monkey jumping
+    `
+      {. .}
+       >o<
+      /|||\\
+     // \\\\\\\\
+
+=========
+     ||
+     ||`,
+    // Frame 3: Monkey on right branch
+    `
+       {. .}
+        >o<
+       /|||\\
+      // \\\\\\\\
+         =========
+              ||
+              ||`,
+    // Frame 4: Monkey jumping back
+    `
+      {. .}
+       >o<
+      /|||\\
+     // \\\\\\\\
+
+=========
+     ||
+     ||`,
+  ];
+
+  let animationInterval;
+
+  function startMonkeyAnimation() {
+    showMonkey = true;
+    monkeyFrame = 0;
+    animationInterval = setInterval(() => {
+      monkeyFrame = (monkeyFrame + 1) % monkeyFrames.length;
+    }, 600);
+  }
+
+  function stopMonkeyAnimation() {
+    showMonkey = false;
+    if (animationInterval) {
+      clearInterval(animationInterval);
+    }
+  }
 
   onMount(async () => {
     await loadRepoInfo();
@@ -121,7 +181,20 @@
 <main class="app-main">
   <header class="app-header">
     <div class="header-left">
-      <h1 class="app-title">Branch Monkey</h1>
+      <div class="title-container">
+        <h1
+          class="app-title"
+          on:mouseenter={startMonkeyAnimation}
+          on:mouseleave={stopMonkeyAnimation}
+        >
+          branch_monkey
+        </h1>
+        {#if showMonkey}
+          <div class="ascii-monkey">
+            <pre>{monkeyFrames[monkeyFrame]}</pre>
+          </div>
+        {/if}
+      </div>
       <RecentRepos />
     </div>
 
@@ -328,14 +401,53 @@
     align-items: center;
   }
 
+  .title-container {
+    position: relative;
+  }
+
   .app-title {
     font-size: 11px;
     font-weight: 600;
     color: var(--text-primary);
-    text-transform: uppercase;
     letter-spacing: 1.5px;
     white-space: nowrap;
     margin: 0;
+    font-family: 'Courier New', 'Courier', 'Monaco', 'Menlo', monospace;
+    cursor: pointer;
+  }
+
+  .ascii-monkey {
+    position: absolute;
+    top: calc(100% + 8px);
+    left: 0;
+    background: var(--bg-primary);
+    border: 1px solid var(--border-primary);
+    border-radius: 2px;
+    padding: 16px;
+    box-shadow: var(--shadow-large);
+    z-index: 1000;
+    animation: monkeySlideIn 0.2s ease;
+    min-width: 220px;
+  }
+
+  @keyframes monkeySlideIn {
+    from {
+      opacity: 0;
+      transform: translateY(-10px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  .ascii-monkey pre {
+    margin: 0;
+    font-family: 'Courier New', 'Courier', 'Monaco', 'Menlo', monospace;
+    font-size: 11px;
+    line-height: 1.3;
+    color: var(--text-primary);
+    white-space: pre;
   }
 
   .header-center {
