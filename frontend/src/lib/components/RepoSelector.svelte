@@ -209,41 +209,43 @@
 
   .repo-input {
     flex: 1;
-    background: #2d2d2d;
-    border: 1px solid #444;
-    color: #e0e0e0;
-    padding: 4px 8px;
-    border-radius: 4px;
-    font-size: 11px;
-    font-family: 'Monaco', 'Courier New', monospace;
+    background: var(--bg-primary);
+    border: 1px solid var(--border-primary);
+    color: var(--text-primary);
+    padding: 6px 10px;
+    border-radius: 1px;
+    font-size: 12px;
+    font-family: 'Courier', monospace;
     outline: none;
-    transition: border-color 0.2s;
+    transition: border-color 0.15s;
   }
 
   .repo-input:focus {
-    border-color: #2196f3;
+    border-color: var(--border-hover);
   }
 
   .repo-input::placeholder {
-    color: #808080;
+    color: var(--text-tertiary);
   }
 
   .switch-btn {
-    padding: 4px 10px;
-    background: #444;
-    border: 1px solid #555;
-    color: #e0e0e0;
-    border-radius: 4px;
+    padding: 6px 12px;
+    background: var(--bg-primary);
+    border: 1px solid var(--border-primary);
+    color: var(--text-secondary);
+    border-radius: 1px;
     font-size: 10px;
     font-weight: 500;
     cursor: pointer;
-    transition: all 0.2s;
+    transition: all 0.15s;
     white-space: nowrap;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
   }
 
   .switch-btn:hover {
-    background: #555;
-    border-color: #666;
+    background: var(--bg-hover);
+    border-color: var(--border-hover);
   }
 
   .suggestions {
@@ -252,22 +254,22 @@
     left: 0;
     right: 80px;
     margin-top: 4px;
-    background: #2d2d2d;
-    border: 1px solid #444;
-    border-radius: 6px;
+    background: var(--bg-primary);
+    border: 1px solid var(--border-primary);
+    border-radius: 1px;
     max-height: 300px;
     overflow-y: auto;
     z-index: 1000;
-    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.6);
+    box-shadow: var(--shadow-medium);
   }
 
   .suggestion-item {
     padding: 10px 12px;
-    color: #e0e0e0;
-    font-size: 13px;
-    font-family: 'Monaco', 'Courier New', monospace;
+    color: var(--text-primary);
+    font-size: 12px;
+    font-family: 'Courier', monospace;
     cursor: pointer;
-    border-bottom: 1px solid #444;
+    border-bottom: 1px solid var(--border-secondary);
     transition: background 0.15s;
   }
 
@@ -276,40 +278,42 @@
   }
 
   .suggestion-item:hover {
-    background: #3d3d3d;
+    background: var(--bg-hover);
   }
 
   .current-repo {
-    margin-top: 4px;
+    margin-top: 6px;
     font-size: 10px;
-    color: #808080;
-    font-family: 'Monaco', 'Courier New', monospace;
+    color: var(--text-tertiary);
+    font-family: 'Courier', monospace;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
   }
 
   .favorite-btn {
-    padding: 4px 8px;
-    background: #2d2d2d;
-    border: 1px solid #444;
-    color: #808080;
-    border-radius: 4px;
-    font-size: 16px;
+    padding: 6px 10px;
+    background: var(--bg-primary);
+    border: 1px solid var(--border-primary);
+    color: var(--text-tertiary);
+    border-radius: 1px;
+    font-size: 14px;
     cursor: pointer;
-    transition: all 0.2s;
+    transition: all 0.15s;
     line-height: 1;
   }
 
   .favorite-btn:hover {
-    border-color: #f59e0b;
-    color: #f59e0b;
+    border-color: var(--border-hover);
+    color: var(--text-secondary);
   }
 
   .favorite-btn.is-favorite {
-    color: #f59e0b;
-    border-color: #f59e0b;
-    background: rgba(245, 158, 11, 0.1);
+    color: var(--accent-primary);
+    border-color: var(--accent-primary);
+    background: var(--bg-secondary);
   }
 
   .favorites-section {
@@ -319,41 +323,43 @@
   .favorites-toggle {
     width: 100%;
     text-align: left;
-    padding: 4px 8px;
-    background: #2d2d2d;
-    border: 1px solid #444;
-    color: #e0e0e0;
-    border-radius: 4px;
+    padding: 6px 10px;
+    background: var(--bg-primary);
+    border: 1px solid var(--border-primary);
+    color: var(--text-secondary);
+    border-radius: 1px;
     font-size: 10px;
-    font-weight: 600;
+    font-weight: 500;
     cursor: pointer;
-    transition: all 0.2s;
+    transition: all 0.15s;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
   }
 
   .favorites-toggle:hover {
-    background: #3d3d3d;
-    border-color: #555;
+    background: var(--bg-hover);
+    border-color: var(--border-hover);
   }
 
   .favorites-list {
     margin-top: 8px;
     display: flex;
     flex-direction: column;
-    gap: 6px;
+    gap: 4px;
   }
 
   .favorite-item {
     display: flex;
     gap: 6px;
-    background: #2d2d2d;
-    border: 1px solid #444;
-    border-radius: 6px;
+    background: var(--bg-primary);
+    border: 1px solid var(--border-secondary);
+    border-radius: 1px;
     padding: 6px;
-    transition: background 0.2s;
+    transition: background 0.15s;
   }
 
   .favorite-item:hover {
-    background: #3d3d3d;
+    background: var(--bg-hover);
   }
 
   .favorite-path {
@@ -361,36 +367,33 @@
     text-align: left;
     background: transparent;
     border: none;
-    color: #e0e0e0;
-    font-size: 12px;
-    font-family: 'Monaco', 'Courier New', monospace;
+    color: var(--text-primary);
+    font-size: 11px;
+    font-family: 'Courier', monospace;
     cursor: pointer;
     padding: 4px 8px;
-    border-radius: 4px;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
-    transition: color 0.2s;
+    transition: color 0.15s;
   }
 
   .favorite-path:hover {
-    color: #2196f3;
+    color: var(--text-secondary);
   }
 
   .remove-favorite {
     background: transparent;
     border: none;
-    color: #808080;
-    font-size: 20px;
+    color: var(--text-tertiary);
+    font-size: 16px;
     cursor: pointer;
-    padding: 0 8px;
-    border-radius: 4px;
-    transition: all 0.2s;
+    padding: 0 6px;
+    transition: all 0.15s;
     line-height: 1;
   }
 
   .remove-favorite:hover {
-    background: #752e2e;
-    color: #ff6b6b;
+    color: var(--text-primary);
   }
 </style>

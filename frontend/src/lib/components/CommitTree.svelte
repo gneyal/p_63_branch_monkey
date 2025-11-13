@@ -248,7 +248,7 @@
 
 <style>
   .commit-tree {
-    background: #1e1e1e;
+    background: var(--bg-secondary);
     height: 100%;
     width: 100%;
     display: flex;
@@ -301,15 +301,15 @@
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    color: #808080;
+    color: var(--text-tertiary);
     gap: 16px;
   }
 
   .spinner {
-    width: 40px;
-    height: 40px;
-    border: 4px solid #333;
-    border-top-color: #2196f3;
+    width: 32px;
+    height: 32px;
+    border: 2px solid var(--border-secondary);
+    border-top-color: var(--text-secondary);
     border-radius: 50%;
     animation: spin 1s linear infinite;
   }
@@ -318,34 +318,36 @@
     to { transform: rotate(360deg); }
   }
 
-  /* Override Svelte Flow dark theme styles */
+  /* Override Svelte Flow styles */
   :global(.svelte-flow) {
-    background: #121212 !important;
+    background: var(--bg-secondary) !important;
   }
 
   :global(.svelte-flow__controls) {
-    background: #2d2d2d !important;
-    border: 1px solid #444 !important;
+    background: var(--bg-primary) !important;
+    border: 1px solid var(--border-primary) !important;
+    box-shadow: var(--shadow-medium) !important;
   }
 
   :global(.svelte-flow__controls button) {
-    background: #2d2d2d !important;
-    border-bottom: 1px solid #444 !important;
-    color: #e0e0e0 !important;
+    background: var(--bg-primary) !important;
+    border-bottom: 1px solid var(--border-secondary) !important;
+    color: var(--text-secondary) !important;
   }
 
   :global(.svelte-flow__controls button:hover) {
-    background: #333 !important;
+    background: var(--bg-hover) !important;
   }
 
   :global(.svelte-flow__minimap) {
-    background: #2d2d2d !important;
-    border: 1px solid #444 !important;
+    background: var(--bg-primary) !important;
+    border: 1px solid var(--border-primary) !important;
+    box-shadow: var(--shadow-medium) !important;
   }
 
   :global(.svelte-flow__edge-path) {
-    stroke: #888 !important;
-    stroke-width: 6px !important;
+    stroke: var(--border-hover) !important;
+    stroke-width: 2px !important;
     stroke-linecap: square !important;
     stroke-linejoin: miter !important;
   }
