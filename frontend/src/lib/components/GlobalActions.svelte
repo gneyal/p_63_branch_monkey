@@ -2,11 +2,16 @@
   import { showToast } from '../stores/store.js';
 
   export let onGoToTop = () => {};
+  export let onGoToBottom = () => {};
   export let onShowRemote = () => {};
   export let onNameBranches = () => {};
 
   function handleGoToTop() {
     onGoToTop();
+  }
+
+  function handleGoToBottom() {
+    onGoToBottom();
   }
 
   function handleShowRemote() {
@@ -25,6 +30,13 @@
       <polyline points="18 15 12 9 6 15"/>
     </svg>
     <span>Top</span>
+  </button>
+
+  <button class="action-item" on:click={handleGoToBottom} title="Go to bottom">
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+      <polyline points="6 9 12 15 18 9"/>
+    </svg>
+    <span>Bottom</span>
   </button>
 
   <button class="action-item" on:click={handleShowRemote} title="Show remote">
@@ -50,25 +62,25 @@
 <style>
   .global-actions {
     display: flex;
-    gap: 4px;
+    gap: 6px;
     align-items: center;
   }
 
   .action-item {
     display: flex;
     align-items: center;
-    gap: 6px;
-    padding: 8px 12px;
+    gap: 5px;
+    padding: 6px 10px;
     background: var(--bg-primary);
     border: 1px solid var(--border-primary);
     color: var(--text-secondary);
-    border-radius: 2px;
-    font-size: 10px;
-    font-weight: 500;
+    border-radius: 1px;
+    font-size: 9px;
+    font-weight: 600;
     text-transform: uppercase;
-    letter-spacing: 0.5px;
+    letter-spacing: 0.8px;
     cursor: pointer;
-    transition: all 0.15s;
+    transition: all 0.2s ease;
   }
 
   .action-item:hover {
@@ -77,7 +89,13 @@
     color: var(--text-primary);
   }
 
+  .action-item:active {
+    transform: translateY(1px);
+  }
+
   .action-item svg {
     flex-shrink: 0;
+    width: 16px;
+    height: 16px;
   }
 </style>

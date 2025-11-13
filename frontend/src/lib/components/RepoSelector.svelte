@@ -3,6 +3,8 @@
   import { searchRepoPaths, setRepoPath, fetchRepoInfo } from '../services/api.js';
 
   let inputValue = '';
+  let fullPath = ''; // Store the full path separately
+  let isEditing = false; // Track if user is typing a new path
   let suggestions = [];
   let showSuggestions = false;
   let searchTimeout = null;
@@ -26,9 +28,17 @@
   // Load favorites on mount
   loadFavorites();
 
-  // Update input when repoInfo changes
-  $: if ($repoInfo.path) {
-    inputValue = $repoInfo.path;
+  // Extract project name from full path
+  function getProjectName(path) {
+    if (!path) return '';
+    const parts = path.split('/');
+    return parts[parts.length - 1] || path;
+  }
+
+  // Update input when repoInfo changes - show only project name
+  $: if ($repoInfo.path && !isEditing) {
+    fullPath = $repoInfo.path;
+    inputValue = getProjectName($repoInfo.path);
   }
 
   function toggleFavorite() {
@@ -51,12 +61,15 @@
 
   async function selectFavorite(path) {
     inputValue = path;
+    fullPath = path;
+    isEditing = true;
     await switchRepo();
   }
 
   async function handleInput(e) {
     const query = e.target.value;
     inputValue = query;
+    isEditing = true; // User is now typing a new path
 
     clearTimeout(searchTimeout);
 
@@ -80,22 +93,29 @@
 
   async function selectPath(path) {
     inputValue = path;
+    isEditing = true; // Mark as editing since we're setting a full path
+    fullPath = path; // Store the full path
     showSuggestions = false;
     suggestions = [];
     await switchRepo();
   }
 
   async function switchRepo() {
-    if (!inputValue.trim()) {
+    // Use the full path if not editing (clicking switch on current repo name)
+    // Otherwise use the inputValue (user typed a new path)
+    const pathToSwitch = isEditing ? inputValue.trim() : fullPath;
+
+    if (!pathToSwitch) {
       showToast('Please enter a repository path', 'error');
       return;
     }
 
     try {
-      await setRepoPath(inputValue.trim());
+      await setRepoPath(pathToSwitch);
       const info = await fetchRepoInfo();
       repoInfo.set(info);
       showToast('Repository changed successfully', 'success');
+      isEditing = false; // Reset editing state
 
       // Trigger page reload to fetch new repo data
       window.location.reload();
@@ -120,6 +140,10 @@
     // Delay to allow click on suggestion
     setTimeout(() => {
       showSuggestions = false;
+      // Reset to project name if user didn't change anything meaningful
+      if (isEditing && inputValue === getProjectName(fullPath)) {
+        isEditing = false;
+      }
     }, 200);
   }
 </script>
@@ -169,14 +193,15 @@
     color: var(--text-primary);
     padding: 6px 10px;
     border-radius: 1px;
-    font-size: 12px;
+    font-size: 11px;
     font-family: 'Courier', monospace;
     outline: none;
-    transition: border-color 0.15s;
+    transition: all 0.2s ease;
   }
 
   .repo-input:focus {
     border-color: var(--border-hover);
+    background: var(--bg-hover);
   }
 
   .repo-input::placeholder {
@@ -189,18 +214,23 @@
     border: 1px solid var(--border-primary);
     color: var(--text-secondary);
     border-radius: 1px;
-    font-size: 10px;
-    font-weight: 500;
+    font-size: 9px;
+    font-weight: 600;
     cursor: pointer;
-    transition: all 0.15s;
+    transition: all 0.2s ease;
     white-space: nowrap;
     text-transform: uppercase;
-    letter-spacing: 0.5px;
+    letter-spacing: 0.8px;
   }
 
   .switch-btn:hover {
     background: var(--bg-hover);
     border-color: var(--border-hover);
+    color: var(--text-primary);
+  }
+
+  .switch-btn:active {
+    transform: translateY(1px);
   }
 
   .suggestions {
@@ -208,24 +238,24 @@
     top: 100%;
     left: 0;
     right: 80px;
-    margin-top: 4px;
+    margin-top: 6px;
     background: var(--bg-primary);
     border: 1px solid var(--border-primary);
     border-radius: 1px;
     max-height: 300px;
     overflow-y: auto;
     z-index: 1000;
-    box-shadow: var(--shadow-medium);
+    box-shadow: var(--shadow-large);
   }
 
   .suggestion-item {
     padding: 10px 12px;
     color: var(--text-primary);
-    font-size: 12px;
+    font-size: 11px;
     font-family: 'Courier', monospace;
     cursor: pointer;
     border-bottom: 1px solid var(--border-secondary);
-    transition: background 0.15s;
+    transition: all 0.2s ease;
   }
 
   .suggestion-item:last-child {
@@ -233,6 +263,7 @@
   }
 
   .suggestion-item:hover {
-    background: var(--bg-hover);
+    background: var(--bg-secondary);
+    color: var(--text-primary);
   }
 </style>

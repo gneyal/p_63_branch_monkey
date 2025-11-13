@@ -7,10 +7,12 @@ const API_BASE = '/api';
 
 /**
  * Fetch the commit tree
+ * @param {number} limit - Number of commits to fetch
+ * @param {number} offset - Number of commits to skip
  * @returns {Promise<Object>} Commit tree data
  */
-export async function fetchCommitTree() {
-  const response = await fetch(`${API_BASE}/commit-tree`);
+export async function fetchCommitTree(limit = 50, offset = 0) {
+  const response = await fetch(`${API_BASE}/commit-tree?limit=${limit}&offset=${offset}`);
   if (!response.ok) {
     throw new Error(`Failed to fetch commit tree: ${response.statusText}`);
   }

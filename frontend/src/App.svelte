@@ -16,6 +16,9 @@
   let showLanding = localStorage.getItem('showLanding') !== 'false';
   let showBranchesList = false;
   let commitTreeComponent;
+  let currentOffset = 0;
+  let hasMore = false;
+  let totalCommits = 0;
 
   onMount(async () => {
     await loadRepoInfo();
@@ -34,12 +37,28 @@
     }
   }
 
-  async function loadData() {
+  async function loadData(append = false) {
     try {
       isLoading.set(true);
-      const treeData = await fetchCommitTree();
+      const offset = append ? currentOffset : 0;
+      const treeData = await fetchCommitTree(50, offset);
       console.log('Loaded commit tree data:', treeData);
-      commitTree.set(treeData);
+
+      if (append) {
+        // Append new commits to existing ones
+        commitTree.update(current => ({
+          ...treeData,
+          commits: [...(current?.commits || []), ...(treeData.commits || [])]
+        }));
+      } else {
+        // Replace commits (initial load or refresh)
+        commitTree.set(treeData);
+      }
+
+      currentOffset = treeData.offset + treeData.commits.length;
+      hasMore = treeData.has_more;
+      totalCommits = treeData.total;
+      console.log('Pagination state:', { currentOffset, hasMore, totalCommits, loaded: treeData.commits.length });
       error = null;
     } catch (err) {
       console.error('Failed to load data:', err);
@@ -48,6 +67,11 @@
     } finally {
       isLoading.set(false);
     }
+  }
+
+  async function loadMore() {
+    if (!hasMore || $isLoading) return;
+    await loadData(true);
   }
 
   function handleNodeClick(node) {
@@ -62,6 +86,12 @@
   function handleGoToTop() {
     if (commitTreeComponent && commitTreeComponent.goToTop) {
       commitTreeComponent.goToTop();
+    }
+  }
+
+  function handleGoToBottom() {
+    if (commitTreeComponent && commitTreeComponent.goToBottom) {
+      commitTreeComponent.goToBottom();
     }
   }
 
@@ -100,8 +130,18 @@
     </div>
 
     <div class="header-right">
+      <div class="commit-info">
+        <span class="commit-count">{currentOffset} / {totalCommits} commits</span>
+        {#if hasMore}
+          <button class="load-more-compact" on:click={loadMore} title="Load more commits">
+            Load More
+          </button>
+        {/if}
+      </div>
+
       <GlobalActions
         onGoToTop={handleGoToTop}
+        onGoToBottom={handleGoToBottom}
         onShowRemote={handleShowRemote}
         onNameBranches={handleNameBranches}
       />
@@ -136,7 +176,14 @@
   {/if}
 
   <div class="app-content">
-    <CommitTree bind:this={commitTreeComponent} onNodeClick={handleNodeClick} />
+    <CommitTree
+      bind:this={commitTreeComponent}
+      onNodeClick={handleNodeClick}
+      {hasMore}
+      {totalCommits}
+      loadedCount={currentOffset}
+      onLoadMore={loadMore}
+    />
   </div>
 
   {#if showBranchesList}
@@ -155,27 +202,27 @@
   @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
 
   :global(:root[data-theme="light"]) {
-    --bg-primary: #ffffff;
-    --bg-secondary: #fafafa;
-    --bg-hover: #f5f5f5;
-    --text-primary: #171717;
-    --text-secondary: #404040;
-    --text-tertiary: #737373;
-    --border-primary: #d4d4d4;
-    --border-secondary: #e5e5e5;
-    --border-hover: #a3a3a3;
-    --accent-primary: #404040;
-    --accent-secondary: #737373;
-    --shadow-small: 0 1px 2px rgba(0, 0, 0, 0.05);
-    --shadow-medium: 0 2px 4px rgba(0, 0, 0, 0.1);
-    --shadow-large: 0 4px 8px rgba(0, 0, 0, 0.15);
+    --bg-primary: #fafaf8;
+    --bg-secondary: #f0f0ed;
+    --bg-hover: #e8e8e3;
+    --text-primary: #1a1a1a;
+    --text-secondary: #4a4a4a;
+    --text-tertiary: #7a7a7a;
+    --border-primary: #d0d0c8;
+    --border-secondary: #e0e0d8;
+    --border-hover: #a0a098;
+    --accent-primary: #4a4a4a;
+    --accent-secondary: #7a7a7a;
+    --shadow-small: 0 1px 3px rgba(0, 0, 0, 0.06);
+    --shadow-medium: 0 2px 6px rgba(0, 0, 0, 0.1);
+    --shadow-large: 0 4px 12px rgba(0, 0, 0, 0.15);
 
-    /* Branch colors - light mode */
-    --branch-main: #2563eb;
-    --branch-experiment: #059669;
-    --branch-feature: #7c3aed;
-    --branch-fix: #dc2626;
-    --branch-default: #6b7280;
+    /* Branch colors - light mode - muted */
+    --branch-main: #4a7dc9;
+    --branch-experiment: #3a9679;
+    --branch-feature: #8e6cbd;
+    --branch-fix: #c84a4a;
+    --branch-default: #7a8290;
   }
 
   :global(:root[data-theme="dark"]) {
@@ -230,9 +277,49 @@
     grid-template-columns: 1fr 2fr 1fr;
     gap: 24px;
     align-items: center;
-    padding: 16px 32px;
-    background: var(--bg-primary);
+    padding: 12px 24px;
+    background: var(--bg-secondary);
     border-bottom: 1px solid var(--border-primary);
+    box-shadow: var(--shadow-small);
+  }
+
+  @media (max-width: 1200px) {
+    .app-header {
+      grid-template-columns: auto 1fr auto;
+      gap: 16px;
+      padding: 12px 16px;
+    }
+
+    .app-title {
+      font-size: 10px;
+    }
+  }
+
+  @media (max-width: 768px) {
+    .app-header {
+      grid-template-columns: 1fr;
+      gap: 12px;
+      padding: 12px 16px;
+    }
+
+    .header-left,
+    .header-center,
+    .header-right {
+      justify-content: center;
+    }
+
+    .header-left {
+      order: 1;
+    }
+
+    .header-center {
+      order: 2;
+    }
+
+    .header-right {
+      order: 3;
+      flex-wrap: wrap;
+    }
   }
 
   .header-left {
@@ -242,12 +329,13 @@
   }
 
   .app-title {
-    font-size: 12px;
-    font-weight: 500;
+    font-size: 11px;
+    font-weight: 600;
     color: var(--text-primary);
     text-transform: uppercase;
-    letter-spacing: 1px;
+    letter-spacing: 1.5px;
     white-space: nowrap;
+    margin: 0;
   }
 
   .header-center {
@@ -262,14 +350,56 @@
     align-items: center;
   }
 
-  .theme-toggle {
-    padding: 8px;
+  .commit-info {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    padding: 6px 12px;
+    background: var(--bg-primary);
+    border: 1px solid var(--border-primary);
+    border-radius: 1px;
+  }
+
+  .commit-count {
+    font-size: 10px;
+    font-weight: 500;
+    color: var(--text-tertiary);
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+  }
+
+  .load-more-compact {
+    padding: 5px 10px;
     background: var(--bg-primary);
     border: 1px solid var(--border-primary);
     color: var(--text-secondary);
-    border-radius: 2px;
+    border-radius: 1px;
+    font-size: 9px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
     cursor: pointer;
-    transition: all 0.15s;
+    transition: all 0.2s ease;
+  }
+
+  .load-more-compact:hover {
+    background: var(--bg-hover);
+    border-color: var(--border-hover);
+    color: var(--text-primary);
+  }
+
+  .load-more-compact:active {
+    transform: translateY(1px);
+  }
+
+  .theme-toggle {
+    padding: 6px;
+    background: var(--bg-primary);
+    border: 1px solid var(--border-primary);
+    color: var(--text-secondary);
+    border-radius: 1px;
+    cursor: pointer;
+    transition: all 0.2s ease;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -278,6 +408,11 @@
   .theme-toggle:hover {
     background: var(--bg-hover);
     border-color: var(--border-hover);
+    color: var(--text-primary);
+  }
+
+  .theme-toggle:active {
+    transform: translateY(1px);
   }
 
   .error-banner {

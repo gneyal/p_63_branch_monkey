@@ -1461,7 +1461,7 @@ def get_branches():
 
 
 @app.get("/api/commit-tree")
-def get_commit_tree():
+def get_commit_tree(limit: int = 50, offset: int = 0):
     """Get commit tree with parent relationships for visualization."""
     import subprocess
     try:
@@ -1491,9 +1491,16 @@ def get_commit_tree():
                     sha_to_branches[sha] = []
                 sha_to_branches[sha].append(branch_name)
 
-        # Get commit log with parents (limit to last 50 commits for performance)
+        # Get total commit count
+        total_commits = int(subprocess.check_output(
+            ["git", "rev-list", "--all", "--count"],
+            cwd=REPO_PATH,
+            text=True
+        ).strip())
+
+        # Get commit log with parents using skip and max-count for pagination
         log_output = subprocess.check_output(
-            ["git", "log", "--all", "--format=%H|%h|%p|%s|%an|%ar", "-50"],
+            ["git", "log", "--all", "--format=%H|%h|%p|%s|%an|%ar", f"--skip={offset}", f"--max-count={limit}"],
             cwd=REPO_PATH,
             text=True
         ).strip()
@@ -1517,7 +1524,17 @@ def get_commit_tree():
                     "is_head": short_sha == current_sha
                 })
 
-        return {"success": True, "commits": commits, "current_sha": current_sha}
+        has_more = (offset + limit) < total_commits
+
+        return {
+            "success": True,
+            "commits": commits,
+            "current_sha": current_sha,
+            "total": total_commits,
+            "offset": offset,
+            "limit": limit,
+            "has_more": has_more
+        }
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 

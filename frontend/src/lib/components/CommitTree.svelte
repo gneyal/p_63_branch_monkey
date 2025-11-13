@@ -14,6 +14,10 @@
   import FlowController from './FlowController.svelte';
 
   export let onNodeClick = null;
+  export let hasMore = false;
+  export let totalCommits = 0;
+  export let loadedCount = 0;
+  export let onLoadMore = null;
 
   let selectedCommit = null;
   let currentCommitIndex = 0;
@@ -44,6 +48,12 @@
   // Export function to go to top
   export function goToTop() {
     centerOnCommit(0);
+  }
+
+  // Export function to go to bottom
+  export function goToBottom() {
+    if ($nodes.length === 0) return;
+    centerOnCommit($nodes.length - 1);
   }
 
   // Export function to get current commit
@@ -252,6 +262,7 @@
           </div>
         {/if}
       </div>
+
     {:else}
       <div class="tree-loading">
         <div class="spinner"></div>
@@ -546,5 +557,45 @@
     color: #ffd700;
     font-weight: 700;
     font-size: 15px;
+  }
+
+  .load-more-container {
+    position: fixed;
+    bottom: 32px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 100;
+  }
+
+  .load-more-btn {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    padding: 12px 24px;
+    background: var(--bg-primary);
+    border: 1px solid var(--border-primary);
+    color: var(--text-primary);
+    border-radius: 2px;
+    font-size: 12px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.15s;
+    box-shadow: var(--shadow-medium);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+
+  .load-more-btn:hover {
+    background: var(--bg-hover);
+    border-color: var(--border-hover);
+    box-shadow: var(--shadow-large);
+  }
+
+  .load-more-info {
+    font-size: 10px;
+    color: var(--text-tertiary);
+    text-transform: none;
+    letter-spacing: normal;
   }
 </style>
