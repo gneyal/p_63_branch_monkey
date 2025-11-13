@@ -1,6 +1,7 @@
 <script>
   import { commitTree } from '../stores/store.js';
   import { writable } from 'svelte/store';
+  import { onMount } from 'svelte';
   import {
     SvelteFlow,
     Controls,
@@ -14,6 +15,7 @@
   export let onNodeClick = null;
 
   let selectedCommit = null;
+  let currentCommitIndex = 0;
   let svelteFlowComponent = null;
 
   const nodes = writable([]);
@@ -24,32 +26,60 @@
     commit: CommitNode
   };
 
-  // Export function to go to top
-  export function goToTop() {
-    if ($nodes.length === 0) return;
+  // Center viewport on a specific commit by index
+  function centerOnCommit(index) {
+    if ($nodes.length === 0 || index < 0 || index >= $nodes.length) return;
 
-    const topNode = $nodes[0];
+    const node = $nodes[index];
     const viewportEl = document.querySelector('.svelte-flow__viewport');
     const container = viewportEl?.parentElement;
 
     if (container) {
       const containerRect = container.getBoundingClientRect();
-
-      // Get current zoom from viewport store
       const currentZoom = $viewport.zoom;
 
-      // Calculate center position
-      const nodePosition = topNode.position;
+      const nodePosition = node.position;
       const centerX = containerRect.width / 2;
       const centerY = containerRect.height / 2;
 
       const newX = centerX - (nodePosition.x * currentZoom);
       const newY = centerY - (nodePosition.y * currentZoom);
 
-      // Update the viewport store - this will sync with SvelteFlow's internal state
       viewport.set({ x: newX, y: newY, zoom: currentZoom });
     }
+
+    currentCommitIndex = index;
   }
+
+  // Export function to go to top
+  export function goToTop() {
+    centerOnCommit(0);
+  }
+
+  // Handle keyboard navigation
+  function handleKeydown(event) {
+    if (!$nodes.length) return;
+
+    if (event.key === 'ArrowUp') {
+      event.preventDefault();
+      // Move up (to newer commits)
+      const nextIndex = Math.max(0, currentCommitIndex - 1);
+      centerOnCommit(nextIndex);
+    } else if (event.key === 'ArrowDown') {
+      event.preventDefault();
+      // Move down (to older commits)
+      const prevIndex = Math.min($nodes.length - 1, currentCommitIndex + 1);
+      centerOnCommit(prevIndex);
+    }
+  }
+
+  // Set up keyboard listener
+  onMount(() => {
+    window.addEventListener('keydown', handleKeydown);
+    return () => {
+      window.removeEventListener('keydown', handleKeydown);
+    };
+  });
 
   // Transform commits to nodes and edges for Svelte Flow
   $: if ($commitTree && $commitTree.commits && $commitTree.commits.length > 0) {
