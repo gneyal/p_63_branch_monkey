@@ -18,6 +18,8 @@
 
   const nodes = writable([]);
   const edges = writable([]);
+  const viewport = writable({ x: 0, y: 0, zoom: 1 });
+
   const nodeTypes = {
     commit: CommitNode
   };
@@ -26,46 +28,26 @@
   export function goToTop() {
     if ($nodes.length === 0) return;
 
-    const topNodeId = $nodes[0].id;
+    const topNode = $nodes[0];
+    const viewportEl = document.querySelector('.svelte-flow__viewport');
+    const container = viewportEl?.parentElement;
 
-    // Try using the component's fitView method first
-    if (svelteFlowComponent && typeof svelteFlowComponent.fitView === 'function') {
-      svelteFlowComponent.fitView({
-        nodes: [{ id: topNodeId }],
-        duration: 500,
-        padding: 0.5
-      });
-    } else {
-      // Fallback to viewport manipulation
-      const viewport = document.querySelector('.svelte-flow__viewport');
-      const firstNode = document.querySelector('[data-id="' + topNodeId + '"]');
+    if (container) {
+      const containerRect = container.getBoundingClientRect();
 
-      if (viewport && firstNode) {
-        const container = viewport.parentElement;
-        const containerRect = container.getBoundingClientRect();
+      // Get current zoom from viewport store
+      const currentZoom = $viewport.zoom;
 
-        // Get current transform values
-        const currentTransform = viewport.style.transform || 'translate(0px, 0px) scale(1)';
-        const scaleMatch = currentTransform.match(/scale\(([\d.]+)\)/);
-        const currentScale = scaleMatch ? parseFloat(scaleMatch[1]) : 1;
+      // Calculate center position
+      const nodePosition = topNode.position;
+      const centerX = containerRect.width / 2;
+      const centerY = containerRect.height / 2;
 
-        // Get node position from flow coordinates
-        const nodePosition = $nodes[0].position;
+      const newX = centerX - (nodePosition.x * currentZoom);
+      const newY = centerY - (nodePosition.y * currentZoom);
 
-        // Calculate the transform needed to center this node
-        const centerX = containerRect.width / 2;
-        const centerY = containerRect.height / 2;
-
-        const newX = centerX - (nodePosition.x * currentScale);
-        const newY = centerY - (nodePosition.y * currentScale);
-
-        viewport.style.transition = 'transform 0.5s ease';
-        viewport.style.transform = `translate(${newX}px, ${newY}px) scale(${currentScale})`;
-
-        setTimeout(() => {
-          viewport.style.transition = '';
-        }, 500);
-      }
+      // Update the viewport store - this will sync with SvelteFlow's internal state
+      viewport.set({ x: newX, y: newY, zoom: currentZoom });
     }
   }
 
@@ -156,17 +138,22 @@
         }
       });
 
-      // Create edges from this commit to its parents
+      // Create edges from parent to this commit (showing flow from old to new)
       if (commit.parents && commit.parents.length > 0) {
         commit.parents.forEach(parentSha => {
           if (commitMap.has(parentSha)) {
             newEdges.push({
-              id: `${commit.sha}-${parentSha}`,
-              source: commit.sha,
-              target: parentSha,
+              id: `${parentSha}-${commit.sha}`,
+              source: parentSha,
+              target: commit.sha,
               type: 'straight',
               animated: false,
-              style: 'stroke: #888; stroke-width: 6px;'
+              markerEnd: {
+                type: 'arrowclosed',
+                width: 20,
+                height: 20
+              },
+              style: 'stroke: var(--border-hover); stroke-width: 2px;'
             });
           }
         });
@@ -190,6 +177,12 @@
       }
     }
   }
+
+  function handleViewportChange(event) {
+    if (event.detail) {
+      viewport.set(event.detail);
+    }
+  }
 </script>
 
 <div class="commit-tree">
@@ -201,6 +194,7 @@
             bind:this={svelteFlowComponent}
             nodes={$nodes}
             edges={$edges}
+            viewport={$viewport}
             {nodeTypes}
             fitView
             nodesDraggable={false}
@@ -214,6 +208,9 @@
             maxZoom={3}
             defaultZoom={1}
             on:nodeclick={handleNodeClickInternal}
+            on:viewportchange={handleViewportChange}
+            on:move={handleViewportChange}
+            on:moveend={handleViewportChange}
           >
             <Controls showZoom={true} showFitView={true} showInteractive={false} />
             <Background variant={BackgroundVariant.Dots} />
