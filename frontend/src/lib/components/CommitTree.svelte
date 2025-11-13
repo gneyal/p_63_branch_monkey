@@ -6,8 +6,7 @@
     Controls,
     Background,
     BackgroundVariant,
-    MiniMap,
-    useSvelteFlow
+    MiniMap
   } from '@xyflow/svelte';
   import '@xyflow/svelte/dist/style.css';
   import CommitNode from './CommitNode.svelte';
@@ -15,12 +14,60 @@
   export let onNodeClick = null;
 
   let selectedCommit = null;
+  let svelteFlowComponent = null;
 
   const nodes = writable([]);
   const edges = writable([]);
   const nodeTypes = {
     commit: CommitNode
   };
+
+  // Export function to go to top
+  export function goToTop() {
+    if ($nodes.length === 0) return;
+
+    const topNodeId = $nodes[0].id;
+
+    // Try using the component's fitView method first
+    if (svelteFlowComponent && typeof svelteFlowComponent.fitView === 'function') {
+      svelteFlowComponent.fitView({
+        nodes: [{ id: topNodeId }],
+        duration: 500,
+        padding: 0.5
+      });
+    } else {
+      // Fallback to viewport manipulation
+      const viewport = document.querySelector('.svelte-flow__viewport');
+      const firstNode = document.querySelector('[data-id="' + topNodeId + '"]');
+
+      if (viewport && firstNode) {
+        const container = viewport.parentElement;
+        const containerRect = container.getBoundingClientRect();
+
+        // Get current transform values
+        const currentTransform = viewport.style.transform || 'translate(0px, 0px) scale(1)';
+        const scaleMatch = currentTransform.match(/scale\(([\d.]+)\)/);
+        const currentScale = scaleMatch ? parseFloat(scaleMatch[1]) : 1;
+
+        // Get node position from flow coordinates
+        const nodePosition = $nodes[0].position;
+
+        // Calculate the transform needed to center this node
+        const centerX = containerRect.width / 2;
+        const centerY = containerRect.height / 2;
+
+        const newX = centerX - (nodePosition.x * currentScale);
+        const newY = centerY - (nodePosition.y * currentScale);
+
+        viewport.style.transition = 'transform 0.5s ease';
+        viewport.style.transform = `translate(${newX}px, ${newY}px) scale(${currentScale})`;
+
+        setTimeout(() => {
+          viewport.style.transition = '';
+        }, 500);
+      }
+    }
+  }
 
   // Transform commits to nodes and edges for Svelte Flow
   $: if ($commitTree && $commitTree.commits && $commitTree.commits.length > 0) {
@@ -151,6 +198,7 @@
       <div class="tree-content" class:with-details={selectedCommit}>
         {#if $nodes.length > 0}
           <SvelteFlow
+            bind:this={svelteFlowComponent}
             nodes={$nodes}
             edges={$edges}
             {nodeTypes}

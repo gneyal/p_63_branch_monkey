@@ -7,7 +7,6 @@
 
   function handleGoToTop() {
     onGoToTop();
-    showToast('Scrolled to top', 'info');
   }
 
   function handleShowRemote() {

@@ -58,9 +58,8 @@
   }
 
   function handleGoToTop() {
-    // Implement scroll to top for commit tree
-    if (commitTreeComponent) {
-      // Will be implemented in CommitTree component
+    if (commitTreeComponent && commitTreeComponent.goToTop) {
+      commitTreeComponent.goToTop();
     }
   }
 
