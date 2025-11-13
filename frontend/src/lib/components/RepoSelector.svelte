@@ -126,14 +126,6 @@
 
 <div class="repo-selector">
   <div class="input-wrapper">
-    <button
-      on:click={toggleFavorite}
-      class="favorite-btn"
-      class:is-favorite={isFavorite}
-      title={isFavorite ? 'Remove from favorites' : 'Add to favorites'}
-    >
-      ★
-    </button>
     <input
       type="text"
       bind:value={inputValue}
@@ -154,43 +146,6 @@
           {suggestion}
         </div>
       {/each}
-    </div>
-  {/if}
-
-  {#if $repoInfo.path}
-    <div class="current-repo" title={$repoInfo.path}>
-      Current: {$repoInfo.path}
-    </div>
-  {/if}
-
-  {#if favorites.length > 0}
-    <div class="favorites-section">
-      <button on:click={() => showFavorites = !showFavorites} class="favorites-toggle">
-        {showFavorites ? '▼' : '▶'} Favorites ({favorites.length})
-      </button>
-
-      {#if showFavorites}
-        <div class="favorites-list">
-          {#each favorites as favorite}
-            <div class="favorite-item">
-              <button
-                on:click={() => selectFavorite(favorite)}
-                class="favorite-path"
-                title={favorite}
-              >
-                {favorite.split('/').slice(-2).join('/')}
-              </button>
-              <button
-                on:click={() => removeFavorite(favorite)}
-                class="remove-favorite"
-                title="Remove"
-              >
-                ×
-              </button>
-            </div>
-          {/each}
-        </div>
-      {/if}
     </div>
   {/if}
 </div>
@@ -279,121 +234,5 @@
 
   .suggestion-item:hover {
     background: var(--bg-hover);
-  }
-
-  .current-repo {
-    margin-top: 6px;
-    font-size: 10px;
-    color: var(--text-tertiary);
-    font-family: 'Courier', monospace;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-    text-transform: uppercase;
-    letter-spacing: 0.3px;
-  }
-
-  .favorite-btn {
-    padding: 6px 10px;
-    background: var(--bg-primary);
-    border: 1px solid var(--border-primary);
-    color: var(--text-tertiary);
-    border-radius: 1px;
-    font-size: 14px;
-    cursor: pointer;
-    transition: all 0.15s;
-    line-height: 1;
-  }
-
-  .favorite-btn:hover {
-    border-color: var(--border-hover);
-    color: var(--text-secondary);
-  }
-
-  .favorite-btn.is-favorite {
-    color: var(--accent-primary);
-    border-color: var(--accent-primary);
-    background: var(--bg-secondary);
-  }
-
-  .favorites-section {
-    margin-top: 6px;
-  }
-
-  .favorites-toggle {
-    width: 100%;
-    text-align: left;
-    padding: 6px 10px;
-    background: var(--bg-primary);
-    border: 1px solid var(--border-primary);
-    color: var(--text-secondary);
-    border-radius: 1px;
-    font-size: 10px;
-    font-weight: 500;
-    cursor: pointer;
-    transition: all 0.15s;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-  }
-
-  .favorites-toggle:hover {
-    background: var(--bg-hover);
-    border-color: var(--border-hover);
-  }
-
-  .favorites-list {
-    margin-top: 8px;
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-  }
-
-  .favorite-item {
-    display: flex;
-    gap: 6px;
-    background: var(--bg-primary);
-    border: 1px solid var(--border-secondary);
-    border-radius: 1px;
-    padding: 6px;
-    transition: background 0.15s;
-  }
-
-  .favorite-item:hover {
-    background: var(--bg-hover);
-  }
-
-  .favorite-path {
-    flex: 1;
-    text-align: left;
-    background: transparent;
-    border: none;
-    color: var(--text-primary);
-    font-size: 11px;
-    font-family: 'Courier', monospace;
-    cursor: pointer;
-    padding: 4px 8px;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-    transition: color 0.15s;
-  }
-
-  .favorite-path:hover {
-    color: var(--text-secondary);
-  }
-
-  .remove-favorite {
-    background: transparent;
-    border: none;
-    color: var(--text-tertiary);
-    font-size: 16px;
-    cursor: pointer;
-    padding: 0 6px;
-    transition: all 0.15s;
-    line-height: 1;
-  }
-
-  .remove-favorite:hover {
-    color: var(--text-primary);
   }
 </style>
