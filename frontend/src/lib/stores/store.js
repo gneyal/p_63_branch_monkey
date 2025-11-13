@@ -29,6 +29,9 @@ export const modal = writable({
   onCancel: null,
   confirmText: 'Confirm',
   cancelText: 'Cancel',
+  showInput: false,
+  inputValue: '',
+  inputPlaceholder: '',
 });
 
 // Toast notifications
@@ -86,6 +89,9 @@ export function showModal(options) {
     onCancel: options.onCancel || null,
     confirmText: options.confirmText || 'Confirm',
     cancelText: options.cancelText || 'Cancel',
+    showInput: options.showInput || false,
+    inputValue: options.inputValue || '',
+    inputPlaceholder: options.inputPlaceholder || '',
   });
 }
 

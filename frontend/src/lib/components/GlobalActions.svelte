@@ -16,7 +16,6 @@
 
   function handleNameBranches() {
     onNameBranches();
-    showToast('Name branches functionality coming soon', 'info');
   }
 </script>
 

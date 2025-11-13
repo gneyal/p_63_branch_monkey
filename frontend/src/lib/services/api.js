@@ -239,3 +239,41 @@ export async function searchRepoPaths(query) {
   const data = await response.json();
   return data.suggestions || [];
 }
+
+/**
+ * Create a new branch at a specific commit
+ * @param {string} name - Branch name
+ * @param {string} fromCommit - Commit SHA to create branch from (optional)
+ * @returns {Promise<Object>} Response
+ */
+export async function createBranch(name, fromCommit = null) {
+  const response = await fetch(`${API_BASE}/branch/create`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      name,
+      from_commit: fromCommit
+    }),
+  });
+
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.detail || 'Failed to create branch');
+  }
+
+  return response.json();
+}
+
+/**
+ * Get all branches
+ * @returns {Promise<Object>} Branches data with list and current branch
+ */
+export async function fetchBranches() {
+  const response = await fetch(`${API_BASE}/branches`);
+  if (!response.ok) {
+    throw new Error(`Failed to fetch branches: ${response.statusText}`);
+  }
+  return response.json();
+}

@@ -1,7 +1,7 @@
 <script>
   import { Handle, Position } from '@xyflow/svelte';
-  import { showToast } from '../stores/store.js';
-  import { fetchNotes, addNote, deleteNote } from '../services/api.js';
+  import { showToast, showModal } from '../stores/store.js';
+  import { fetchNotes, addNote, deleteNote, createBranch } from '../services/api.js';
 
   export let data;
 
@@ -39,8 +39,31 @@
   }
 
   function branchFromHere() {
-    showToast('Branch from here functionality coming soon', 'info');
     showMenu = false;
+
+    showModal({
+      title: 'Create Branch',
+      message: `Create a new branch at commit ${data.sha}`,
+      showInput: true,
+      inputPlaceholder: 'Branch name...',
+      confirmText: 'Create',
+      cancelText: 'Cancel',
+      onConfirm: async (branchName) => {
+        if (!branchName || !branchName.trim()) {
+          showToast('Branch name cannot be empty', 'error');
+          return;
+        }
+
+        try {
+          await createBranch(branchName.trim(), data.fullSha);
+          showToast(`Branch "${branchName}" created successfully`, 'success');
+          // Reload page to show new branch
+          window.location.reload();
+        } catch (error) {
+          showToast(error.message, 'error');
+        }
+      }
+    });
   }
 
   async function toggleNotes() {

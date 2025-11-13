@@ -56,6 +56,25 @@
     centerOnCommit(0);
   }
 
+  // Export function to get current commit
+  export function getCurrentCommit() {
+    if ($nodes.length === 0 || currentCommitIndex < 0 || currentCommitIndex >= $commitTree.commits.length) {
+      return null;
+    }
+    return $commitTree.commits[currentCommitIndex];
+  }
+
+  // Export function to navigate to a commit by SHA
+  export function goToCommit(sha) {
+    if (!$commitTree?.commits) return false;
+
+    const index = $commitTree.commits.findIndex(c => c.sha.startsWith(sha) || sha.startsWith(c.sha));
+    if (index === -1) return false;
+
+    centerOnCommit(index);
+    return true;
+  }
+
   // Handle keyboard navigation
   function handleKeydown(event) {
     if (!$nodes.length) return;

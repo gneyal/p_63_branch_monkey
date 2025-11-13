@@ -1,8 +1,8 @@
 <script>
   import { onMount } from 'svelte';
-  import { commitTree, isLoading, showToast, repoInfo } from './lib/stores/store.js';
+  import { commitTree, isLoading, showToast, showModal, repoInfo } from './lib/stores/store.js';
   import { theme, toggleTheme } from './lib/stores/theme.js';
-  import { fetchCommitTree, fetchRepoInfo } from './lib/services/api.js';
+  import { fetchCommitTree, fetchRepoInfo, createBranch } from './lib/services/api.js';
   import Toast from './lib/components/Toast.svelte';
   import Modal from './lib/components/Modal.svelte';
   import CommitTree from './lib/components/CommitTree.svelte';
@@ -10,9 +10,11 @@
   import RecentRepos from './lib/components/RecentRepos.svelte';
   import GlobalActions from './lib/components/GlobalActions.svelte';
   import LandingPage from './lib/components/LandingPage.svelte';
+  import BranchesList from './lib/components/BranchesList.svelte';
 
   let error = null;
   let showLanding = localStorage.getItem('showLanding') !== 'false';
+  let showBranchesList = false;
   let commitTreeComponent;
 
   onMount(async () => {
@@ -68,7 +70,18 @@
   }
 
   function handleNameBranches() {
-    // To be implemented
+    showBranchesList = true;
+  }
+
+  function handleBranchClick(branch) {
+    if (commitTreeComponent?.goToCommit) {
+      const success = commitTreeComponent.goToCommit(branch.sha);
+      if (success) {
+        showToast(`Jumped to branch: ${branch.name}`, 'success');
+      } else {
+        showToast(`Could not find commit ${branch.sha}`, 'error');
+      }
+    }
   }
 </script>
 
@@ -125,6 +138,13 @@
   <div class="app-content">
     <CommitTree bind:this={commitTreeComponent} onNodeClick={handleNodeClick} />
   </div>
+
+  {#if showBranchesList}
+    <BranchesList
+      onClose={() => showBranchesList = false}
+      onBranchClick={handleBranchClick}
+    />
+  {/if}
 
   <Toast />
   <Modal />
