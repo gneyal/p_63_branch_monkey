@@ -279,3 +279,27 @@ export async function fetchBranches() {
   }
   return response.json();
 }
+
+/**
+ * Get working tree status
+ * @returns {Promise<Object>} Working tree status with staged, modified, and untracked counts
+ */
+export async function fetchWorkingTreeStatus() {
+  const response = await fetch(`${API_BASE}/working-tree`);
+  if (!response.ok) {
+    throw new Error(`Failed to fetch working tree status: ${response.statusText}`);
+  }
+  return response.json();
+}
+
+/**
+ * Get remote tracking status
+ * @returns {Promise<Object>} Remote status with ahead/behind counts
+ */
+export async function fetchRemoteStatus() {
+  const response = await fetch(`${API_BASE}/remote/status`);
+  if (!response.ok) {
+    throw new Error(`Failed to fetch remote status: ${response.statusText}`);
+  }
+  return response.json();
+}

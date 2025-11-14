@@ -1,6 +1,4 @@
 <script>
-  import { showToast } from '../stores/store.js';
-
   export let onGoToTop = () => {};
   export let onGoToBottom = () => {};
   export let onShowRemote = () => {};
@@ -16,7 +14,6 @@
 
   function handleShowRemote() {
     onShowRemote();
-    showToast('Show remote functionality coming soon', 'info');
   }
 
   function handleNameBranches() {
@@ -25,20 +22,20 @@
 </script>
 
 <div class="global-actions">
-  <button class="action-item" on:click={handleGoToTop} title="Go to top">
-    <span>Top</span>
+  <button class="action-item" on:click={handleGoToTop} title="Go to newest">
+    <span>Newest</span>
   </button>
 
-  <button class="action-item" on:click={handleGoToBottom} title="Go to bottom">
-    <span>Bottom</span>
+  <button class="action-item" on:click={handleGoToBottom} title="Go to oldest">
+    <span>Oldest</span>
   </button>
 
-  <button class="action-item" on:click={handleShowRemote} title="Show remote">
-    <span>Remote</span>
+  <button class="action-item" on:click={handleShowRemote} title="Check cloud sync">
+    <span>Cloud</span>
   </button>
 
-  <button class="action-item" on:click={handleNameBranches} title="Name all branches">
-    <span>Names</span>
+  <button class="action-item" on:click={handleNameBranches} title="Show all versions">
+    <span>Versions</span>
   </button>
 </div>
 

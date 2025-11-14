@@ -1,5 +1,5 @@
 <script>
-  import { commitTree } from '../stores/store.js';
+  import { commitTree, workingTreeStatus } from '../stores/store.js';
   import { writable } from 'svelte/store';
   import { onMount } from 'svelte';
   import {
@@ -11,6 +11,7 @@
   } from '@xyflow/svelte';
   import '@xyflow/svelte/dist/style.css';
   import CommitNode from './CommitNode.svelte';
+  import WorkingTreeNode from './WorkingTreeNode.svelte';
   import FlowController from './FlowController.svelte';
 
   export let onNodeClick = null;
@@ -28,7 +29,8 @@
   const edges = writable([]);
 
   const nodeTypes = {
-    commit: CommitNode
+    commit: CommitNode,
+    workingTree: WorkingTreeNode
   };
 
   // Center viewport on a specific commit by index
@@ -109,6 +111,9 @@
     // Create a map for quick lookup
     const commitMap = new Map(commits.map(c => [c.sha, c]));
 
+    // Check if we should show working tree node (uncommitted changes)
+    const showWorkingTreeNode = $workingTreeStatus && !$workingTreeStatus.clean;
+
     // Assign lanes to commits (vertical lines for each branch)
     const commitLanes = new Map(); // sha -> lane number
     const branchLanes = new Map(); // branch name -> lane number
@@ -167,6 +172,38 @@
     const totalWidth = maxLane * laneSpacing;
     const startX = -totalWidth / 2;
 
+    // Add working tree node if there are uncommitted changes
+    if (showWorkingTreeNode) {
+      // Find HEAD commit (first commit)
+      const headCommit = commits[0];
+      const headLane = commitLanes.get(headCommit.sha) || 0;
+      const xOffset = startX + (headLane * laneSpacing);
+
+      newNodes.push({
+        id: 'working-tree',
+        type: 'workingTree',
+        position: { x: xOffset, y: -commitSpacing },
+        data: {
+          status: $workingTreeStatus
+        }
+      });
+
+      // Create edge from working tree to HEAD
+      newEdges.push({
+        id: `working-tree-${headCommit.sha}`,
+        source: headCommit.sha,
+        target: 'working-tree',
+        type: 'straight',
+        animated: true,
+        markerEnd: {
+          type: 'arrowclosed',
+          width: 20,
+          height: 20
+        },
+        style: 'stroke: var(--border-hover); stroke-width: 2px; stroke-dasharray: 5 5;'
+      });
+    }
+
     // Create nodes with proper lane positioning
     commits.forEach((commit, index) => {
       const lane = commitLanes.get(commit.sha) || 0;
@@ -187,7 +224,7 @@
         }
       });
 
-      // Create edges from parent to this commit (showing flow from old to new)
+      // Create edges from parent to this commit
       if (commit.parents && commit.parents.length > 0) {
         commit.parents.forEach(parentSha => {
           if (commitMap.has(parentSha)) {

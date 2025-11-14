@@ -47,6 +47,15 @@ export const repoInfo = writable({
   is_git_repo: false
 });
 
+// Working tree status (uncommitted changes)
+export const workingTreeStatus = writable({
+  clean: true,
+  staged: 0,
+  modified: 0,
+  untracked: 0,
+  total_changes: 0
+});
+
 /**
  * Show a toast notification
  * @param {string} message - Toast message

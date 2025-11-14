@@ -1,0 +1,517 @@
+<script>
+  import { onMount } from 'svelte';
+  import { commitTree, isLoading, showToast, showModal, repoInfo, workingTreeStatus } from '../stores/store.js';
+  import { theme, toggleTheme } from '../stores/theme.js';
+  import { fetchCommitTree, fetchRepoInfo, fetchWorkingTreeStatus } from '../services/api.js';
+  import Toast from './Toast.svelte';
+  import Modal from './Modal.svelte';
+  import CommitTree from './CommitTree.svelte';
+  import RepoSelector from './RepoSelector.svelte';
+  import RecentRepos from './RecentRepos.svelte';
+  import GlobalActions from './GlobalActions.svelte';
+  import BranchesList from './BranchesList.svelte';
+  import RemoteStatus from './RemoteStatus.svelte';
+
+  let error = null;
+  let showBranchesList = false;
+  let showRemoteStatus = false;
+  let commitTreeComponent;
+  let currentOffset = 0;
+  let hasMore = false;
+  let totalCommits = 0;
+  let showMonkey = false;
+  let monkeyFrame = 0;
+
+  const monkeyFrames = [
+    // Frame 1: Monkey on left branch
+    `        ___
+     {. .}
+      >o<
+     /|||\\
+    // \\\\\\\\
+=========
+   ||
+   ||`,
+    // Frame 2: Monkey jumping
+    `
+    {. .}
+     >o<
+    /|||\\
+   // \\\\\\\\
+
+=========
+   ||
+   ||`,
+    // Frame 3: Monkey on right branch
+    `
+     {. .}
+      >o<
+     /|||\\
+    // \\\\\\\\
+       =========
+            ||
+            ||`,
+    // Frame 4: Jumping back
+    `
+    {. .}
+     >o<
+    /|||\\
+   // \\\\\\\\
+
+=========
+   ||
+   ||`,
+  ];
+
+  let animationInterval;
+
+  function startMonkeyAnimation() {
+    showMonkey = true;
+    monkeyFrame = 0;
+    animationInterval = setInterval(() => {
+      monkeyFrame = (monkeyFrame + 1) % monkeyFrames.length;
+    }, 600);
+  }
+
+  function stopMonkeyAnimation() {
+    showMonkey = false;
+    if (animationInterval) {
+      clearInterval(animationInterval);
+    }
+  }
+
+  onMount(async () => {
+    await loadRepoInfo();
+    await loadData();
+    await loadWorkingTreeStatus();
+    // Refresh data every 5 seconds
+    const interval = setInterval(() => {
+      loadData();
+      loadWorkingTreeStatus();
+    }, 5000);
+    return () => clearInterval(interval);
+  });
+
+  async function loadRepoInfo() {
+    try {
+      const info = await fetchRepoInfo();
+      repoInfo.set(info);
+    } catch (err) {
+      console.error('Failed to load repo info:', err);
+    }
+  }
+
+  async function loadWorkingTreeStatus() {
+    try {
+      const status = await fetchWorkingTreeStatus();
+      workingTreeStatus.set(status);
+    } catch (err) {
+      console.error('Failed to load working tree status:', err);
+    }
+  }
+
+  async function loadData(append = false) {
+    try {
+      isLoading.set(true);
+      const offset = append ? currentOffset : 0;
+      const treeData = await fetchCommitTree(50, offset);
+      console.log('Loaded commit tree data:', treeData);
+
+      if (append) {
+        // Append new commits to existing ones
+        commitTree.update(current => ({
+          ...treeData,
+          commits: [...(current?.commits || []), ...(treeData.commits || [])]
+        }));
+      } else {
+        // Replace commits (initial load or refresh)
+        commitTree.set(treeData);
+      }
+
+      currentOffset = treeData.offset + treeData.commits.length;
+      hasMore = treeData.has_more;
+      totalCommits = treeData.total;
+      console.log('Pagination state:', { currentOffset, hasMore, totalCommits, loaded: treeData.commits.length });
+      error = null;
+    } catch (err) {
+      console.error('Failed to load data:', err);
+      error = err.message;
+      showToast(`Failed to load data: ${err.message}`, 'error');
+    } finally {
+      isLoading.set(false);
+    }
+  }
+
+  async function loadMore() {
+    if (!hasMore || $isLoading) return;
+    await loadData(true);
+  }
+
+  function handleNodeClick(node) {
+    showToast(`Selected commit: ${node.sha.substring(0, 7)}`, 'info');
+  }
+
+  function handleGoToTop() {
+    if (commitTreeComponent && commitTreeComponent.goToTop) {
+      commitTreeComponent.goToTop();
+    }
+  }
+
+  function handleGoToBottom() {
+    if (commitTreeComponent && commitTreeComponent.goToBottom) {
+      commitTreeComponent.goToBottom();
+    }
+  }
+
+  function handleShowRemote() {
+    showRemoteStatus = true;
+  }
+
+  function handleNameBranches() {
+    showBranchesList = true;
+  }
+
+  function handleBranchClick(branch) {
+    if (commitTreeComponent?.goToCommit) {
+      const success = commitTreeComponent.goToCommit(branch.sha);
+      if (success) {
+        showToast(`Jumped to branch: ${branch.name}`, 'success');
+      } else {
+        showToast(`Could not find commit ${branch.sha}`, 'error');
+      }
+    }
+  }
+</script>
+
+<main class="app-main">
+  <header class="app-header">
+    <div class="header-left">
+      <div class="title-container">
+        <h1
+          class="app-title"
+          on:mouseenter={startMonkeyAnimation}
+          on:mouseleave={stopMonkeyAnimation}
+        >
+          branch/monkey
+        </h1>
+        {#if showMonkey}
+          <div class="ascii-monkey">
+            <pre>{monkeyFrames[monkeyFrame]}</pre>
+          </div>
+        {/if}
+      </div>
+      <RecentRepos />
+    </div>
+
+    <div class="header-center">
+      <RepoSelector />
+    </div>
+
+    <div class="header-right">
+      <div class="commit-info">
+        <span class="commit-count">{currentOffset} / {totalCommits} saves</span>
+        {#if hasMore}
+          <button class="load-more-compact" on:click={loadMore} title="Show older saves">
+            Show More
+          </button>
+        {/if}
+      </div>
+
+      <GlobalActions
+        onGoToTop={handleGoToTop}
+        onGoToBottom={handleGoToBottom}
+        onShowRemote={handleShowRemote}
+        onNameBranches={handleNameBranches}
+      />
+
+      <button class="theme-toggle" on:click={toggleTheme} title="Toggle theme">
+        {#if $theme === 'light'}
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="5"/>
+            <line x1="12" y1="1" x2="12" y2="3"/>
+            <line x1="12" y1="21" x2="12" y2="23"/>
+            <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/>
+            <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/>
+            <line x1="1" y1="12" x2="3" y2="12"/>
+            <line x1="21" y1="12" x2="23" y2="12"/>
+            <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/>
+            <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
+          </svg>
+        {:else}
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+          </svg>
+        {/if}
+      </button>
+    </div>
+  </header>
+
+  {#if error}
+    <div class="error-banner">
+      <span>{error}</span>
+      <button on:click={loadData} class="retry-btn">Retry</button>
+    </div>
+  {/if}
+
+  <div class="app-content">
+    <CommitTree
+      bind:this={commitTreeComponent}
+      onNodeClick={handleNodeClick}
+      {hasMore}
+      {totalCommits}
+      loadedCount={currentOffset}
+      onLoadMore={loadMore}
+    />
+  </div>
+
+  {#if showBranchesList}
+    <BranchesList
+      onClose={() => showBranchesList = false}
+      onBranchClick={handleBranchClick}
+    />
+  {/if}
+
+  {#if showRemoteStatus}
+    <RemoteStatus
+      onClose={() => showRemoteStatus = false}
+    />
+  {/if}
+
+  <Toast />
+  <Modal />
+</main>
+
+<style>
+  .app-main {
+    height: 100vh;
+    width: 100vw;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    background: var(--bg-secondary);
+  }
+
+  .app-header {
+    display: grid;
+    grid-template-columns: 1fr 2fr 1fr;
+    gap: 24px;
+    align-items: center;
+    padding: 12px 24px;
+    background: var(--bg-secondary);
+    border-bottom: 1px solid var(--border-primary);
+    box-shadow: var(--shadow-small);
+  }
+
+  @media (max-width: 1200px) {
+    .app-header {
+      grid-template-columns: auto 1fr auto;
+      gap: 16px;
+      padding: 12px 16px;
+    }
+
+    .app-title {
+      font-size: 10px;
+    }
+  }
+
+  @media (max-width: 768px) {
+    .app-header {
+      grid-template-columns: 1fr;
+      gap: 12px;
+      padding: 12px 16px;
+    }
+
+    .header-left,
+    .header-center,
+    .header-right {
+      justify-content: center;
+    }
+
+    .header-left {
+      order: 1;
+    }
+
+    .header-center {
+      order: 2;
+    }
+
+    .header-right {
+      order: 3;
+      flex-wrap: wrap;
+    }
+  }
+
+  .header-left {
+    display: flex;
+    gap: 16px;
+    align-items: center;
+  }
+
+  .title-container {
+    position: relative;
+  }
+
+  .app-title {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--text-primary);
+    letter-spacing: 1.5px;
+    white-space: nowrap;
+    margin: 0;
+    font-family: 'Courier New', 'Courier', 'Monaco', 'Menlo', monospace;
+    cursor: pointer;
+  }
+
+  .ascii-monkey {
+    position: absolute;
+    top: calc(100% + 8px);
+    left: 0;
+    background: var(--bg-primary);
+    border: 1px solid var(--border-primary);
+    border-radius: 2px;
+    padding: 16px;
+    box-shadow: var(--shadow-large);
+    z-index: 1000;
+    animation: monkeySlideIn 0.2s ease;
+    min-width: 220px;
+  }
+
+  @keyframes monkeySlideIn {
+    from {
+      opacity: 0;
+      transform: translateY(-10px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  .ascii-monkey pre {
+    margin: 0;
+    font-family: 'Courier New', 'Courier', 'Monaco', 'Menlo', monospace;
+    font-size: 11px;
+    line-height: 1.3;
+    color: var(--text-primary);
+    white-space: pre;
+  }
+
+  .header-center {
+    display: flex;
+    justify-content: center;
+  }
+
+  .header-right {
+    display: flex;
+    gap: 8px;
+    justify-content: flex-end;
+    align-items: center;
+  }
+
+  .commit-info {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    padding: 6px 12px;
+    background: var(--bg-primary);
+    border: 1px solid var(--border-primary);
+    border-radius: 1px;
+  }
+
+  .commit-count {
+    font-size: 10px;
+    font-weight: 500;
+    color: var(--text-tertiary);
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+  }
+
+  .load-more-compact {
+    padding: 5px 10px;
+    background: var(--bg-primary);
+    border: 1px solid var(--border-primary);
+    color: var(--text-secondary);
+    border-radius: 1px;
+    font-size: 9px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+  }
+
+  .load-more-compact:hover {
+    background: var(--bg-hover);
+    border-color: var(--border-hover);
+    color: var(--text-primary);
+  }
+
+  .load-more-compact:active {
+    transform: translateY(1px);
+  }
+
+  .theme-toggle {
+    padding: 6px;
+    background: var(--bg-primary);
+    border: 1px solid var(--border-primary);
+    color: var(--text-secondary);
+    border-radius: 1px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .theme-toggle:hover {
+    background: var(--bg-hover);
+    border-color: var(--border-hover);
+    color: var(--text-primary);
+  }
+
+  .theme-toggle:active {
+    transform: translateY(1px);
+  }
+
+  .error-banner {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px 32px;
+    background: #fef2f2;
+    color: #991b1b;
+    border-bottom: 1px solid #fecaca;
+    font-size: 13px;
+  }
+
+  :global([data-theme="dark"]) .error-banner {
+    background: #3f1f1f;
+    color: #fca5a5;
+    border-bottom-color: #7f1d1d;
+  }
+
+  .retry-btn {
+    padding: 6px 12px;
+    background: var(--bg-primary);
+    border: 1px solid var(--border-primary);
+    color: var(--text-secondary);
+    border-radius: 2px;
+    font-size: 10px;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+
+  .retry-btn:hover {
+    background: var(--bg-hover);
+    border-color: var(--border-hover);
+  }
+
+  .app-content {
+    flex: 1;
+    min-height: 0;
+    overflow: hidden;
+  }
+</style>

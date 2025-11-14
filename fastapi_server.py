@@ -1694,6 +1694,116 @@ def get_repo_info():
     }
 
 
+@app.get("/api/working-tree")
+def get_working_tree_status():
+    """Get detailed working tree status."""
+    import subprocess
+    try:
+        # Get git status in porcelain format
+        result = subprocess.run(
+            ["git", "status", "--porcelain"],
+            cwd=REPO_PATH,
+            capture_output=True,
+            text=True,
+            check=True
+        )
+
+        lines = result.stdout.strip().split('\n') if result.stdout.strip() else []
+
+        # Count different types of changes
+        staged = 0
+        modified = 0
+        untracked = 0
+
+        for line in lines:
+            if not line:
+                continue
+            index_status = line[0] if len(line) > 0 else ' '
+            work_status = line[1] if len(line) > 1 else ' '
+
+            # Staged files (index has changes)
+            if index_status != ' ' and index_status != '?':
+                staged += 1
+
+            # Modified files (working tree has changes)
+            if work_status != ' ' and work_status != '?':
+                modified += 1
+
+            # Untracked files
+            if index_status == '?' and work_status == '?':
+                untracked += 1
+
+        clean = len(lines) == 0
+
+        return {
+            "success": True,
+            "clean": clean,
+            "staged": staged,
+            "modified": modified,
+            "untracked": untracked,
+            "total_changes": staged + modified + untracked
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/remote/status")
+def get_remote_status():
+    """Get remote tracking status for current branch."""
+    import subprocess
+    try:
+        # Get current branch name
+        current_branch = subprocess.check_output(
+            ["git", "rev-parse", "--abbrev-ref", "HEAD"],
+            cwd=REPO_PATH,
+            text=True
+        ).strip()
+
+        # Get remote tracking branch
+        try:
+            remote_branch = subprocess.check_output(
+                ["git", "rev-parse", "--abbrev-ref", "@{u}"],
+                cwd=REPO_PATH,
+                text=True,
+                stderr=subprocess.DEVNULL
+            ).strip()
+        except subprocess.CalledProcessError:
+            # No remote tracking branch
+            return {
+                "success": True,
+                "has_remote": False,
+                "current_branch": current_branch,
+                "remote_branch": None,
+                "ahead": 0,
+                "behind": 0
+            }
+
+        # Get ahead/behind counts
+        result = subprocess.check_output(
+            ["git", "rev-list", "--left-right", "--count", f"{remote_branch}...HEAD"],
+            cwd=REPO_PATH,
+            text=True
+        ).strip()
+
+        behind, ahead = map(int, result.split())
+
+        # Get remote name
+        remote_name = remote_branch.split('/')[0] if '/' in remote_branch else 'origin'
+
+        return {
+            "success": True,
+            "has_remote": True,
+            "current_branch": current_branch,
+            "remote_branch": remote_branch,
+            "remote_name": remote_name,
+            "ahead": ahead,
+            "behind": behind,
+            "synced": ahead == 0 and behind == 0
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @app.post("/api/repo/set")
 def set_repo_path(request: RepoRequest):
     """Set the repository path."""

@@ -1,5 +1,9 @@
 <script>
-  export let onGetStarted;
+  import { push } from 'svelte-spa-router';
+
+  function onGetStarted() {
+    push('/');
+  }
 </script>
 
 <div class="landing-page">
