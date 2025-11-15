@@ -39,7 +39,7 @@
 <div class="branches-list-backdrop" on:click={onClose}>
   <div class="branches-list-panel" on:click|stopPropagation>
     <div class="panel-header">
-      <h3>All Versions</h3>
+      <h3>All Branches</h3>
       <button class="close-btn" on:click={onClose}>✕</button>
     </div>
 
@@ -47,7 +47,7 @@
       {#if loading}
         <div class="loading">
           <div class="spinner"></div>
-          <p>Loading versions...</p>
+          <p>Loading branches...</p>
         </div>
       {:else if error}
         <div class="error">

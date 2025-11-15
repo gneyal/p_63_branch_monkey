@@ -23,19 +23,19 @@
 
 <div class="global-actions">
   <button class="action-item" on:click={handleGoToTop} title="Go to newest">
-    <span>Newest</span>
+    <span>⬆</span>
   </button>
 
   <button class="action-item" on:click={handleGoToBottom} title="Go to oldest">
-    <span>Oldest</span>
+    <span>⬇</span>
   </button>
 
   <button class="action-item" on:click={handleShowRemote} title="Check cloud sync">
     <span>Cloud</span>
   </button>
 
-  <button class="action-item" on:click={handleNameBranches} title="Show all versions">
-    <span>Versions</span>
+  <button class="action-item" on:click={handleNameBranches} title="Show all branches">
+    <span>Branches</span>
   </button>
 </div>
 
