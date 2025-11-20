@@ -3,6 +3,7 @@
   export let onGoToBottom = () => {};
   export let onShowRemote = () => {};
   export let onNameBranches = () => {};
+  export let onShowPrompts = () => {};
 
   function handleGoToTop() {
     onGoToTop();
@@ -18,6 +19,10 @@
 
   function handleNameBranches() {
     onNameBranches();
+  }
+
+  function handleShowPrompts() {
+    onShowPrompts();
   }
 </script>
 
@@ -36,6 +41,10 @@
 
   <button class="action-item" on:click={handleNameBranches} title="Show all branches">
     <span>Branches</span>
+  </button>
+
+  <button class="action-item" on:click={handleShowPrompts} title="View prompts library">
+    <span>Prompts</span>
   </button>
 </div>
 

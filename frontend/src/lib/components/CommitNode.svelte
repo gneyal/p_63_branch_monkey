@@ -1,7 +1,7 @@
 <script>
   import { Handle, Position } from '@xyflow/svelte';
   import { showToast, showModal } from '../stores/store.js';
-  import { fetchNotes, addNote, deleteNote, createBranch } from '../services/api.js';
+  import { fetchNotes, addNote, deleteNote, createBranch, fetchPrompt, savePrompt, deletePrompt } from '../services/api.js';
 
   export let data;
 
@@ -9,9 +9,13 @@
   let showNotes = false;
   let showTooltip = false;
   let showFullMessage = false;
+  let showPrompt = false;
   let notes = [];
   let newNoteText = '';
   let loadingNotes = false;
+  let promptText = '';
+  let promptTimestamp = null;
+  let loadingPrompt = false;
   let hideMenuTimeout = null;
 
   function getBranchColor(branches) {
@@ -113,6 +117,70 @@
     } catch (error) {
       showToast(`Failed to delete note: ${error.message}`, 'error');
     }
+  }
+
+  async function togglePromptPanel() {
+    showPrompt = !showPrompt;
+    showMenu = false;
+
+    if (showPrompt && !promptText && !loadingPrompt) {
+      // Load prompt from API when opening panel
+      await loadPromptData();
+    }
+  }
+
+  async function loadPromptData() {
+    try {
+      loadingPrompt = true;
+      const result = await fetchPrompt(data.fullSha);
+      if (result.prompt) {
+        promptText = result.prompt;
+        promptTimestamp = result.timestamp;
+      } else {
+        promptText = '';
+        promptTimestamp = null;
+      }
+    } catch (error) {
+      showToast(`Failed to load prompt: ${error.message}`, 'error');
+    } finally {
+      loadingPrompt = false;
+    }
+  }
+
+  async function savePromptHandler() {
+    if (!promptText.trim()) {
+      showToast('Prompt cannot be empty', 'error');
+      return;
+    }
+
+    try {
+      const result = await savePrompt(data.fullSha, promptText.trim());
+      promptTimestamp = result.timestamp;
+      showToast('Prompt saved', 'success');
+    } catch (error) {
+      showToast(`Failed to save prompt: ${error.message}`, 'error');
+    }
+  }
+
+  async function deletePromptHandler() {
+    try {
+      await deletePrompt(data.fullSha);
+      promptText = '';
+      promptTimestamp = null;
+      showToast('Prompt deleted', 'success');
+    } catch (error) {
+      showToast(`Failed to delete prompt: ${error.message}`, 'error');
+    }
+  }
+
+  function copyPromptToClipboard() {
+    if (!promptText) {
+      showToast('No prompt to copy', 'error');
+      return;
+    }
+
+    navigator.clipboard.writeText(promptText);
+    showToast('Prompt copied to clipboard', 'success');
   }
 
   $: borderColor = getBranchColor(data.branches);
@@ -222,6 +290,13 @@
       </button>
       <button
         class="action-btn"
+        on:click|stopPropagation={togglePromptPanel}
+        title="Prompt"
+      >
+        Prompt
+      </button>
+      <button
+        class="action-btn"
         on:click|stopPropagation={copySHA}
         title="Copy SHA"
       >
@@ -289,6 +364,45 @@
           on:keydown={(e) => e.key === 'Enter' && addNoteHandler()}
         />
         <button on:click={addNoteHandler}>Add</button>
+      </div>
+    </div>
+  {/if}
+
+  {#if showPrompt}
+    <div class="prompt-panel" on:click|stopPropagation>
+      <div class="prompt-header">
+        <h4>Prompt</h4>
+        <button class="close-prompt" on:click={togglePromptPanel}>✕</button>
+      </div>
+
+      <div class="prompt-content">
+        {#if loadingPrompt}
+          <p class="no-prompt">Loading prompt...</p>
+        {:else if !promptText}
+          <p class="no-prompt">No conversation saved for this commit yet.<br/>Continue chatting and it will be auto-captured!</p>
+        {:else}
+          <textarea
+            value={promptText}
+            readonly
+            placeholder="No prompt saved yet..."
+            class="prompt-textarea"
+          ></textarea>
+
+          {#if promptTimestamp}
+            <div class="prompt-footer">
+              <span class="prompt-timestamp">Auto-saved: {new Date(promptTimestamp).toLocaleString()}</span>
+            </div>
+          {/if}
+
+          <div class="prompt-actions">
+            <button class="copy-prompt" on:click={copyPromptToClipboard}>
+              Copy to Clipboard
+            </button>
+            <button class="delete-prompt" on:click={deletePromptHandler}>
+              Delete
+            </button>
+          </div>
+        {/if}
       </div>
     </div>
   {/if}
@@ -736,5 +850,170 @@
     color: var(--text-primary);
     flex: 1;
     font-family: 'Courier', monospace;
+  }
+
+  .prompt-panel {
+    position: absolute;
+    top: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    margin-top: 12px;
+    background: var(--bg-primary);
+    border: 1px solid var(--border-primary);
+    border-radius: 1px;
+    width: 420px;
+    max-width: 90vw;
+    display: flex;
+    flex-direction: column;
+    box-shadow: var(--shadow-large);
+    z-index: 1000;
+    animation: promptSlideIn 0.2s ease;
+  }
+
+  @keyframes promptSlideIn {
+    from {
+      opacity: 0;
+      transform: translateX(-50%) translateY(-8px);
+    }
+    to {
+      opacity: 1;
+      transform: translateX(-50%) translateY(0);
+    }
+  }
+
+  .prompt-header {
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--border-secondary);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .prompt-header h4 {
+    margin: 0;
+    font-size: 11px;
+    font-weight: 500;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+
+  .close-prompt {
+    background: transparent;
+    border: none;
+    color: var(--text-tertiary);
+    font-size: 18px;
+    cursor: pointer;
+    padding: 0;
+    width: 24px;
+    height: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.15s;
+  }
+
+  .close-prompt:hover {
+    color: var(--text-primary);
+  }
+
+  .prompt-content {
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .no-prompt {
+    color: var(--text-tertiary);
+    font-size: 12px;
+    text-align: center;
+    padding: 20px;
+    margin: 0;
+  }
+
+  .prompt-textarea {
+    width: 100%;
+    min-height: 200px;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-secondary);
+    color: var(--text-primary);
+    padding: 12px;
+    border-radius: 1px;
+    font-size: 13px;
+    font-family: 'Courier', monospace;
+    line-height: 1.5;
+    resize: vertical;
+    outline: none;
+    transition: border-color 0.15s;
+  }
+
+  .prompt-textarea[readonly] {
+    background: var(--bg-secondary);
+    cursor: default;
+    opacity: 0.95;
+  }
+
+  .prompt-textarea:focus {
+    border-color: var(--border-hover);
+  }
+
+  .prompt-textarea::placeholder {
+    color: var(--text-tertiary);
+  }
+
+  .prompt-footer {
+    display: flex;
+    justify-content: flex-end;
+  }
+
+  .prompt-timestamp {
+    font-size: 11px;
+    color: var(--text-tertiary);
+  }
+
+  .prompt-actions {
+    display: flex;
+    gap: 8px;
+    justify-content: flex-end;
+  }
+
+  .copy-prompt {
+    background: var(--accent-primary);
+    border: 1px solid var(--accent-primary);
+    color: var(--bg-primary);
+    padding: 8px 16px;
+    border-radius: 1px;
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+
+  .copy-prompt:hover {
+    opacity: 0.9;
+    box-shadow: var(--shadow-small);
+  }
+
+  .delete-prompt {
+    background: transparent;
+    border: 1px solid var(--border-secondary);
+    color: var(--text-secondary);
+    padding: 8px 16px;
+    border-radius: 1px;
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+
+  .delete-prompt:hover {
+    border-color: #ff6b6b;
+    color: #ff6b6b;
+    background: rgba(255, 107, 107, 0.1);
   }
 </style>

@@ -3,6 +3,8 @@
 
 import webbrowser
 import threading
+import sqlite3
+from datetime import datetime
 from pathlib import Path
 from typing import Optional
 from fastapi import FastAPI, HTTPException
@@ -25,6 +27,27 @@ app.add_middleware(
 
 # Store repo path
 REPO_PATH: Optional[Path] = None
+
+# Prompts database path
+PROMPTS_DB = Path.home() / ".branch_monkey" / "prompts.db"
+
+
+def init_prompts_db():
+    """Initialize the prompts SQLite database."""
+    # Ensure directory exists
+    PROMPTS_DB.parent.mkdir(parents=True, exist_ok=True)
+
+    conn = sqlite3.connect(PROMPTS_DB)
+    conn.execute('''
+        CREATE TABLE IF NOT EXISTS prompts (
+            sha TEXT PRIMARY KEY,
+            prompt TEXT NOT NULL,
+            timestamp TEXT NOT NULL,
+            repo_path TEXT NOT NULL
+        )
+    ''')
+    conn.commit()
+    conn.close()
 
 
 def get_monkey():
@@ -58,6 +81,10 @@ class PathSearchRequest(BaseModel):
 
 class NoteRequest(BaseModel):
     text: str
+
+
+class PromptRequest(BaseModel):
+    prompt: str
 
 
 # HTML Frontend
@@ -2022,10 +2049,162 @@ def delete_note(sha: str, note_id: int):
         raise HTTPException(status_code=500, detail=str(e))
 
 
+@app.get("/api/prompts/{sha}")
+def get_prompt(sha: str):
+    """Get prompt for a commit."""
+    if not REPO_PATH:
+        raise HTTPException(status_code=400, detail="No repository selected")
+
+    try:
+        conn = sqlite3.connect(PROMPTS_DB)
+        cursor = conn.cursor()
+        cursor.execute(
+            "SELECT prompt, timestamp FROM prompts WHERE sha = ? AND repo_path = ?",
+            (sha, str(REPO_PATH.resolve()))
+        )
+        result = cursor.fetchone()
+        conn.close()
+
+        if result:
+            return {
+                "success": True,
+                "prompt": result[0],
+                "timestamp": result[1]
+            }
+        else:
+            return {"success": True, "prompt": None}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/api/prompts/{sha}")
+def save_prompt(sha: str, request: PromptRequest):
+    """Save or update prompt for a commit."""
+    if not REPO_PATH:
+        raise HTTPException(status_code=400, detail="No repository selected")
+
+    try:
+        conn = sqlite3.connect(PROMPTS_DB)
+        cursor = conn.cursor()
+        timestamp = datetime.now().isoformat()
+
+        # Insert or replace the prompt
+        cursor.execute(
+            """
+            INSERT OR REPLACE INTO prompts (sha, prompt, timestamp, repo_path)
+            VALUES (?, ?, ?, ?)
+            """,
+            (sha, request.prompt, timestamp, str(REPO_PATH.resolve()))
+        )
+        conn.commit()
+        conn.close()
+
+        return {
+            "success": True,
+            "prompt": request.prompt,
+            "timestamp": timestamp
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.delete("/api/prompts/{sha}")
+def delete_prompt(sha: str):
+    """Delete prompt for a commit."""
+    if not REPO_PATH:
+        raise HTTPException(status_code=400, detail="No repository selected")
+
+    try:
+        conn = sqlite3.connect(PROMPTS_DB)
+        cursor = conn.cursor()
+        cursor.execute(
+            "DELETE FROM prompts WHERE sha = ? AND repo_path = ?",
+            (sha, str(REPO_PATH.resolve()))
+        )
+        conn.commit()
+        deleted = cursor.rowcount > 0
+        conn.close()
+
+        return {"success": True, "deleted": deleted}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/prompts/all/list")
+def get_all_prompts():
+    """Get all prompts for the current repository."""
+    if not REPO_PATH:
+        raise HTTPException(status_code=400, detail="No repository selected")
+
+    try:
+        # Get all prompts for this repo from database
+        conn = sqlite3.connect(PROMPTS_DB)
+        cursor = conn.cursor()
+        cursor.execute(
+            "SELECT sha, prompt, timestamp FROM prompts WHERE repo_path = ? ORDER BY timestamp DESC",
+            (str(REPO_PATH.resolve()),)
+        )
+        results = cursor.fetchall()
+        conn.close()
+
+        # Get commit info from git for each SHA
+        prompts_list = []
+        for sha, prompt, timestamp in results:
+            try:
+                # Get commit message and author
+                monkey = get_monkey()
+                repo = monkey.repo
+
+                try:
+                    commit = repo.commit(sha)
+                    commit_message = commit.message.split('\n')[0]  # First line only
+                    commit_author = commit.author.name
+                    commit_date = commit.authored_datetime.isoformat()
+                except:
+                    # Commit might not exist in current repo state
+                    commit_message = "Commit not found"
+                    commit_author = "Unknown"
+                    commit_date = timestamp
+
+                prompts_list.append({
+                    "sha": sha,
+                    "short_sha": sha[:7],
+                    "prompt": prompt,
+                    "prompt_preview": prompt[:200] + ("..." if len(prompt) > 200 else ""),
+                    "timestamp": timestamp,
+                    "commit_message": commit_message,
+                    "commit_author": commit_author,
+                    "commit_date": commit_date
+                })
+            except Exception as e:
+                # If we can't get commit info, still include the prompt
+                prompts_list.append({
+                    "sha": sha,
+                    "short_sha": sha[:7],
+                    "prompt": prompt,
+                    "prompt_preview": prompt[:200] + ("..." if len(prompt) > 200 else ""),
+                    "timestamp": timestamp,
+                    "commit_message": "Unknown commit",
+                    "commit_author": "Unknown",
+                    "commit_date": timestamp
+                })
+
+        return {
+            "success": True,
+            "prompts": prompts_list,
+            "count": len(prompts_list)
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 def run_server(repo_path: Optional[Path] = None, port: int = 8081, open_browser: bool = True):
     """Run the FastAPI server."""
     global REPO_PATH
     REPO_PATH = repo_path
+
+    # Initialize prompts database
+    init_prompts_db()
 
     # Auto-open browser
     if open_browser:

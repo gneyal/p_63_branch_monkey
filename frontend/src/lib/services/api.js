@@ -303,3 +303,69 @@ export async function fetchRemoteStatus() {
   }
   return response.json();
 }
+
+/**
+ * Get prompt for a commit
+ * @param {string} sha - Commit SHA
+ * @returns {Promise<Object>} Prompt data with prompt text and timestamp
+ */
+export async function fetchPrompt(sha) {
+  const response = await fetch(`${API_BASE}/prompts/${sha}`);
+  if (!response.ok) {
+    throw new Error(`Failed to fetch prompt: ${response.statusText}`);
+  }
+  return response.json();
+}
+
+/**
+ * Save or update prompt for a commit
+ * @param {string} sha - Commit SHA
+ * @param {string} promptText - Prompt text to save
+ * @returns {Promise<Object>} Saved prompt data
+ */
+export async function savePrompt(sha, promptText) {
+  const response = await fetch(`${API_BASE}/prompts/${sha}`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ prompt: promptText }),
+  });
+
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.detail || 'Failed to save prompt');
+  }
+
+  return response.json();
+}
+
+/**
+ * Delete prompt for a commit
+ * @param {string} sha - Commit SHA
+ * @returns {Promise<Object>} Delete result
+ */
+export async function deletePrompt(sha) {
+  const response = await fetch(`${API_BASE}/prompts/${sha}`, {
+    method: 'DELETE',
+  });
+
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.detail || 'Failed to delete prompt');
+  }
+
+  return response.json();
+}
+
+/**
+ * Get all prompts for the current repository
+ * @returns {Promise<Object>} All prompts with commit info
+ */
+export async function fetchAllPrompts() {
+  const response = await fetch(`${API_BASE}/prompts/all/list`);
+  if (!response.ok) {
+    throw new Error(`Failed to fetch prompts: ${response.statusText}`);
+  }
+  return response.json();
+}

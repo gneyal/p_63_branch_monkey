@@ -11,10 +11,12 @@
   import GlobalActions from './GlobalActions.svelte';
   import BranchesList from './BranchesList.svelte';
   import RemoteStatus from './RemoteStatus.svelte';
+  import PromptsLibrary from './PromptsLibrary.svelte';
 
   let error = null;
   let showBranchesList = false;
   let showRemoteStatus = false;
+  let showPromptsLibrary = false;
   let commitTreeComponent;
   let currentOffset = 0;
   let hasMore = false;
@@ -181,6 +183,10 @@
       }
     }
   }
+
+  function handleShowPrompts() {
+    showPromptsLibrary = true;
+  }
 </script>
 
 <main class="app-main">
@@ -222,6 +228,7 @@
         onGoToBottom={handleGoToBottom}
         onShowRemote={handleShowRemote}
         onNameBranches={handleNameBranches}
+        onShowPrompts={handleShowPrompts}
       />
 
       <button class="theme-toggle" on:click={toggleTheme} title="Toggle theme">
@@ -274,6 +281,12 @@
   {#if showRemoteStatus}
     <RemoteStatus
       onClose={() => showRemoteStatus = false}
+    />
+  {/if}
+
+  {#if showPromptsLibrary}
+    <PromptsLibrary
+      onClose={() => showPromptsLibrary = false}
     />
   {/if}
 

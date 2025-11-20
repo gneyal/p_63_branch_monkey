@@ -1,0 +1,14 @@
+{
+  "hooks": {
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python /Users/eyalgoren/Code/p_63_branch_monkey/scripts/save_claude_prompt.py"
+          }
+        ]
+      }
+    ]
+  }
+}
