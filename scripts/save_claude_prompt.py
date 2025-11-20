@@ -83,23 +83,34 @@ def parse_transcript(transcript_path):
 
 
 def format_conversation(conversation):
-    """Format the conversation into a readable prompt."""
+    """Format the conversation into a readable prompt - only first prompt and response."""
     if not conversation:
         return None
 
-    # Build formatted conversation
+    # Find first user message and first assistant response
+    first_user = None
+    first_assistant = None
+
+    for msg in conversation:
+        if msg['role'] == 'user' and first_user is None:
+            first_user = msg
+        elif msg['role'] == 'assistant' and first_assistant is None and first_user is not None:
+            first_assistant = msg
+            break  # Stop after finding first response
+
+    # Build formatted conversation with only first prompt and response
     formatted_parts = []
 
-    for i, msg in enumerate(conversation):
-        role = msg['role'].upper()
-        content = msg['content'].strip()
+    if first_user and first_user['content'].strip():
+        formatted_parts.append("[USER]")
+        formatted_parts.append(first_user['content'].strip())
+        formatted_parts.append("")
 
-        if content:
-            formatted_parts.append(f"[{role}]")
-            formatted_parts.append(content)
-            formatted_parts.append("")  # Empty line between messages
+    if first_assistant and first_assistant['content'].strip():
+        formatted_parts.append("[ASSISTANT]")
+        formatted_parts.append(first_assistant['content'].strip())
 
-    return '\n'.join(formatted_parts).strip()
+    return '\n'.join(formatted_parts).strip() if formatted_parts else None
 
 
 def save_to_database(sha, prompt_text, repo_path):
