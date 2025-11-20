@@ -132,7 +132,9 @@
   async function loadPromptData() {
     try {
       loadingPrompt = true;
+      console.log('Loading prompt for SHA:', data.fullSha);
       const result = await fetchPrompt(data.fullSha);
+      console.log('Prompt result:', result);
       if (result.prompt) {
         promptText = result.prompt;
         promptTimestamp = result.timestamp;
@@ -141,6 +143,7 @@
         promptTimestamp = null;
       }
     } catch (error) {
+      console.error('Error loading prompt:', error);
       showToast(`Failed to load prompt: ${error.message}`, 'error');
     } finally {
       loadingPrompt = false;

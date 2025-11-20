@@ -215,7 +215,7 @@
         position: { x: xOffset, y: index * commitSpacing },
         data: {
           sha: commit.sha.substring(0, 7),
-          fullSha: commit.sha,
+          fullSha: commit.fullSha,
           message: commit.message,
           author: commit.author,
           age: commit.age,
