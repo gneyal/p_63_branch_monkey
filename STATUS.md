@@ -6,7 +6,7 @@
 
 ### ✅ Completed Features
 
-1. **Auto-Capture Prompts System** - IMPLEMENTED BUT NOT YET TESTED
+1. **Auto-Capture Prompts System** - ✅ WORKING
    - Hook script: `scripts/save_claude_prompt.py` ✓
    - Hook configuration: `.claude/settings.json` ✓
    - Database: `~/.branch_monkey/prompts.db` (SQLite) ✓
@@ -16,6 +16,7 @@
      - "Prompts" button in header for full library view ✓
      - Read-only prompt display panel ✓
      - Copy/Delete/Improve functionality ✓
+   - Hook verified: Firing on Stop event and capturing prompts successfully ✓
 
 2. **UI Updates**
    - Browser tab title changed to "Branch/Monkey" ✓
@@ -27,16 +28,7 @@
 
 ### ⚠️ Known Issues
 
-**CRITICAL - Hooks Not Firing in Current Session**
-
-The prompt auto-capture hook is configured correctly but **not firing** because:
-- Hooks only take effect in NEW Claude Code sessions
-- This session was started before hooks were configured
-- Hook has debug logging added but no logs generated yet
-
-**Files Modified** (hook testing):
-- `.claude/settings.json` - Added echo test before Python script
-- Hook now logs to `~/.branch_monkey/hook_test.log` when fired
+**None currently** - Hooks verified working in new Claude Code session (2025-11-20)
 
 ## Next Steps (Priority Order)
 
