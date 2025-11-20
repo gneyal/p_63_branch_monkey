@@ -139,10 +139,18 @@ def main():
         # Read hook input from stdin
         hook_input = json.loads(sys.stdin.read())
 
+        # Debug: log what we received
+        debug_log = Path.home() / '.branch_monkey' / 'hook_debug.log'
+        debug_log.parent.mkdir(parents=True, exist_ok=True)
+        with open(debug_log, 'a') as f:
+            f.write(f"\n{datetime.now()}: Hook received: {json.dumps(hook_input, indent=2)}\n")
+
         # Get transcript path
         transcript_path = Path(hook_input.get('transcript_path', ''))
         if not transcript_path.exists():
             print(f"Transcript not found: {transcript_path}", file=sys.stderr)
+            with open(debug_log, 'a') as f:
+                f.write(f"ERROR: Transcript not found at {transcript_path}\n")
             return
 
         # Get current working directory (repo path)
