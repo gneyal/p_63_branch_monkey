@@ -1543,6 +1543,7 @@ def get_commit_tree(limit: int = 50, offset: int = 0):
 
                 commits.append({
                     "sha": short_sha,
+                    "fullSha": full_sha,
                     "message": subject,
                     "author": author,
                     "age": age,
@@ -2052,15 +2053,14 @@ def delete_note(sha: str, note_id: int):
 @app.get("/api/prompts/{sha}")
 def get_prompt(sha: str):
     """Get prompt for a commit."""
-    if not REPO_PATH:
-        raise HTTPException(status_code=400, detail="No repository selected")
+    repo_path = REPO_PATH if REPO_PATH else Path.cwd()
 
     try:
         conn = sqlite3.connect(PROMPTS_DB)
         cursor = conn.cursor()
         cursor.execute(
             "SELECT prompt, timestamp FROM prompts WHERE sha = ? AND repo_path = ?",
-            (sha, str(REPO_PATH.resolve()))
+            (sha, str(repo_path.resolve()))
         )
         result = cursor.fetchone()
         conn.close()
@@ -2080,8 +2080,7 @@ def get_prompt(sha: str):
 @app.post("/api/prompts/{sha}")
 def save_prompt(sha: str, request: PromptRequest):
     """Save or update prompt for a commit."""
-    if not REPO_PATH:
-        raise HTTPException(status_code=400, detail="No repository selected")
+    repo_path = REPO_PATH if REPO_PATH else Path.cwd()
 
     try:
         conn = sqlite3.connect(PROMPTS_DB)
@@ -2094,7 +2093,7 @@ def save_prompt(sha: str, request: PromptRequest):
             INSERT OR REPLACE INTO prompts (sha, prompt, timestamp, repo_path)
             VALUES (?, ?, ?, ?)
             """,
-            (sha, request.prompt, timestamp, str(REPO_PATH.resolve()))
+            (sha, request.prompt, timestamp, str(repo_path.resolve()))
         )
         conn.commit()
         conn.close()
@@ -2111,15 +2110,14 @@ def save_prompt(sha: str, request: PromptRequest):
 @app.delete("/api/prompts/{sha}")
 def delete_prompt(sha: str):
     """Delete prompt for a commit."""
-    if not REPO_PATH:
-        raise HTTPException(status_code=400, detail="No repository selected")
+    repo_path = REPO_PATH if REPO_PATH else Path.cwd()
 
     try:
         conn = sqlite3.connect(PROMPTS_DB)
         cursor = conn.cursor()
         cursor.execute(
             "DELETE FROM prompts WHERE sha = ? AND repo_path = ?",
-            (sha, str(REPO_PATH.resolve()))
+            (sha, str(repo_path.resolve()))
         )
         conn.commit()
         deleted = cursor.rowcount > 0
@@ -2133,8 +2131,7 @@ def delete_prompt(sha: str):
 @app.get("/api/prompts/all/list")
 def get_all_prompts():
     """Get all prompts for the current repository."""
-    if not REPO_PATH:
-        raise HTTPException(status_code=400, detail="No repository selected")
+    repo_path = REPO_PATH if REPO_PATH else Path.cwd()
 
     try:
         # Get all prompts for this repo from database
@@ -2142,7 +2139,7 @@ def get_all_prompts():
         cursor = conn.cursor()
         cursor.execute(
             "SELECT sha, prompt, timestamp FROM prompts WHERE repo_path = ? ORDER BY timestamp DESC",
-            (str(REPO_PATH.resolve()),)
+            (str(repo_path.resolve()),)
         )
         results = cursor.fetchall()
         conn.close()
