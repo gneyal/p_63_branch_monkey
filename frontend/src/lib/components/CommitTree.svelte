@@ -213,6 +213,7 @@
         id: commit.sha,
         type: 'commit',
         position: { x: xOffset, y: index * commitSpacing },
+        zIndex: 1,
         data: {
           sha: commit.sha.substring(0, 7),
           fullSha: commit.fullSha,

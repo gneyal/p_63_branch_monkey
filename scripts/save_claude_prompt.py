@@ -51,11 +51,13 @@ def parse_transcript(transcript_path):
                         ]
                         content = '\n'.join(text_parts)
 
-                    conversation.append({
-                        'role': 'user',
-                        'content': content,
-                        'timestamp': entry.get('timestamp', '')
-                    })
+                    # Only add if there's actual text content (skip tool_result entries)
+                    if content and isinstance(content, str) and content.strip():
+                        conversation.append({
+                            'role': 'user',
+                            'content': content,
+                            'timestamp': entry.get('timestamp', '')
+                        })
 
                 # Extract assistant responses
                 elif entry_type == 'assistant':
@@ -69,11 +71,13 @@ def parse_transcript(transcript_path):
                         ]
                         content = '\n'.join(text_parts)
 
-                    conversation.append({
-                        'role': 'assistant',
-                        'content': content,
-                        'timestamp': entry.get('timestamp', '')
-                    })
+                    # Only add if there's actual text content (skip tool_use entries)
+                    if content and isinstance(content, str) and content.strip():
+                        conversation.append({
+                            'role': 'assistant',
+                            'content': content,
+                            'timestamp': entry.get('timestamp', '')
+                        })
 
     except Exception as e:
         print(f"Error parsing transcript: {e}", file=sys.stderr)

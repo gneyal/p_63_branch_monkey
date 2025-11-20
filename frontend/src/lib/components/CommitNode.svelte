@@ -224,8 +224,9 @@
 </script>
 
 <div
-  class="commit-node"
+  class="commit-node z-[1200]"
   class:is-head={isHead}
+  class:has-open-panel={showPrompt || showNotes || showFullMessage}
   style="border-color: {borderColor}; background: {backgroundColor};"
   on:mouseenter={handleMouseEnter}
   on:mouseleave={handleMouseLeave}
@@ -309,7 +310,7 @@
   {/if}
 
   {#if showFullMessage}
-    <div class="full-message-panel z-50" on:click|stopPropagation>
+    <div class="full-message-panel z-[1100]" on:click|stopPropagation>
       <div class="full-message-header">
         <h4>Full Message</h4>
         <button class="close-panel" on:click={toggleFullMessage}>✕</button>
@@ -372,7 +373,7 @@
   {/if}
 
   {#if showPrompt}
-    <div class="prompt-panel" on:click|stopPropagation>
+    <div class="prompt-panel z-[1100]" on:click|stopPropagation>
       <div class="prompt-header">
         <h4>Prompt</h4>
         <button class="close-prompt" on:click={togglePromptPanel}>✕</button>
@@ -856,20 +857,19 @@
   }
 
   .prompt-panel {
-    position: absolute;
-    top: 100%;
+    position: fixed;
+    top: 50%;
     left: 50%;
-    transform: translateX(-50%);
-    margin-top: 12px;
+    transform: translate(-50%, -50%);
     background: var(--bg-primary);
     border: 1px solid var(--border-primary);
     border-radius: 1px;
     width: 420px;
     max-width: 90vw;
+    max-height: 80vh;
     display: flex;
     flex-direction: column;
     box-shadow: var(--shadow-large);
-    z-index: 1000;
     animation: promptSlideIn 0.2s ease;
   }
 
