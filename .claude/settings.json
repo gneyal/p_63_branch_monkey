@@ -5,7 +5,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python /Users/eyalgoren/Code/p_63_branch_monkey/scripts/save_claude_prompt.py"
+            "command": "echo \"Hook fired at $(date)\" >> ~/.branch_monkey/hook_test.log && python /Users/eyalgoren/Code/p_63_branch_monkey/scripts/save_claude_prompt.py"
           }
         ]
       }
