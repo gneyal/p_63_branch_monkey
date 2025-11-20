@@ -205,7 +205,7 @@
   .menu-dropdown {
     position: absolute;
     top: calc(100% + 8px);
-    right: 0;
+    left: 0;
     width: 320px;
     background: var(--bg-primary);
     border: 1px solid var(--border-primary);
