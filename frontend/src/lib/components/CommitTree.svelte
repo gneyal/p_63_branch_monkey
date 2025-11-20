@@ -466,6 +466,15 @@
     background: var(--bg-primary) !important;
     border: 1px solid var(--border-primary) !important;
     box-shadow: var(--shadow-medium) !important;
+    transform: scale(0.6);
+    transform-origin: bottom right;
+    transition: transform 0.2s ease;
+    opacity: 0.7;
+  }
+
+  :global(.svelte-flow__minimap:hover) {
+    transform: scale(1);
+    opacity: 1;
   }
 
   :global(.svelte-flow__edge-path) {

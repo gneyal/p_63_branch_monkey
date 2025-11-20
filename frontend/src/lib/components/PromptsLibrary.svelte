@@ -297,13 +297,22 @@
   }
 
   .prompts-table td {
-    padding: 16px;
+    padding: 8px 12px;
     border-bottom: 1px solid var(--border-secondary);
     vertical-align: top;
+    transition: all 0.2s ease;
+  }
+
+  .prompt-row {
+    transition: all 0.2s ease;
   }
 
   .prompt-row:hover {
     background: var(--bg-hover);
+  }
+
+  .prompt-row:hover td {
+    padding: 12px 16px;
   }
 
   .commit-cell {
@@ -315,23 +324,38 @@
 
   .sha {
     font-family: 'Courier', monospace;
-    font-size: 11px;
+    font-size: 10px;
     color: var(--text-primary);
     font-weight: 500;
+    transition: all 0.2s ease;
+  }
+
+  .prompt-row:hover .sha {
+    font-size: 11px;
   }
 
   .author {
-    font-size: 10px;
+    font-size: 9px;
     color: var(--text-tertiary);
+    transition: all 0.2s ease;
+  }
+
+  .prompt-row:hover .author {
+    font-size: 10px;
   }
 
   .message-cell {
     max-width: 200px;
     color: var(--text-primary);
-    font-size: 12px;
+    font-size: 11px;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+    transition: all 0.2s ease;
+  }
+
+  .prompt-row:hover .message-cell {
+    font-size: 12px;
   }
 
   .preview-cell {
@@ -340,21 +364,29 @@
 
   .preview-text {
     font-family: 'Courier', monospace;
-    font-size: 11px;
+    font-size: 10px;
     color: var(--text-secondary);
-    line-height: 1.5;
+    line-height: 1.4;
     margin-bottom: 8px;
-    padding: 8px;
+    padding: 6px 8px;
     background: var(--bg-secondary);
     border-radius: 1px;
     white-space: pre-wrap;
     word-break: break-word;
-    max-height: 100px;
+    max-height: 60px;
     overflow-y: auto;
+    transition: all 0.2s ease;
+  }
+
+  .prompt-row:hover .preview-text {
+    max-height: 120px;
+    font-size: 11px;
+    line-height: 1.5;
+    padding: 8px;
   }
 
   .preview-text.expanded {
-    max-height: 400px;
+    max-height: 400px !important;
   }
 
   .expand-btn {
@@ -379,28 +411,38 @@
 
   .date-cell {
     color: var(--text-tertiary);
-    font-size: 11px;
+    font-size: 10px;
     white-space: nowrap;
     min-width: 100px;
+    transition: all 0.2s ease;
+  }
+
+  .prompt-row:hover .date-cell {
+    font-size: 11px;
   }
 
   .actions-cell {
     display: flex;
-    gap: 8px;
+    gap: 6px;
     flex-wrap: wrap;
     min-width: 220px;
   }
 
   .action-btn {
-    padding: 6px 12px;
+    padding: 4px 8px;
     border-radius: 1px;
-    font-size: 10px;
+    font-size: 9px;
     font-weight: 600;
     text-transform: uppercase;
     letter-spacing: 0.5px;
     cursor: pointer;
-    transition: all 0.15s;
+    transition: all 0.2s ease;
     border: 1px solid;
+  }
+
+  .prompt-row:hover .action-btn {
+    padding: 6px 12px;
+    font-size: 10px;
   }
 
   .improve-btn {
