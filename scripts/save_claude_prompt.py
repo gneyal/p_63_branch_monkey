@@ -83,32 +83,33 @@ def parse_transcript(transcript_path):
 
 
 def format_conversation(conversation):
-    """Format the conversation into a readable prompt - only first prompt and response."""
+    """Format the conversation into a readable prompt - only last prompt and response."""
     if not conversation:
         return None
 
-    # Find first user message and first assistant response
-    first_user = None
-    first_assistant = None
+    # Find last user message and last assistant response after it
+    last_user = None
+    last_assistant = None
 
+    # Go through conversation to find the last user message
     for msg in conversation:
-        if msg['role'] == 'user' and first_user is None:
-            first_user = msg
-        elif msg['role'] == 'assistant' and first_assistant is None and first_user is not None:
-            first_assistant = msg
-            break  # Stop after finding first response
+        if msg['role'] == 'user':
+            last_user = msg
+            last_assistant = None  # Reset assistant when we see a new user message
+        elif msg['role'] == 'assistant' and last_user is not None:
+            last_assistant = msg  # Keep updating to get the last assistant response
 
-    # Build formatted conversation with only first prompt and response
+    # Build formatted conversation with only last prompt and response
     formatted_parts = []
 
-    if first_user and first_user['content'].strip():
+    if last_user and last_user['content'].strip():
         formatted_parts.append("[USER]")
-        formatted_parts.append(first_user['content'].strip())
+        formatted_parts.append(last_user['content'].strip())
         formatted_parts.append("")
 
-    if first_assistant and first_assistant['content'].strip():
+    if last_assistant and last_assistant['content'].strip():
         formatted_parts.append("[ASSISTANT]")
-        formatted_parts.append(first_assistant['content'].strip())
+        formatted_parts.append(last_assistant['content'].strip())
 
     return '\n'.join(formatted_parts).strip() if formatted_parts else None
 
