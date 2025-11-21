@@ -292,7 +292,7 @@
         onLoadMore={loadMore}
       />
     {:else}
-      <BuildingsView commits={$commitTree?.commits || []} />
+      <BuildingsView commits={$commitTree?.commits || []} onNodeClick={handleNodeClick} />
     {/if}
   </div>
 

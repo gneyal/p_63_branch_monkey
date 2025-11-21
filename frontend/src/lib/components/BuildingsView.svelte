@@ -2,9 +2,10 @@
   import { writable } from 'svelte/store';
   import { SvelteFlow, Background, Controls, MiniMap } from '@xyflow/svelte';
   import '@xyflow/svelte/dist/style.css';
-  import BuildingNode from './BuildingNode.svelte';
+  import CommitNode from './CommitNode.svelte';
 
   export let commits = [];
+  export let onNodeClick = null;
 
   let groupBy = 'day'; // 'day' or 'week'
 
@@ -12,7 +13,7 @@
   const edges = writable([]);
 
   const nodeTypes = {
-    building: BuildingNode
+    commit: CommitNode
   };
 
   $: if (commits && commits.length > 0) {
@@ -50,24 +51,48 @@
       new Date(a.date) - new Date(b.date)
     );
 
-    // Convert to Svelte Flow nodes
-    const newNodes = buildings.map((building, index) => {
-      const height = getBuildingHeight(building.commits.length);
+    // Convert to Svelte Flow nodes - one node per commit, stacked vertically by date
+    const newNodes = [];
+    const commitHeight = 80; // Height per commit node
+    const columnWidth = 200; // Width between date columns
+    const baseY = 600; // Baseline for alignment
 
-      return {
-        id: `building-${building.date}`,
-        type: 'building',
-        position: {
-          x: index * 150,  // Horizontal spacing
-          y: 600 - height  // Align bottoms (baseline at y=600)
-        },
+    buildings.forEach((building, columnIndex) => {
+      const xPos = columnIndex * columnWidth;
+
+      // Add date label node
+      newNodes.push({
+        id: `date-${building.date}`,
+        type: 'input',
+        position: { x: xPos, y: baseY + 20 },
         data: {
-          date: building.date,
-          commits: building.commits,
-          formattedDate: formatDate(building.date),
-          height: height
-        }
-      };
+          label: formatDate(building.date)
+        },
+        draggable: false,
+        selectable: false,
+        style: 'background: var(--bg-secondary); border: 1px solid var(--border-primary); padding: 8px 12px; font-size: 10px; font-weight: 600; color: var(--text-tertiary); text-transform: uppercase; letter-spacing: 0.5px; border-radius: 1px;'
+      });
+
+      // Add commit nodes stacked vertically (bottom to top)
+      building.commits.forEach((commit, commitIndex) => {
+        const yPos = baseY - ((commitIndex + 1) * commitHeight);
+
+        newNodes.push({
+          id: commit.sha,
+          type: 'commit',
+          position: { x: xPos, y: yPos },
+          zIndex: 1,
+          data: {
+            sha: commit.sha.substring(0, 7),
+            fullSha: commit.fullSha,
+            message: commit.message,
+            author: commit.author,
+            age: commit.age,
+            branches: commit.branches,
+            is_head: commit.is_head
+          }
+        });
+      });
     });
 
     nodes.set(newNodes);
@@ -90,8 +115,10 @@
     }
   }
 
-  function getBuildingHeight(commitCount) {
-    return Math.min(commitCount * 40, 600); // 40px per commit, max 600px
+  function handleNodeClickInternal(event) {
+    if (onNodeClick) {
+      onNodeClick(event.detail);
+    }
   }
 </script>
 
@@ -122,9 +149,15 @@
         edges={$edges}
         {nodeTypes}
         fitView
+        nodesDraggable={false}
+        nodesConnectable={false}
+        elementsSelectable={true}
+        panOnDrag={true}
+        zoomOnScroll={true}
         minZoom={0.1}
         maxZoom={2}
         defaultEdgeOptions={{ type: 'smoothstep' }}
+        on:nodeclick={handleNodeClickInternal}
       >
         <Background />
         <Controls />
