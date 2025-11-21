@@ -116,19 +116,23 @@
   </div>
 
   <div class="flow-container">
-    <SvelteFlow
-      {nodes}
-      {edges}
-      {nodeTypes}
-      fitView
-      minZoom={0.1}
-      maxZoom={2}
-      defaultEdgeOptions={{ type: 'smoothstep' }}
-    >
-      <Background />
-      <Controls />
-      <MiniMap nodeColor="#94a3b8" />
-    </SvelteFlow>
+    {#if $nodes.length > 0}
+      <SvelteFlow
+        nodes={$nodes}
+        edges={$edges}
+        {nodeTypes}
+        fitView
+        minZoom={0.1}
+        maxZoom={2}
+        defaultEdgeOptions={{ type: 'smoothstep' }}
+      >
+        <Background />
+        <Controls />
+        <MiniMap nodeColor="#94a3b8" />
+      </SvelteFlow>
+    {:else}
+      <div class="loading">Loading buildings...</div>
+    {/if}
   </div>
 </div>
 
@@ -184,6 +188,15 @@
   .flow-container {
     flex: 1;
     min-height: 0;
+  }
+
+  .loading {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    color: var(--text-tertiary);
+    font-size: 14px;
   }
 
   /* Minimap styling */
