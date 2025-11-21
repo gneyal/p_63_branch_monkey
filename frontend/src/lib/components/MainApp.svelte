@@ -234,43 +234,6 @@
           Buildings
         </button>
       </div>
-
-      <div class="commit-info">
-        <span class="commit-count">{currentOffset} / {totalCommits} saves</span>
-        {#if hasMore}
-          <button class="load-more-compact" on:click={loadMore} title="Show older saves">
-            Show More
-          </button>
-        {/if}
-      </div>
-
-      <GlobalActions
-        onGoToTop={handleGoToTop}
-        onGoToBottom={handleGoToBottom}
-        onShowRemote={handleShowRemote}
-        onNameBranches={handleNameBranches}
-        onShowPrompts={handleShowPrompts}
-      />
-
-      <button class="theme-toggle" on:click={toggleTheme} title="Toggle theme">
-        {#if $theme === 'light'}
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <circle cx="12" cy="12" r="5"/>
-            <line x1="12" y1="1" x2="12" y2="3"/>
-            <line x1="12" y1="21" x2="12" y2="23"/>
-            <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/>
-            <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/>
-            <line x1="1" y1="12" x2="3" y2="12"/>
-            <line x1="21" y1="12" x2="23" y2="12"/>
-            <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/>
-            <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
-          </svg>
-        {:else}
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
-          </svg>
-        {/if}
-      </button>
     </div>
   </header>
 
@@ -295,6 +258,51 @@
       <BuildingsView commits={$commitTree?.commits || []} onNodeClick={handleNodeClick} />
     {/if}
   </div>
+
+  <footer class="app-footer">
+    <div class="footer-left">
+      <GlobalActions
+        onGoToTop={handleGoToTop}
+        onGoToBottom={handleGoToBottom}
+        onShowRemote={handleShowRemote}
+        onNameBranches={handleNameBranches}
+        onShowPrompts={handleShowPrompts}
+      />
+    </div>
+
+    <div class="footer-center">
+      <div class="commit-info">
+        <span class="commit-count">{currentOffset} / {totalCommits} saves</span>
+        {#if hasMore}
+          <button class="load-more-compact" on:click={loadMore} title="Show older saves">
+            Show More
+          </button>
+        {/if}
+      </div>
+    </div>
+
+    <div class="footer-right">
+      <button class="theme-toggle" on:click={toggleTheme} title="Toggle theme">
+        {#if $theme === 'light'}
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="5"/>
+            <line x1="12" y1="1" x2="12" y2="3"/>
+            <line x1="12" y1="21" x2="12" y2="23"/>
+            <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/>
+            <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/>
+            <line x1="1" y1="12" x2="3" y2="12"/>
+            <line x1="21" y1="12" x2="23" y2="12"/>
+            <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/>
+            <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
+          </svg>
+        {:else}
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+          </svg>
+        {/if}
+      </button>
+    </div>
+  </footer>
 
   {#if showBranchesList}
     <BranchesList
@@ -587,5 +595,45 @@
     flex: 1;
     min-height: 0;
     overflow: hidden;
+  }
+
+  .app-footer {
+    display: grid;
+    grid-template-columns: 1fr auto 1fr;
+    gap: 24px;
+    align-items: center;
+    padding: 8px 24px;
+    background: var(--bg-secondary);
+    border-top: 1px solid var(--border-primary);
+    box-shadow: var(--shadow-small);
+  }
+
+  .footer-left {
+    display: flex;
+    justify-content: flex-start;
+  }
+
+  .footer-center {
+    display: flex;
+    justify-content: center;
+  }
+
+  .footer-right {
+    display: flex;
+    justify-content: flex-end;
+  }
+
+  @media (max-width: 768px) {
+    .app-footer {
+      grid-template-columns: 1fr;
+      gap: 8px;
+      padding: 8px 16px;
+    }
+
+    .footer-left,
+    .footer-center,
+    .footer-right {
+      justify-content: center;
+    }
   }
 </style>
