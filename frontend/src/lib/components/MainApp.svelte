@@ -214,6 +214,27 @@
     <div class="header-center">
       <RepoSelector />
     </div>
+
+    <div class="header-right">
+      <div class="view-toggle">
+        <button
+          class="view-btn"
+          class:active={currentView === 'flow'}
+          on:click={() => currentView = 'flow'}
+          title="Flow view"
+        >
+          Flow
+        </button>
+        <button
+          class="view-btn"
+          class:active={currentView === 'buildings'}
+          on:click={() => currentView = 'buildings'}
+          title="Buildings view"
+        >
+          Buildings
+        </button>
+      </div>
+    </div>
   </header>
 
   {#if error}
@@ -240,25 +261,6 @@
 
   <footer class="app-footer">
     <div class="footer-left">
-      <div class="view-toggle">
-        <button
-          class="view-btn"
-          class:active={currentView === 'flow'}
-          on:click={() => currentView = 'flow'}
-          title="Flow view"
-        >
-          Flow
-        </button>
-        <button
-          class="view-btn"
-          class:active={currentView === 'buildings'}
-          on:click={() => currentView = 'buildings'}
-          title="Buildings view"
-        >
-          Buildings
-        </button>
-      </div>
-
       <GlobalActions
         onGoToTop={handleGoToTop}
         onGoToBottom={handleGoToBottom}
@@ -337,7 +339,7 @@
 
   .app-header {
     display: grid;
-    grid-template-columns: 1fr 2fr;
+    grid-template-columns: 1fr 2fr 1fr;
     gap: 24px;
     align-items: center;
     padding: 12px 24px;
@@ -348,7 +350,7 @@
 
   @media (max-width: 1200px) {
     .app-header {
-      grid-template-columns: auto 1fr;
+      grid-template-columns: auto 1fr auto;
       gap: 16px;
       padding: 12px 16px;
     }
@@ -366,7 +368,8 @@
     }
 
     .header-left,
-    .header-center {
+    .header-center,
+    .header-right {
       justify-content: center;
     }
 
@@ -376,6 +379,10 @@
 
     .header-center {
       order: 2;
+    }
+
+    .header-right {
+      order: 3;
     }
   }
 
@@ -437,6 +444,12 @@
   .header-center {
     display: flex;
     justify-content: center;
+  }
+
+  .header-right {
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
   }
 
   .commit-info {
@@ -595,8 +608,6 @@
 
   .footer-left {
     display: flex;
-    gap: 8px;
-    align-items: center;
     justify-content: flex-start;
   }
 

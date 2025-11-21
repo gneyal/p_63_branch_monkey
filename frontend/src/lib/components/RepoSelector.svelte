@@ -10,6 +10,7 @@
   let searchTimeout = null;
   let favorites = [];
   let showFavorites = false;
+  let isFocused = false;
 
   // Load favorites from localStorage
   function loadFavorites() {
@@ -136,9 +137,17 @@
     }
   }
 
+  function handleFocus() {
+    isFocused = true;
+    if (suggestions.length > 0) {
+      showSuggestions = true;
+    }
+  }
+
   function handleBlur() {
-    // Delay to allow click on suggestion
+    // Delay to allow click on suggestion or switch button
     setTimeout(() => {
+      isFocused = false;
       showSuggestions = false;
       // Reset to project name if user didn't change anything meaningful
       if (isEditing && inputValue === getProjectName(fullPath)) {
@@ -156,11 +165,13 @@
       on:input={handleInput}
       on:keydown={handleKeydown}
       on:blur={handleBlur}
-      on:focus={() => suggestions.length > 0 && (showSuggestions = true)}
+      on:focus={handleFocus}
       placeholder="Repository path..."
       class="repo-input"
     />
-    <button on:click={switchRepo} class="switch-btn">Switch</button>
+    {#if isFocused}
+      <button on:click={switchRepo} class="switch-btn">Switch</button>
+    {/if}
   </div>
 
   {#if showSuggestions && suggestions.length > 0}
