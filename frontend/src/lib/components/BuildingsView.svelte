@@ -73,8 +73,10 @@
         style: 'background: var(--bg-secondary); border: 1px solid var(--border-primary); padding: 8px 12px; font-size: 10px; font-weight: 600; color: var(--text-tertiary); text-transform: uppercase; letter-spacing: 0.5px; border-radius: 1px;'
       });
 
-      // Add commit nodes stacked vertically (bottom to top)
-      building.commits.forEach((commit, commitIndex) => {
+      // Add commit nodes stacked vertically (bottom to top, oldest to newest)
+      // Reverse so oldest commits are at bottom, newest at top
+      const reversedCommits = [...building.commits].reverse();
+      reversedCommits.forEach((commit, commitIndex) => {
         const yPos = baseY - ((commitIndex + 1) * commitHeight);
 
         newNodes.push({
