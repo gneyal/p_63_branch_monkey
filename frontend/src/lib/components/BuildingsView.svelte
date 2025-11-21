@@ -53,7 +53,7 @@
 
     // Convert to Svelte Flow nodes - one node per commit, stacked vertically by date
     const newNodes = [];
-    const commitHeight = 120; // Height per commit node (increased for more spacing)
+    const commitHeight = 180; // Height per commit node (increased for more spacing)
     const columnWidth = 500; // Width between date columns (increased for more spacing)
     const baseY = 600; // Baseline for alignment
 
