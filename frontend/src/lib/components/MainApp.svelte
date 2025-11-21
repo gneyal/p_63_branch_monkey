@@ -6,6 +6,7 @@
   import Toast from './Toast.svelte';
   import Modal from './Modal.svelte';
   import CommitTree from './CommitTree.svelte';
+  import BuildingsView from './BuildingsView.svelte';
   import RepoSelector from './RepoSelector.svelte';
   import RecentRepos from './RecentRepos.svelte';
   import GlobalActions from './GlobalActions.svelte';
@@ -17,6 +18,7 @@
   let showBranchesList = false;
   let showRemoteStatus = false;
   let showPromptsLibrary = false;
+  let currentView = 'flow'; // 'flow' or 'buildings'
   let commitTreeComponent;
   let currentOffset = 0;
   let hasMore = false;
@@ -214,6 +216,25 @@
     </div>
 
     <div class="header-right">
+      <div class="view-toggle">
+        <button
+          class="view-btn"
+          class:active={currentView === 'flow'}
+          on:click={() => currentView = 'flow'}
+          title="Flow view"
+        >
+          Flow
+        </button>
+        <button
+          class="view-btn"
+          class:active={currentView === 'buildings'}
+          on:click={() => currentView = 'buildings'}
+          title="Buildings view"
+        >
+          Buildings
+        </button>
+      </div>
+
       <div class="commit-info">
         <span class="commit-count">{currentOffset} / {totalCommits} saves</span>
         {#if hasMore}
@@ -261,14 +282,18 @@
   {/if}
 
   <div class="app-content">
-    <CommitTree
-      bind:this={commitTreeComponent}
-      onNodeClick={handleNodeClick}
-      {hasMore}
-      {totalCommits}
-      loadedCount={currentOffset}
-      onLoadMore={loadMore}
-    />
+    {#if currentView === 'flow'}
+      <CommitTree
+        bind:this={commitTreeComponent}
+        onNodeClick={handleNodeClick}
+        {hasMore}
+        {totalCommits}
+        loadedCount={currentOffset}
+        onLoadMore={loadMore}
+      />
+    {:else}
+      <BuildingsView commits={$commitTree} />
+    {/if}
   </div>
 
   {#if showBranchesList}
@@ -437,6 +462,42 @@
     color: var(--text-tertiary);
     text-transform: uppercase;
     letter-spacing: 0.8px;
+  }
+
+  .view-toggle {
+    display: flex;
+    gap: 0;
+    border: 1px solid var(--border-primary);
+    border-radius: 1px;
+    overflow: hidden;
+  }
+
+  .view-btn {
+    padding: 6px 12px;
+    background: var(--bg-primary);
+    border: none;
+    border-right: 1px solid var(--border-primary);
+    color: var(--text-secondary);
+    font-size: 9px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+
+  .view-btn:last-child {
+    border-right: none;
+  }
+
+  .view-btn:hover {
+    background: var(--bg-hover);
+    color: var(--text-primary);
+  }
+
+  .view-btn.active {
+    background: var(--accent-primary);
+    color: var(--bg-primary);
   }
 
   .load-more-compact {

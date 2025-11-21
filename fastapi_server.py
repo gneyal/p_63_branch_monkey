@@ -1527,7 +1527,7 @@ def get_commit_tree(limit: int = 50, offset: int = 0):
 
         # Get commit log with parents using skip and max-count for pagination
         log_output = subprocess.check_output(
-            ["git", "log", "--all", "--format=%H|%h|%p|%s|%an|%ar", f"--skip={offset}", f"--max-count={limit}"],
+            ["git", "log", "--all", "--format=%H|%h|%p|%s|%an|%ar|%ai", f"--skip={offset}", f"--max-count={limit}"],
             cwd=REPO_PATH,
             text=True
         ).strip()
@@ -1536,9 +1536,9 @@ def get_commit_tree(limit: int = 50, offset: int = 0):
         for line in log_output.split('\n'):
             if not line:
                 continue
-            parts = line.split('|', 5)
-            if len(parts) >= 6:
-                full_sha, short_sha, parents, subject, author, age = parts
+            parts = line.split('|', 6)
+            if len(parts) >= 7:
+                full_sha, short_sha, parents, subject, author, age, timestamp = parts
                 parent_list = [p[:7] for p in parents.split()] if parents else []
 
                 commits.append({
@@ -1547,6 +1547,7 @@ def get_commit_tree(limit: int = 50, offset: int = 0):
                     "message": subject,
                     "author": author,
                     "age": age,
+                    "timestamp": timestamp,
                     "parents": parent_list,
                     "branches": sha_to_branches.get(short_sha, []),
                     "is_head": short_sha == current_sha
