@@ -1,12 +1,21 @@
 <script>
-  import { onMount } from 'svelte';
+  import { writable } from 'svelte/store';
+  import { SvelteFlow, Background, Controls, MiniMap } from '@xyflow/svelte';
+  import '@xyflow/svelte/dist/style.css';
+  import BuildingNode from './BuildingNode.svelte';
 
   export let commits = [];
 
   let groupBy = 'day'; // 'day' or 'week'
-  let buildings = [];
 
-  $: if (commits.length > 0) {
+  const nodes = writable([]);
+  const edges = writable([]);
+
+  const nodeTypes = {
+    building: BuildingNode
+  };
+
+  $: if (commits && commits.length > 0) {
     buildTimeline();
   }
 
@@ -37,9 +46,32 @@
     });
 
     // Convert to array and sort by date
-    buildings = Array.from(groups.values()).sort((a, b) =>
+    const buildings = Array.from(groups.values()).sort((a, b) =>
       new Date(a.date) - new Date(b.date)
     );
+
+    // Convert to Svelte Flow nodes
+    const newNodes = buildings.map((building, index) => {
+      const height = getBuildingHeight(building.commits.length);
+
+      return {
+        id: `building-${building.date}`,
+        type: 'building',
+        position: {
+          x: index * 150,  // Horizontal spacing
+          y: 600 - height  // Align bottoms (baseline at y=600)
+        },
+        data: {
+          date: building.date,
+          commits: building.commits,
+          formattedDate: formatDate(building.date),
+          height: height
+        }
+      };
+    });
+
+    nodes.set(newNodes);
+    edges.set([]);  // No edges needed for buildings view
   }
 
   function getWeekStart(date) {
@@ -83,33 +115,20 @@
     </div>
   </div>
 
-  <div class="timeline-container">
-    <div class="timeline">
-      {#each buildings as building}
-        <div class="building-column">
-          <div class="date-label">{formatDate(building.date)}</div>
-          <div
-            class="building"
-            style="height: {getBuildingHeight(building.commits.length)}px;"
-          >
-            {#each building.commits as commit, i}
-              <div
-                class="commit-floor"
-                title="{commit.message}"
-              >
-                <div class="floor-content">
-                  <span class="commit-sha">{commit.sha}</span>
-                  <span class="commit-message">
-                    {commit.message.length > 30 ? commit.message.substring(0, 30) + '...' : commit.message}
-                  </span>
-                </div>
-              </div>
-            {/each}
-          </div>
-          <div class="commit-count">{building.commits.length} commit{building.commits.length !== 1 ? 's' : ''}</div>
-        </div>
-      {/each}
-    </div>
+  <div class="flow-container">
+    <SvelteFlow
+      {nodes}
+      {edges}
+      {nodeTypes}
+      fitView
+      minZoom={0.1}
+      maxZoom={2}
+      defaultEdgeOptions={{ type: 'smoothstep' }}
+    >
+      <Background />
+      <Controls />
+      <MiniMap nodeColor="#94a3b8" />
+    </SvelteFlow>
   </div>
 </div>
 
@@ -128,6 +147,7 @@
     border-bottom: 1px solid var(--border-primary);
     display: flex;
     justify-content: center;
+    z-index: 10;
   }
 
   .group-toggle {
@@ -161,111 +181,24 @@
     color: var(--bg-primary);
   }
 
-  .timeline-container {
+  .flow-container {
     flex: 1;
-    overflow-x: auto;
-    overflow-y: hidden;
-    padding: 32px;
+    min-height: 0;
   }
 
-  .timeline {
-    display: flex;
-    gap: 24px;
-    align-items: flex-end;
-    min-height: 100%;
-    padding-bottom: 60px;
-  }
-
-  .building-column {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 8px;
-  }
-
-  .date-label {
-    font-size: 10px;
-    color: var(--text-tertiary);
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-    font-weight: 600;
-    writing-mode: horizontal-tb;
-    white-space: nowrap;
-  }
-
-  .building {
-    width: 60px;
-    background: var(--bg-primary);
-    border: 1px solid var(--border-primary);
-    border-radius: 2px 2px 0 0;
-    display: flex;
-    flex-direction: column-reverse;
-    transition: all 0.2s ease;
-    position: relative;
-  }
-
-  .building:hover {
-    transform: translateY(-4px);
-    box-shadow: var(--shadow-large);
-    border-color: var(--border-hover);
-    z-index: 10;
-  }
-
-  .building:hover .commit-floor {
-    opacity: 1;
-  }
-
-  .commit-floor {
-    min-height: 40px;
-    border-bottom: 1px solid var(--border-secondary);
-    display: flex;
-    align-items: center;
-    padding: 4px;
-    transition: all 0.2s;
+  /* Minimap styling */
+  :global(.buildings-view .svelte-flow__minimap) {
+    background: var(--bg-primary) !important;
+    border: 1px solid var(--border-primary) !important;
+    box-shadow: var(--shadow-medium) !important;
+    transform: scale(0.6);
+    transform-origin: bottom right;
+    transition: transform 0.2s ease;
     opacity: 0.7;
-    cursor: pointer;
   }
 
-  .commit-floor:last-child {
-    border-bottom: none;
-  }
-
-  .commit-floor:hover {
-    background: var(--bg-hover);
+  :global(.buildings-view .svelte-flow__minimap:hover) {
+    transform: scale(1);
     opacity: 1;
-    transform: scale(1.05);
-    z-index: 5;
-  }
-
-  .floor-content {
-    display: flex;
-    flex-direction: column;
-    gap: 2px;
-    font-size: 8px;
-    overflow: hidden;
-    width: 100%;
-  }
-
-  .commit-sha {
-    font-family: 'Courier', monospace;
-    color: var(--text-primary);
-    font-weight: 600;
-    font-size: 9px;
-  }
-
-  .commit-message {
-    color: var(--text-tertiary);
-    font-size: 7px;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-  }
-
-  .commit-count {
-    font-size: 9px;
-    color: var(--text-tertiary);
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
   }
 </style>

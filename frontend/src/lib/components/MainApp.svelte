@@ -292,7 +292,7 @@
         onLoadMore={loadMore}
       />
     {:else}
-      <BuildingsView commits={$commitTree} />
+      <BuildingsView commits={$commitTree?.commits || []} />
     {/if}
   </div>
 
