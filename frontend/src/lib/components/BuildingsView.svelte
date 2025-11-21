@@ -60,17 +60,18 @@
     buildings.forEach((building, columnIndex) => {
       const xPos = columnIndex * columnWidth;
 
-      // Add date label node
+      // Add date label node (centered with commits)
+      // CommitNode is ~220px wide, date label is 150px, so offset by (220-150)/2 = 35px
       newNodes.push({
         id: `date-${building.date}`,
         type: 'input',
-        position: { x: xPos, y: baseY + 20 },
+        position: { x: xPos + 35, y: baseY + 20 },
         data: {
           label: formatDate(building.date)
         },
         draggable: false,
         selectable: false,
-        style: 'background: var(--bg-secondary); border: 1px solid var(--border-primary); padding: 8px 12px; font-size: 10px; font-weight: 600; color: var(--text-tertiary); text-transform: uppercase; letter-spacing: 0.5px; border-radius: 1px;'
+        style: 'background: var(--bg-secondary); border: 1px solid var(--border-primary); padding: 8px 12px; font-size: 10px; font-weight: 600; color: var(--text-tertiary); text-transform: uppercase; letter-spacing: 0.5px; border-radius: 1px; text-align: center; width: 150px;'
       });
 
       // Add commit nodes stacked vertically (bottom to top, oldest to newest)
