@@ -37,9 +37,13 @@ dev = [
     "black>=23.0.0",
     "ruff>=0.1.0",
 ]
+mcp = [
+    "mcp>=1.0.0",
+]
 
 [project.scripts]
 monkey = "branch_monkey.cli:app"
+monkey-mcp = "branch_monkey.mcp_server:main"
 
 [project.urls]
 Homepage = "https://github.com/yourusername/branch-monkey"

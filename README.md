@@ -190,6 +190,68 @@ monkey status
 
 ## 🤖 Claude Code Integration
 
+### MCP Server (Recommended)
+
+Branch Monkey includes an MCP (Model Context Protocol) server that integrates directly with Claude Code, giving you access to all Branch Monkey commands via `/monkey` tools.
+
+**Installation:**
+
+```bash
+# Install with MCP support
+pip install branch-monkey[mcp]
+
+# Or if installing from source
+pip install -e ".[mcp]"
+```
+
+**Configure Claude Code:**
+
+Add to your `~/.claude/claude_desktop_config.json`:
+
+```json
+{
+  "mcpServers": {
+    "branch-monkey": {
+      "command": "monkey-mcp",
+      "env": {
+        "MONKEY_REPO_PATH": "/path/to/your/repo"
+      }
+    }
+  }
+}
+```
+
+Or without a specific repo path (uses current working directory):
+
+```json
+{
+  "mcpServers": {
+    "branch-monkey": {
+      "command": "python",
+      "args": ["-m", "branch_monkey.mcp_server"]
+    }
+  }
+}
+```
+
+**Available MCP Tools:**
+
+| Tool | Description |
+|------|-------------|
+| `monkey_ui` | Start the Branch Monkey web UI |
+| `monkey_status` | Get current repo status |
+| `monkey_save` | Create a checkpoint |
+| `monkey_undo` | Restore to previous checkpoint |
+| `monkey_experiment_start` | Start a new experiment |
+| `monkey_experiment_keep` | Merge current experiment |
+| `monkey_experiment_discard` | Discard current experiment |
+| `monkey_context_prompt` | Get AI prompt for context generation |
+| `monkey_context_save` | Save AI-generated context summary |
+| `monkey_context_latest` | Get latest context summary |
+| `monkey_history` | Show recent commit history |
+
+### Python API
+
 Branch Monkey is designed to work seamlessly with Claude Code:
 
 ```python
