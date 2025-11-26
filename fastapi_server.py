@@ -2196,6 +2196,82 @@ def get_all_prompts():
         raise HTTPException(status_code=500, detail=str(e))
 
 
+# === Context Library API ===
+
+@app.get("/api/context/status")
+def get_context_status():
+    """Get status of context files in .branch_monkey directory."""
+    try:
+        monkey = get_monkey()
+        status = monkey.get_context_status()
+        return {"success": True, "files": status}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/api/context/update")
+def update_context():
+    """Update all context files."""
+    try:
+        monkey = get_monkey()
+        results = monkey.update_context()
+        return {
+            "success": True,
+            "message": f"Updated {len(results)} context files",
+            "files": list(results.keys())
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/api/context/update/codebase")
+def update_codebase_context():
+    """Update only the codebase summary."""
+    try:
+        monkey = get_monkey()
+        content = monkey.update_codebase_context()
+        return {"success": True, "content": content}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/api/context/update/architecture")
+def update_architecture_context():
+    """Update only the architecture summary."""
+    try:
+        monkey = get_monkey()
+        content = monkey.update_architecture_context()
+        return {"success": True, "content": content}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/api/context/update/prompts")
+def update_prompts_context():
+    """Update only the prompts summary."""
+    try:
+        monkey = get_monkey()
+        content = monkey.update_prompts_context()
+        return {"success": True, "content": content}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/context/{file_name}")
+def get_context_file(file_name: str):
+    """Get content of a specific context file."""
+    try:
+        monkey = get_monkey()
+        content = monkey.read_context_file(file_name)
+        if content is None:
+            raise HTTPException(status_code=404, detail=f"Context file '{file_name}' not found")
+        return {"success": True, "file_name": file_name, "content": content}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 def run_server(repo_path: Optional[Path] = None, port: int = 8081, open_browser: bool = True):
     """Run the FastAPI server."""
     global REPO_PATH

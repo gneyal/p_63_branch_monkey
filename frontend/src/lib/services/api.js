@@ -369,3 +369,89 @@ export async function fetchAllPrompts() {
   }
   return response.json();
 }
+
+// === Context Library API ===
+
+/**
+ * Get status of all context files
+ * @returns {Promise<Object>} Context files status
+ */
+export async function fetchContextStatus() {
+  const response = await fetch(`${API_BASE}/context/status`);
+  if (!response.ok) {
+    throw new Error(`Failed to fetch context status: ${response.statusText}`);
+  }
+  return response.json();
+}
+
+/**
+ * Update all context files
+ * @returns {Promise<Object>} Update result
+ */
+export async function updateAllContext() {
+  const response = await fetch(`${API_BASE}/context/update`, {
+    method: 'POST',
+  });
+  if (!response.ok) {
+    throw new Error(`Failed to update context: ${response.statusText}`);
+  }
+  return response.json();
+}
+
+/**
+ * Get a specific context file content
+ * @param {string} fileName - Name of the context file
+ * @returns {Promise<Object>} File content
+ */
+export async function fetchContextFile(fileName) {
+  const response = await fetch(`${API_BASE}/context/${encodeURIComponent(fileName)}`);
+  if (!response.ok) {
+    if (response.status === 404) {
+      return { success: true, content: null };
+    }
+    throw new Error(`Failed to fetch context file: ${response.statusText}`);
+  }
+  return response.json();
+}
+
+/**
+ * Update only codebase context
+ * @returns {Promise<Object>} Update result
+ */
+export async function updateCodebaseContext() {
+  const response = await fetch(`${API_BASE}/context/update/codebase`, {
+    method: 'POST',
+  });
+  if (!response.ok) {
+    throw new Error(`Failed to update codebase context: ${response.statusText}`);
+  }
+  return response.json();
+}
+
+/**
+ * Update only architecture context
+ * @returns {Promise<Object>} Update result
+ */
+export async function updateArchitectureContext() {
+  const response = await fetch(`${API_BASE}/context/update/architecture`, {
+    method: 'POST',
+  });
+  if (!response.ok) {
+    throw new Error(`Failed to update architecture context: ${response.statusText}`);
+  }
+  return response.json();
+}
+
+/**
+ * Update only prompts context
+ * @returns {Promise<Object>} Update result
+ */
+export async function updatePromptsContext() {
+  const response = await fetch(`${API_BASE}/context/update/prompts`, {
+    method: 'POST',
+  });
+  if (!response.ok) {
+    throw new Error(`Failed to update prompts context: ${response.statusText}`);
+  }
+  return response.json();
+}

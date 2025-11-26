@@ -13,11 +13,13 @@
   import BranchesList from './BranchesList.svelte';
   import RemoteStatus from './RemoteStatus.svelte';
   import PromptsLibrary from './PromptsLibrary.svelte';
+  import ContextLibrary from './ContextLibrary.svelte';
 
   let error = null;
   let showBranchesList = false;
   let showRemoteStatus = false;
   let showPromptsLibrary = false;
+  let showContextLibrary = false;
   let currentView = 'flow'; // 'flow' or 'buildings'
   let commitTreeComponent;
   let currentOffset = 0;
@@ -189,6 +191,10 @@
   function handleShowPrompts() {
     showPromptsLibrary = true;
   }
+
+  function handleShowContext() {
+    showContextLibrary = true;
+  }
 </script>
 
 <main class="app-main">
@@ -267,6 +273,7 @@
         onShowRemote={handleShowRemote}
         onNameBranches={handleNameBranches}
         onShowPrompts={handleShowPrompts}
+        onShowContext={handleShowContext}
       />
     </div>
 
@@ -320,6 +327,12 @@
   {#if showPromptsLibrary}
     <PromptsLibrary
       onClose={() => showPromptsLibrary = false}
+    />
+  {/if}
+
+  {#if showContextLibrary}
+    <ContextLibrary
+      onClose={() => showContextLibrary = false}
     />
   {/if}
 

@@ -7,6 +7,7 @@ from dataclasses import asdict, fields
 from .core.checkpoint import CheckpointManager, Checkpoint
 from .core.experiment import ExperimentManager, Experiment
 from .core.history import HistoryNavigator, HistoryEntry
+from .core.context import ContextLibrary
 
 
 def to_dict(obj: Any) -> Dict:
@@ -65,6 +66,7 @@ class BranchMonkey:
         self.checkpoints = CheckpointManager(self.repo_path)
         self.experiments = ExperimentManager(self.repo_path)
         self.history = HistoryNavigator(self.repo_path)
+        self.context = ContextLibrary(self.repo_path)
 
     # === Checkpoint API ===
 
@@ -398,6 +400,106 @@ class BranchMonkey:
             "files": [to_dict(fc) for fc in file_changes],
             "diff": diff,
         }
+
+    # === Context API ===
+
+    def update_context(self) -> Dict[str, str]:
+        """
+        Update all context files in .branch_monkey directory.
+
+        This generates and saves:
+        - codebase_summary.md: File structure and key components
+        - architecture_summary.md: Architecture overview
+        - prompts_summary.md: Summary of saved prompts
+
+        Returns:
+            Dictionary mapping file names to their content
+
+        Example:
+            >>> monkey.update_context()
+            >>> # Creates/updates .branch_monkey/ directory with summaries
+        """
+        return self.context.update_all()
+
+    def get_context_status(self) -> List[Dict]:
+        """
+        Get status of context files.
+
+        Returns:
+            List of status dictionaries for each context file
+
+        Example:
+            >>> status = monkey.get_context_status()
+            >>> for s in status:
+            ...     print(f"{s['file_name']}: {'exists' if s['exists'] else 'missing'}")
+        """
+        status = self.context.get_status()
+        return [
+            {
+                "file_name": s.file_name,
+                "exists": s.exists,
+                "last_updated": s.last_updated.isoformat() if s.last_updated else None,
+                "size_bytes": s.size_bytes,
+                "preview": s.preview,
+            }
+            for s in status.values()
+        ]
+
+    def read_context_file(self, file_name: str) -> Optional[str]:
+        """
+        Read a specific context file.
+
+        Args:
+            file_name: Name of the context file (e.g., 'codebase_summary.md')
+
+        Returns:
+            Content of the file or None if it doesn't exist
+
+        Example:
+            >>> codebase = monkey.read_context_file('codebase_summary.md')
+        """
+        return self.context.read_context(file_name)
+
+    def update_codebase_context(self) -> str:
+        """
+        Update just the codebase summary.
+
+        Returns:
+            The generated codebase summary content
+
+        Example:
+            >>> monkey.update_codebase_context()
+        """
+        return self.context.update_codebase()
+
+    def update_architecture_context(self) -> str:
+        """
+        Update just the architecture summary.
+
+        Returns:
+            The generated architecture summary content
+
+        Example:
+            >>> monkey.update_architecture_context()
+        """
+        return self.context.update_architecture()
+
+    def update_prompts_context(self) -> str:
+        """
+        Update just the prompts summary.
+
+        Returns:
+            The generated prompts summary content
+
+        Example:
+            >>> monkey.update_prompts_context()
+        """
+        return self.context.update_prompts()
+
+    @property
+    def repo(self):
+        """Get the underlying git.Repo object."""
+        return self.checkpoints.repo
 
 
 # Convenience functions for quick access

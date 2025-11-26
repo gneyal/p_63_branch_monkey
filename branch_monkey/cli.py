@@ -484,6 +484,107 @@ def status(
         raise typer.Exit(1)
 
 
+@app.command()
+def context(
+    update: bool = typer.Option(
+        False, "--update", "-u", help="Update all context files"
+    ),
+    codebase: bool = typer.Option(
+        False, "--codebase", "-c", help="Update only codebase summary"
+    ),
+    architecture: bool = typer.Option(
+        False, "--architecture", "-a", help="Update only architecture summary"
+    ),
+    prompts: bool = typer.Option(
+        False, "--prompts", "-p", help="Update only prompts summary"
+    ),
+    show: Optional[str] = typer.Option(
+        None, "--show", "-s", help="Show a specific context file"
+    ),
+    path: Optional[Path] = typer.Option(
+        None, "--path", help="Path to Git repository"
+    ),
+):
+    """
+    Manage the .branch_monkey context library.
+
+    The context library maintains summaries of your codebase, architecture,
+    and AI prompts in the .branch_monkey directory.
+
+    Examples:
+        monkey context --update           # Update all context files
+        monkey context --codebase         # Update only codebase summary
+        monkey context --show codebase_summary.md  # Show a context file
+        monkey context                    # Show context status
+    """
+    try:
+        monkey = BranchMonkey(path)
+
+        # Handle specific file updates
+        if codebase:
+            monkey.update_codebase_context()
+            console.print("[green]✓[/green] Codebase summary updated")
+            return
+
+        if architecture:
+            monkey.update_architecture_context()
+            console.print("[green]✓[/green] Architecture summary updated")
+            return
+
+        if prompts:
+            monkey.update_prompts_context()
+            console.print("[green]✓[/green] Prompts summary updated")
+            return
+
+        # Handle show command
+        if show:
+            content = monkey.read_context_file(show)
+            if content:
+                console.print(Panel(content, title=show, border_style="blue"))
+            else:
+                console.print(f"[yellow]Context file '{show}' not found.[/yellow]")
+                console.print("[dim]Run 'monkey context --update' to generate it.[/dim]")
+            return
+
+        # Handle update all
+        if update:
+            console.print("[dim]Updating context files...[/dim]")
+            results = monkey.update_context()
+            console.print(f"[green]✓[/green] Updated {len(results)} context files:")
+            for file_name in results.keys():
+                console.print(f"  • {file_name}")
+            console.print(f"\n[dim]Files saved to: .branch_monkey/[/dim]")
+            return
+
+        # Default: show status
+        status = monkey.get_context_status()
+
+        table = Table(title=".branch_monkey Context Library", show_header=True)
+        table.add_column("File", style="cyan")
+        table.add_column("Status")
+        table.add_column("Last Updated", style="dim")
+        table.add_column("Size", style="dim")
+
+        for s in status:
+            if s["exists"]:
+                status_str = "[green]✓ exists[/green]"
+                updated = s["last_updated"][:19] if s["last_updated"] else "-"
+                size = f"{s['size_bytes']} bytes"
+            else:
+                status_str = "[yellow]✗ missing[/yellow]"
+                updated = "-"
+                size = "-"
+
+            table.add_row(s["file_name"], status_str, updated, size)
+
+        console.print(table)
+        console.print("\n[dim]Run 'monkey context --update' to generate/update files[/dim]")
+
+    except Exception as e:
+        console.print(f"[red]Error:[/red] {e}")
+        raise typer.Exit(1)
+
+
 @app.callback(invoke_without_command=True)
 def main(
     ctx: typer.Context,

@@ -4,6 +4,7 @@
   export let onShowRemote = () => {};
   export let onNameBranches = () => {};
   export let onShowPrompts = () => {};
+  export let onShowContext = () => {};
 
   function handleGoToTop() {
     onGoToTop();
@@ -23,6 +24,10 @@
 
   function handleShowPrompts() {
     onShowPrompts();
+  }
+
+  function handleShowContext() {
+    onShowContext();
   }
 </script>
 
@@ -45,6 +50,10 @@
 
   <button class="action-item" on:click={handleShowPrompts} title="View prompts library">
     <span>Prompts</span>
+  </button>
+
+  <button class="action-item" on:click={handleShowContext} title="View context library">
+    <span>Context</span>
   </button>
 </div>
 
