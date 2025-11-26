@@ -2198,76 +2198,99 @@ def get_all_prompts():
 
 # === Context Library API ===
 
-@app.get("/api/context/status")
-def get_context_status():
-    """Get status of context files in .branch_monkey directory."""
+@app.get("/api/context/counts")
+def get_context_counts():
+    """Get counts of summaries for each context type."""
     try:
         monkey = get_monkey()
-        status = monkey.get_context_status()
-        return {"success": True, "files": status}
+        counts = monkey.get_context_counts()
+        return {"success": True, "counts": counts}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@app.post("/api/context/update")
-def update_context():
-    """Update all context files."""
+@app.get("/api/context/prompt/{context_type}")
+def get_context_prompt(context_type: str):
+    """Get the AI prompt for generating a context summary."""
     try:
         monkey = get_monkey()
-        results = monkey.update_context()
-        return {
-            "success": True,
-            "message": f"Updated {len(results)} context files",
-            "files": list(results.keys())
-        }
+        prompt = monkey.get_context_prompt(context_type)
+        return {"success": True, "context_type": context_type, "prompt": prompt}
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@app.post("/api/context/update/codebase")
-def update_codebase_context():
-    """Update only the codebase summary."""
+@app.post("/api/context/save/{context_type}")
+def save_context_summary(context_type: str, request: dict):
+    """Save an AI-generated context summary."""
     try:
+        content = request.get("content")
+        if not content:
+            raise HTTPException(status_code=400, detail="Content is required")
+
         monkey = get_monkey()
-        content = monkey.update_codebase_context()
-        return {"success": True, "content": content}
+        entry = monkey.save_context_summary(context_type, content)
+        return {"success": True, "entry": entry}
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@app.post("/api/context/update/architecture")
-def update_architecture_context():
-    """Update only the architecture summary."""
+@app.get("/api/context/history/{context_type}")
+def get_context_history(context_type: str, limit: int = 50):
+    """Get historical summaries for a context type."""
     try:
         monkey = get_monkey()
-        content = monkey.update_architecture_context()
-        return {"success": True, "content": content}
+        history = monkey.get_context_history(context_type, limit)
+        return {"success": True, "context_type": context_type, "history": history}
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@app.post("/api/context/update/prompts")
-def update_prompts_context():
-    """Update only the prompts summary."""
+@app.get("/api/context/entry/{entry_id}")
+def get_context_entry(entry_id: int):
+    """Get a specific context entry by ID."""
     try:
         monkey = get_monkey()
-        content = monkey.update_prompts_context()
-        return {"success": True, "content": content}
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
-
-@app.get("/api/context/{file_name}")
-def get_context_file(file_name: str):
-    """Get content of a specific context file."""
-    try:
-        monkey = get_monkey()
-        content = monkey.read_context_file(file_name)
-        if content is None:
-            raise HTTPException(status_code=404, detail=f"Context file '{file_name}' not found")
-        return {"success": True, "file_name": file_name, "content": content}
+        entry = monkey.get_context_entry(entry_id)
+        if entry is None:
+            raise HTTPException(status_code=404, detail=f"Entry {entry_id} not found")
+        return {"success": True, "entry": entry}
     except HTTPException:
         raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.delete("/api/context/entry/{entry_id}")
+def delete_context_entry(entry_id: int):
+    """Delete a context entry."""
+    try:
+        monkey = get_monkey()
+        deleted = monkey.delete_context_entry(entry_id)
+        if not deleted:
+            raise HTTPException(status_code=404, detail=f"Entry {entry_id} not found")
+        return {"success": True, "deleted": entry_id}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/context/latest/{context_type}")
+def get_latest_context(context_type: str):
+    """Get the most recent summary for a context type."""
+    try:
+        monkey = get_monkey()
+        entry = monkey.get_latest_context(context_type)
+        return {"success": True, "context_type": context_type, "entry": entry}
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 

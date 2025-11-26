@@ -403,98 +403,109 @@ class BranchMonkey:
 
     # === Context API ===
 
-    def update_context(self) -> Dict[str, str]:
+    def get_context_prompt(self, context_type: str) -> str:
         """
-        Update all context files in .branch_monkey directory.
-
-        This generates and saves:
-        - codebase_summary.md: File structure and key components
-        - architecture_summary.md: Architecture overview
-        - prompts_summary.md: Summary of saved prompts
-
-        Returns:
-            Dictionary mapping file names to their content
-
-        Example:
-            >>> monkey.update_context()
-            >>> # Creates/updates .branch_monkey/ directory with summaries
-        """
-        return self.context.update_all()
-
-    def get_context_status(self) -> List[Dict]:
-        """
-        Get status of context files.
-
-        Returns:
-            List of status dictionaries for each context file
-
-        Example:
-            >>> status = monkey.get_context_status()
-            >>> for s in status:
-            ...     print(f"{s['file_name']}: {'exists' if s['exists'] else 'missing'}")
-        """
-        status = self.context.get_status()
-        return [
-            {
-                "file_name": s.file_name,
-                "exists": s.exists,
-                "last_updated": s.last_updated.isoformat() if s.last_updated else None,
-                "size_bytes": s.size_bytes,
-                "preview": s.preview,
-            }
-            for s in status.values()
-        ]
-
-    def read_context_file(self, file_name: str) -> Optional[str]:
-        """
-        Read a specific context file.
+        Get the AI prompt for generating a context summary.
 
         Args:
-            file_name: Name of the context file (e.g., 'codebase_summary.md')
+            context_type: One of 'codebase', 'architecture', 'prompts'
 
         Returns:
-            Content of the file or None if it doesn't exist
+            Prompt string to run in your AI tool
 
         Example:
-            >>> codebase = monkey.read_context_file('codebase_summary.md')
+            >>> prompt = monkey.get_context_prompt('codebase')
+            >>> # Copy this to Claude/ChatGPT and run it
         """
-        return self.context.read_context(file_name)
+        return self.context.get_prompt(context_type)
 
-    def update_codebase_context(self) -> str:
+    def save_context_summary(self, context_type: str, content: str) -> Dict:
         """
-        Update just the codebase summary.
+        Save an AI-generated context summary.
+
+        Args:
+            context_type: One of 'codebase', 'architecture', 'prompts'
+            content: The AI-generated summary content
 
         Returns:
-            The generated codebase summary content
+            The saved entry info
 
         Example:
-            >>> monkey.update_codebase_context()
+            >>> monkey.save_context_summary('codebase', '## Overview...')
         """
-        return self.context.update_codebase()
+        entry = self.context.save_summary(context_type, content)
+        return {
+            "id": entry.id,
+            "context_type": entry.context_type,
+            "created_at": entry.created_at,
+        }
 
-    def update_architecture_context(self) -> str:
+    def get_context_history(self, context_type: str, limit: int = 50) -> List[Dict]:
         """
-        Update just the architecture summary.
+        Get historical summaries for a context type.
+
+        Args:
+            context_type: One of 'codebase', 'architecture', 'prompts'
+            limit: Maximum number of entries to return
 
         Returns:
-            The generated architecture summary content
+            List of summary entries (most recent first)
 
         Example:
-            >>> monkey.update_architecture_context()
+            >>> history = monkey.get_context_history('codebase')
+            >>> for entry in history:
+            ...     print(f"{entry['created_at']}: {entry['preview']}")
         """
-        return self.context.update_architecture()
+        return self.context.get_history(context_type, limit)
 
-    def update_prompts_context(self) -> str:
+    def get_context_entry(self, entry_id: int) -> Optional[Dict]:
         """
-        Update just the prompts summary.
+        Get a specific context entry by ID.
+
+        Args:
+            entry_id: The entry ID
 
         Returns:
-            The generated prompts summary content
+            The entry dict or None if not found
 
         Example:
-            >>> monkey.update_prompts_context()
+            >>> entry = monkey.get_context_entry(123)
+            >>> print(entry['content'])
         """
-        return self.context.update_prompts()
+        return self.context.get_entry(entry_id)
+
+    def delete_context_entry(self, entry_id: int) -> bool:
+        """
+        Delete a context entry.
+
+        Args:
+            entry_id: The entry ID to delete
+
+        Returns:
+            True if deleted, False if not found
+        """
+        return self.context.delete_entry(entry_id)
+
+    def get_context_counts(self) -> Dict[str, int]:
+        """
+        Get counts of summaries for each context type.
+
+        Returns:
+            Dict mapping context_type to count
+        """
+        return self.context.get_counts()
+
+    def get_latest_context(self, context_type: str) -> Optional[Dict]:
+        """
+        Get the most recent summary for a context type.
+
+        Args:
+            context_type: One of 'codebase', 'architecture', 'prompts'
+
+        Returns:
+            The latest entry or None
+        """
+        return self.context.get_latest(context_type)
 
     @property
     def repo(self):

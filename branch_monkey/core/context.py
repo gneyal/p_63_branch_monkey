@@ -8,30 +8,55 @@ from typing import Optional, Dict, List, Any
 from dataclasses import dataclass
 
 
-CONTEXT_DIR = ".branch_monkey"
-CODEBASE_FILE = "codebase_summary.md"
-ARCHITECTURE_FILE = "architecture_summary.md"
-PROMPTS_FILE = "prompts_summary.md"
+# Database path for context history
+CONTEXT_DB = Path.home() / ".branch_monkey" / "context_history.db"
+
+# Context types
+CONTEXT_TYPES = ["codebase", "architecture", "prompts"]
 
 
 @dataclass
-class ContextSummary:
-    """Summary of a context file."""
-    file_name: str
-    last_updated: Optional[datetime]
-    exists: bool
-    size_bytes: int
-    preview: str
+class ContextEntry:
+    """A single context summary entry."""
+    id: int
+    context_type: str
+    content: str
+    created_at: str
+    repo_path: str
+
+
+def init_context_db():
+    """Initialize the context history database."""
+    CONTEXT_DB.parent.mkdir(parents=True, exist_ok=True)
+
+    conn = sqlite3.connect(CONTEXT_DB)
+    conn.execute('''
+        CREATE TABLE IF NOT EXISTS context_history (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            context_type TEXT NOT NULL,
+            content TEXT NOT NULL,
+            created_at TEXT NOT NULL,
+            repo_path TEXT NOT NULL
+        )
+    ''')
+    conn.execute('''
+        CREATE INDEX IF NOT EXISTS idx_context_repo_type
+        ON context_history(repo_path, context_type)
+    ''')
+    conn.commit()
+    conn.close()
 
 
 class ContextLibrary:
     """
-    Manages the .branch_monkey context directory in a repository.
+    Manages AI-generated context summaries for a repository.
 
-    This creates and maintains three summary files:
-    - codebase_summary.md: File structure and key components
-    - architecture_summary.md: Architecture overview
-    - prompts_summary.md: Summary of prompts used with AI assistants
+    Workflow:
+    1. User requests a prompt for a specific context type
+    2. User copies the prompt and runs it in their AI tool
+    3. AI generates a summary
+    4. User saves the summary back to Branch Monkey
+    5. Historical summaries are stored and viewable by date
     """
 
     def __init__(self, repo_path: Path):
@@ -42,429 +67,317 @@ class ContextLibrary:
             repo_path: Path to the Git repository
         """
         self.repo_path = repo_path
-        self.context_dir = repo_path / CONTEXT_DIR
+        init_context_db()
 
-    def ensure_context_dir(self) -> Path:
-        """Create the .branch_monkey directory if it doesn't exist."""
-        self.context_dir.mkdir(exist_ok=True)
-
-        # Add .gitignore to keep context local by default
-        gitignore_path = self.context_dir / ".gitignore"
-        if not gitignore_path.exists():
-            gitignore_path.write_text("# Keep context files local by default\n*\n!.gitignore\n")
-
-        return self.context_dir
-
-    def get_context_path(self, file_name: str) -> Path:
-        """Get full path to a context file."""
-        return self.context_dir / file_name
-
-    def read_context(self, file_name: str) -> Optional[str]:
-        """Read content of a context file."""
-        path = self.get_context_path(file_name)
-        if path.exists():
-            return path.read_text()
-        return None
-
-    def write_context(self, file_name: str, content: str) -> Path:
-        """Write content to a context file."""
-        self.ensure_context_dir()
-        path = self.get_context_path(file_name)
-        path.write_text(content)
-        return path
-
-    def get_status(self) -> Dict[str, ContextSummary]:
-        """Get status of all context files."""
-        files = [CODEBASE_FILE, ARCHITECTURE_FILE, PROMPTS_FILE]
-        status = {}
-
-        for file_name in files:
-            path = self.get_context_path(file_name)
-            if path.exists():
-                stat = path.stat()
-                content = path.read_text()
-                preview = content[:200] + "..." if len(content) > 200 else content
-                status[file_name] = ContextSummary(
-                    file_name=file_name,
-                    last_updated=datetime.fromtimestamp(stat.st_mtime),
-                    exists=True,
-                    size_bytes=stat.st_size,
-                    preview=preview.split('\n')[0]  # First line only
-                )
-            else:
-                status[file_name] = ContextSummary(
-                    file_name=file_name,
-                    last_updated=None,
-                    exists=False,
-                    size_bytes=0,
-                    preview=""
-                )
-
-        return status
-
-    def generate_codebase_summary(self) -> str:
+    def get_prompt(self, context_type: str) -> str:
         """
-        Generate a codebase summary.
-
-        This analyzes the repository structure and creates a summary
-        of files, directories, and key components.
-        """
-        lines = [
-            f"# Codebase Summary",
-            f"",
-            f"**Repository:** {self.repo_path.name}",
-            f"**Generated:** {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}",
-            f"",
-            f"## File Structure",
-            f"",
-        ]
-
-        # Collect file stats
-        file_count = 0
-        dir_count = 0
-        extensions: Dict[str, int] = {}
-        key_files: List[str] = []
-
-        # Files to look for as "key files"
-        key_file_names = {
-            'readme.md', 'readme', 'readme.txt',
-            'package.json', 'pyproject.toml', 'setup.py', 'cargo.toml',
-            'makefile', 'dockerfile', 'docker-compose.yml', 'docker-compose.yaml',
-            'requirements.txt', 'go.mod', 'pom.xml', 'build.gradle',
-            '.env.example', 'config.yaml', 'config.json',
-        }
-
-        # Directories to skip
-        skip_dirs = {
-            '.git', 'node_modules', '__pycache__', '.venv', 'venv',
-            'env', '.env', 'dist', 'build', '.cache', '.branch_monkey',
-            'target', 'vendor', '.idea', '.vscode'
-        }
-
-        for root, dirs, files in os.walk(self.repo_path):
-            # Skip ignored directories
-            dirs[:] = [d for d in dirs if d not in skip_dirs]
-
-            rel_root = Path(root).relative_to(self.repo_path)
-
-            for d in dirs:
-                dir_count += 1
-
-            for f in files:
-                file_count += 1
-                ext = Path(f).suffix.lower() or '(no extension)'
-                extensions[ext] = extensions.get(ext, 0) + 1
-
-                # Check for key files
-                if f.lower() in key_file_names:
-                    rel_path = rel_root / f if str(rel_root) != '.' else Path(f)
-                    key_files.append(str(rel_path))
-
-        lines.append(f"- **Total Files:** {file_count}")
-        lines.append(f"- **Total Directories:** {dir_count}")
-        lines.append(f"")
-
-        # Top extensions
-        lines.append(f"## File Types")
-        lines.append(f"")
-        sorted_exts = sorted(extensions.items(), key=lambda x: x[1], reverse=True)[:10]
-        for ext, count in sorted_exts:
-            lines.append(f"- `{ext}`: {count} files")
-        lines.append(f"")
-
-        # Key files found
-        if key_files:
-            lines.append(f"## Key Files")
-            lines.append(f"")
-            for kf in sorted(key_files):
-                lines.append(f"- `{kf}`")
-            lines.append(f"")
-
-        # Directory structure (top level)
-        lines.append(f"## Top-Level Structure")
-        lines.append(f"")
-        lines.append("```")
-        for item in sorted(self.repo_path.iterdir()):
-            if item.name not in skip_dirs and not item.name.startswith('.'):
-                if item.is_dir():
-                    lines.append(f"{item.name}/")
-                else:
-                    lines.append(f"{item.name}")
-        lines.append("```")
-        lines.append(f"")
-
-        return "\n".join(lines)
-
-    def generate_architecture_summary(self) -> str:
-        """
-        Generate an architecture summary.
-
-        This attempts to identify the project type, main components,
-        and architectural patterns used.
-        """
-        lines = [
-            f"# Architecture Summary",
-            f"",
-            f"**Repository:** {self.repo_path.name}",
-            f"**Generated:** {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}",
-            f"",
-        ]
-
-        # Detect project type
-        project_types = []
-
-        if (self.repo_path / "package.json").exists():
-            project_types.append("Node.js/JavaScript")
-            # Check for frameworks
-            try:
-                import json
-                pkg = json.loads((self.repo_path / "package.json").read_text())
-                deps = {**pkg.get('dependencies', {}), **pkg.get('devDependencies', {})}
-                if 'react' in deps:
-                    project_types.append("React")
-                if 'vue' in deps:
-                    project_types.append("Vue.js")
-                if 'svelte' in deps:
-                    project_types.append("Svelte")
-                if 'next' in deps:
-                    project_types.append("Next.js")
-                if 'express' in deps:
-                    project_types.append("Express.js")
-            except:
-                pass
-
-        if (self.repo_path / "pyproject.toml").exists() or (self.repo_path / "setup.py").exists():
-            project_types.append("Python")
-            # Check for frameworks
-            if (self.repo_path / "requirements.txt").exists():
-                try:
-                    reqs = (self.repo_path / "requirements.txt").read_text().lower()
-                    if 'django' in reqs:
-                        project_types.append("Django")
-                    if 'flask' in reqs:
-                        project_types.append("Flask")
-                    if 'fastapi' in reqs:
-                        project_types.append("FastAPI")
-                except:
-                    pass
-
-        if (self.repo_path / "Cargo.toml").exists():
-            project_types.append("Rust")
-
-        if (self.repo_path / "go.mod").exists():
-            project_types.append("Go")
-
-        if (self.repo_path / "pom.xml").exists() or (self.repo_path / "build.gradle").exists():
-            project_types.append("Java")
-
-        lines.append(f"## Project Type")
-        lines.append(f"")
-        if project_types:
-            lines.append(f"- {', '.join(project_types)}")
-        else:
-            lines.append(f"- Unknown (no standard project files detected)")
-        lines.append(f"")
-
-        # Detect common patterns
-        lines.append(f"## Detected Patterns")
-        lines.append(f"")
-
-        patterns = []
-
-        # Check for common directory patterns
-        dirs = [d.name for d in self.repo_path.iterdir() if d.is_dir()]
-
-        if 'src' in dirs:
-            patterns.append("- `src/` directory (source code)")
-        if 'lib' in dirs:
-            patterns.append("- `lib/` directory (library code)")
-        if 'test' in dirs or 'tests' in dirs or '__tests__' in dirs:
-            patterns.append("- Test directory found")
-        if 'docs' in dirs:
-            patterns.append("- Documentation directory")
-        if 'scripts' in dirs:
-            patterns.append("- Scripts directory")
-        if 'config' in dirs or 'configs' in dirs:
-            patterns.append("- Configuration directory")
-        if 'api' in dirs:
-            patterns.append("- API directory")
-        if 'frontend' in dirs:
-            patterns.append("- Frontend directory (separate frontend)")
-        if 'backend' in dirs:
-            patterns.append("- Backend directory (separate backend)")
-        if 'components' in dirs:
-            patterns.append("- Components directory (component-based architecture)")
-        if 'services' in dirs:
-            patterns.append("- Services directory (service-oriented)")
-        if 'models' in dirs:
-            patterns.append("- Models directory (MVC/data models)")
-        if 'controllers' in dirs:
-            patterns.append("- Controllers directory (MVC pattern)")
-        if 'views' in dirs:
-            patterns.append("- Views directory (MVC pattern)")
-        if 'routes' in dirs or 'routing' in dirs:
-            patterns.append("- Routes directory")
-        if 'middleware' in dirs:
-            patterns.append("- Middleware directory")
-        if 'utils' in dirs or 'helpers' in dirs:
-            patterns.append("- Utilities/Helpers directory")
-
-        if patterns:
-            lines.extend(patterns)
-        else:
-            lines.append("- No common patterns detected")
-        lines.append(f"")
-
-        # Check for Docker
-        if (self.repo_path / "Dockerfile").exists() or (self.repo_path / "docker-compose.yml").exists():
-            lines.append(f"## Containerization")
-            lines.append(f"")
-            lines.append(f"- Docker configuration found")
-            lines.append(f"")
-
-        # Check for CI/CD
-        ci_files = []
-        if (self.repo_path / ".github" / "workflows").exists():
-            ci_files.append("GitHub Actions")
-        if (self.repo_path / ".gitlab-ci.yml").exists():
-            ci_files.append("GitLab CI")
-        if (self.repo_path / "Jenkinsfile").exists():
-            ci_files.append("Jenkins")
-        if (self.repo_path / ".circleci").exists():
-            ci_files.append("CircleCI")
-        if (self.repo_path / ".travis.yml").exists():
-            ci_files.append("Travis CI")
-
-        if ci_files:
-            lines.append(f"## CI/CD")
-            lines.append(f"")
-            for ci in ci_files:
-                lines.append(f"- {ci}")
-            lines.append(f"")
-
-        lines.append(f"## Notes")
-        lines.append(f"")
-        lines.append(f"_Add your architecture notes here..._")
-        lines.append(f"")
-
-        return "\n".join(lines)
-
-    def generate_prompts_summary(self, prompts_db_path: Optional[Path] = None) -> str:
-        """
-        Generate a summary of prompts from the prompts database.
+        Get the prompt template for generating a context summary.
 
         Args:
-            prompts_db_path: Path to the prompts SQLite database.
-                           If None, uses ~/.branch_monkey/prompts.db
-        """
-        if prompts_db_path is None:
-            prompts_db_path = Path.home() / ".branch_monkey" / "prompts.db"
-
-        lines = [
-            f"# Prompts Summary",
-            f"",
-            f"**Repository:** {self.repo_path.name}",
-            f"**Generated:** {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}",
-            f"",
-        ]
-
-        if not prompts_db_path.exists():
-            lines.append(f"_No prompts database found. Save prompts via the web UI to track them here._")
-            return "\n".join(lines)
-
-        try:
-            conn = sqlite3.connect(prompts_db_path)
-            cursor = conn.cursor()
-
-            # Get prompts for this repo
-            cursor.execute(
-                """
-                SELECT sha, prompt, timestamp
-                FROM prompts
-                WHERE repo_path = ?
-                ORDER BY timestamp DESC
-                """,
-                (str(self.repo_path.resolve()),)
-            )
-            results = cursor.fetchall()
-            conn.close()
-
-            if not results:
-                lines.append(f"_No prompts saved for this repository yet._")
-                return "\n".join(lines)
-
-            lines.append(f"**Total Prompts:** {len(results)}")
-            lines.append(f"")
-            lines.append(f"## Recent Prompts")
-            lines.append(f"")
-
-            for sha, prompt, timestamp in results[:20]:  # Show last 20
-                lines.append(f"### Commit `{sha[:7]}`")
-                lines.append(f"")
-                lines.append(f"**Saved:** {timestamp}")
-                lines.append(f"")
-                # Truncate long prompts
-                if len(prompt) > 500:
-                    lines.append(f"```")
-                    lines.append(prompt[:500] + "...")
-                    lines.append(f"```")
-                else:
-                    lines.append(f"```")
-                    lines.append(prompt)
-                    lines.append(f"```")
-                lines.append(f"")
-
-            if len(results) > 20:
-                lines.append(f"_... and {len(results) - 20} more prompts_")
-
-        except Exception as e:
-            lines.append(f"_Error reading prompts database: {e}_")
-
-        return "\n".join(lines)
-
-    def update_all(self, prompts_db_path: Optional[Path] = None) -> Dict[str, str]:
-        """
-        Update all context files.
-
-        Args:
-            prompts_db_path: Optional path to prompts database
+            context_type: One of 'codebase', 'architecture', 'prompts'
 
         Returns:
-            Dictionary mapping file names to their new content
+            A prompt string that users can copy and run in their AI
         """
-        results = {}
+        repo_name = self.repo_path.name
+        repo_path_str = str(self.repo_path.resolve())
 
-        # Generate and save codebase summary
-        codebase = self.generate_codebase_summary()
-        self.write_context(CODEBASE_FILE, codebase)
-        results[CODEBASE_FILE] = codebase
+        if context_type == "codebase":
+            return f'''Please analyze the codebase at "{repo_path_str}" and generate a comprehensive summary.
 
-        # Generate and save architecture summary
-        architecture = self.generate_architecture_summary()
-        self.write_context(ARCHITECTURE_FILE, architecture)
-        results[ARCHITECTURE_FILE] = architecture
+Include the following sections:
 
-        # Generate and save prompts summary
-        prompts = self.generate_prompts_summary(prompts_db_path)
-        self.write_context(PROMPTS_FILE, prompts)
-        results[PROMPTS_FILE] = prompts
+## Overview
+- Brief description of what this project does
+- Main technologies/languages used
 
-        return results
+## Directory Structure
+- Key directories and their purposes
+- Important files and what they contain
 
-    def update_codebase(self) -> str:
-        """Update just the codebase summary."""
-        content = self.generate_codebase_summary()
-        self.write_context(CODEBASE_FILE, content)
-        return content
+## Key Components
+- Main modules/packages
+- Core functionality areas
+- Entry points (main files, CLI, API endpoints)
 
-    def update_architecture(self) -> str:
-        """Update just the architecture summary."""
-        content = self.generate_architecture_summary()
-        self.write_context(ARCHITECTURE_FILE, content)
-        return content
+## Dependencies
+- Key external dependencies
+- Internal module dependencies
 
-    def update_prompts(self, prompts_db_path: Optional[Path] = None) -> str:
-        """Update just the prompts summary."""
-        content = self.generate_prompts_summary(prompts_db_path)
-        self.write_context(PROMPTS_FILE, content)
-        return content
+## Code Patterns
+- Design patterns used
+- Code organization style
+- Testing approach
+
+Please format the output as Markdown. Be specific and reference actual file paths.
+
+After generating the summary, save it by calling:
+curl -X POST http://localhost:8081/api/context/save/codebase -H "Content-Type: application/json" -d '{{"content": "<YOUR_SUMMARY_HERE>"}}'
+'''
+
+        elif context_type == "architecture":
+            return f'''Please analyze the architecture of the project at "{repo_path_str}" and generate a detailed summary.
+
+Include the following sections:
+
+## System Overview
+- High-level architecture description
+- Main components and their relationships
+
+## Technology Stack
+- Languages and frameworks
+- Databases and storage
+- External services/APIs
+
+## Component Architecture
+- Frontend architecture (if applicable)
+- Backend architecture (if applicable)
+- Data flow between components
+
+## API Design
+- API patterns used (REST, GraphQL, etc.)
+- Key endpoints and their purposes
+- Authentication/authorization approach
+
+## Data Models
+- Key data structures
+- Database schema overview
+- Data relationships
+
+## Infrastructure
+- Deployment architecture
+- CI/CD pipeline
+- Environment configuration
+
+## Design Decisions
+- Notable architectural decisions
+- Trade-offs made
+- Areas for improvement
+
+Please format the output as Markdown. Reference specific files and code where relevant.
+
+After generating the summary, save it by calling:
+curl -X POST http://localhost:8081/api/context/save/architecture -H "Content-Type: application/json" -d '{{"content": "<YOUR_SUMMARY_HERE>"}}'
+'''
+
+        elif context_type == "prompts":
+            return f'''Please analyze the AI prompts that have been used in the project at "{repo_path_str}".
+
+Look for:
+1. Any .prompts files or prompt templates
+2. AI-related configuration files
+3. Comments mentioning AI/LLM usage
+4. Prompt strings in the code
+
+Generate a summary including:
+
+## Prompt Inventory
+- List of prompts found and their purposes
+- Where each prompt is used
+
+## Prompt Patterns
+- Common prompt structures
+- Variables/templates used
+- Best practices observed
+
+## AI Integration Points
+- Where AI is used in the application
+- Input/output handling
+- Error handling for AI calls
+
+## Recommendations
+- Prompt improvements
+- Missing prompts that might be useful
+- Documentation needs
+
+Please format the output as Markdown.
+
+After generating the summary, save it by calling:
+curl -X POST http://localhost:8081/api/context/save/prompts -H "Content-Type: application/json" -d '{{"content": "<YOUR_SUMMARY_HERE>"}}'
+'''
+
+        else:
+            raise ValueError(f"Unknown context type: {context_type}. Must be one of: {CONTEXT_TYPES}")
+
+    def save_summary(self, context_type: str, content: str) -> ContextEntry:
+        """
+        Save an AI-generated summary to the history.
+
+        Args:
+            context_type: One of 'codebase', 'architecture', 'prompts'
+            content: The summary content to save
+
+        Returns:
+            The created ContextEntry
+        """
+        if context_type not in CONTEXT_TYPES:
+            raise ValueError(f"Unknown context type: {context_type}. Must be one of: {CONTEXT_TYPES}")
+
+        created_at = datetime.now().isoformat()
+        repo_path_str = str(self.repo_path.resolve())
+
+        conn = sqlite3.connect(CONTEXT_DB)
+        cursor = conn.cursor()
+        cursor.execute(
+            """
+            INSERT INTO context_history (context_type, content, created_at, repo_path)
+            VALUES (?, ?, ?, ?)
+            """,
+            (context_type, content, created_at, repo_path_str)
+        )
+        entry_id = cursor.lastrowid
+        conn.commit()
+        conn.close()
+
+        return ContextEntry(
+            id=entry_id,
+            context_type=context_type,
+            content=content,
+            created_at=created_at,
+            repo_path=repo_path_str
+        )
+
+    def get_history(self, context_type: str, limit: int = 50) -> List[Dict]:
+        """
+        Get historical summaries for a context type.
+
+        Args:
+            context_type: One of 'codebase', 'architecture', 'prompts'
+            limit: Maximum number of entries to return
+
+        Returns:
+            List of summary entries (most recent first)
+        """
+        if context_type not in CONTEXT_TYPES:
+            raise ValueError(f"Unknown context type: {context_type}. Must be one of: {CONTEXT_TYPES}")
+
+        repo_path_str = str(self.repo_path.resolve())
+
+        conn = sqlite3.connect(CONTEXT_DB)
+        cursor = conn.cursor()
+        cursor.execute(
+            """
+            SELECT id, context_type, content, created_at, repo_path
+            FROM context_history
+            WHERE repo_path = ? AND context_type = ?
+            ORDER BY created_at DESC
+            LIMIT ?
+            """,
+            (repo_path_str, context_type, limit)
+        )
+        rows = cursor.fetchall()
+        conn.close()
+
+        return [
+            {
+                "id": row[0],
+                "context_type": row[1],
+                "content": row[2],
+                "preview": row[2][:200] + "..." if len(row[2]) > 200 else row[2],
+                "created_at": row[3],
+                "repo_path": row[4]
+            }
+            for row in rows
+        ]
+
+    def get_entry(self, entry_id: int) -> Optional[Dict]:
+        """
+        Get a specific context entry by ID.
+
+        Args:
+            entry_id: The entry ID
+
+        Returns:
+            The entry dict or None if not found
+        """
+        conn = sqlite3.connect(CONTEXT_DB)
+        cursor = conn.cursor()
+        cursor.execute(
+            """
+            SELECT id, context_type, content, created_at, repo_path
+            FROM context_history
+            WHERE id = ?
+            """,
+            (entry_id,)
+        )
+        row = cursor.fetchone()
+        conn.close()
+
+        if row:
+            return {
+                "id": row[0],
+                "context_type": row[1],
+                "content": row[2],
+                "created_at": row[3],
+                "repo_path": row[4]
+            }
+        return None
+
+    def delete_entry(self, entry_id: int) -> bool:
+        """
+        Delete a context entry.
+
+        Args:
+            entry_id: The entry ID to delete
+
+        Returns:
+            True if deleted, False if not found
+        """
+        conn = sqlite3.connect(CONTEXT_DB)
+        cursor = conn.cursor()
+        cursor.execute("DELETE FROM context_history WHERE id = ?", (entry_id,))
+        deleted = cursor.rowcount > 0
+        conn.commit()
+        conn.close()
+        return deleted
+
+    def get_latest(self, context_type: str) -> Optional[Dict]:
+        """
+        Get the most recent summary for a context type.
+
+        Args:
+            context_type: One of 'codebase', 'architecture', 'prompts'
+
+        Returns:
+            The latest entry or None
+        """
+        history = self.get_history(context_type, limit=1)
+        return history[0] if history else None
+
+    def get_all_latest(self) -> Dict[str, Optional[Dict]]:
+        """
+        Get the latest summary for all context types.
+
+        Returns:
+            Dict mapping context_type to latest entry (or None)
+        """
+        return {
+            context_type: self.get_latest(context_type)
+            for context_type in CONTEXT_TYPES
+        }
+
+    def get_counts(self) -> Dict[str, int]:
+        """
+        Get counts of summaries for each context type.
+
+        Returns:
+            Dict mapping context_type to count
+        """
+        repo_path_str = str(self.repo_path.resolve())
+
+        conn = sqlite3.connect(CONTEXT_DB)
+        cursor = conn.cursor()
+
+        counts = {}
+        for context_type in CONTEXT_TYPES:
+            cursor.execute(
+                """
+                SELECT COUNT(*) FROM context_history
+                WHERE repo_path = ? AND context_type = ?
+                """,
+                (repo_path_str, context_type)
+            )
+            counts[context_type] = cursor.fetchone()[0]
+
+        conn.close()
+        return counts

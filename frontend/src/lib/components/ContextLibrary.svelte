@@ -1,100 +1,154 @@
 <script>
   import { onMount } from 'svelte';
-  import { fetchContextStatus, fetchContextFile, updateAllContext } from '../services/api.js';
+  import {
+    fetchContextCounts,
+    fetchContextPrompt,
+    fetchContextHistory,
+    fetchContextEntry,
+    saveContextSummary,
+    deleteContextEntry
+  } from '../services/api.js';
   import { showToast } from '../stores/store.js';
 
   export let onClose = () => {};
 
-  let contextFiles = [];
+  const CONTEXT_TYPES = ['codebase', 'architecture', 'prompts'];
+  const TYPE_LABELS = {
+    codebase: 'Codebase',
+    architecture: 'Architecture',
+    prompts: 'Prompts'
+  };
+  const TYPE_DESCRIPTIONS = {
+    codebase: 'File structure, key components, and code patterns',
+    architecture: 'System design, tech stack, and API structure',
+    prompts: 'AI prompts inventory and patterns'
+  };
+
+  let activeTab = 'codebase';
+  let counts = { codebase: 0, architecture: 0, prompts: 0 };
+  let history = [];
   let loading = true;
-  let updating = false;
-  let error = null;
-  let selectedFile = null;
-  let selectedContent = null;
-  let loadingContent = false;
+  let loadingHistory = false;
+  let selectedEntry = null;
+  let showPromptModal = false;
+  let showSaveModal = false;
+  let currentPrompt = '';
+  let saveContent = '';
+  let saving = false;
 
   onMount(async () => {
-    await loadContextStatus();
+    await loadCounts();
+    await loadHistory(activeTab);
+    loading = false;
   });
 
-  async function loadContextStatus() {
+  async function loadCounts() {
     try {
-      loading = true;
-      const data = await fetchContextStatus();
-      contextFiles = data.files || [];
+      const data = await fetchContextCounts();
+      counts = data.counts;
     } catch (err) {
-      error = err.message;
-      showToast(`Failed to load context status: ${err.message}`, 'error');
-    } finally {
-      loading = false;
+      console.error('Failed to load counts:', err);
     }
   }
 
-  async function handleUpdateAll() {
+  async function loadHistory(contextType) {
     try {
-      updating = true;
-      await updateAllContext();
-      showToast('Context files updated successfully', 'success');
-      await loadContextStatus();
-      // Reload selected file if any
-      if (selectedFile) {
-        await loadFileContent(selectedFile);
+      loadingHistory = true;
+      const data = await fetchContextHistory(contextType);
+      history = data.history || [];
+    } catch (err) {
+      showToast(`Failed to load history: ${err.message}`, 'error');
+      history = [];
+    } finally {
+      loadingHistory = false;
+    }
+  }
+
+  async function handleTabChange(tab) {
+    activeTab = tab;
+    selectedEntry = null;
+    await loadHistory(tab);
+  }
+
+  async function handleEntryClick(entry) {
+    try {
+      const data = await fetchContextEntry(entry.id);
+      selectedEntry = data.entry;
+    } catch (err) {
+      showToast(`Failed to load entry: ${err.message}`, 'error');
+    }
+  }
+
+  async function handleGeneratePrompt() {
+    try {
+      const data = await fetchContextPrompt(activeTab);
+      currentPrompt = data.prompt;
+      showPromptModal = true;
+    } catch (err) {
+      showToast(`Failed to get prompt: ${err.message}`, 'error');
+    }
+  }
+
+  function handleCopyPrompt() {
+    navigator.clipboard.writeText(currentPrompt);
+    showToast('Prompt copied to clipboard! Paste it in your AI tool.', 'success');
+  }
+
+  function handleOpenSaveModal() {
+    saveContent = '';
+    showSaveModal = true;
+  }
+
+  async function handleSave() {
+    if (!saveContent.trim()) {
+      showToast('Please enter the summary content', 'error');
+      return;
+    }
+
+    try {
+      saving = true;
+      await saveContextSummary(activeTab, saveContent);
+      showToast('Summary saved successfully!', 'success');
+      showSaveModal = false;
+      saveContent = '';
+      await loadCounts();
+      await loadHistory(activeTab);
+    } catch (err) {
+      showToast(`Failed to save: ${err.message}`, 'error');
+    } finally {
+      saving = false;
+    }
+  }
+
+  async function handleDelete(entryId) {
+    if (!confirm('Are you sure you want to delete this summary?')) {
+      return;
+    }
+
+    try {
+      await deleteContextEntry(entryId);
+      showToast('Summary deleted', 'success');
+      if (selectedEntry?.id === entryId) {
+        selectedEntry = null;
       }
+      await loadCounts();
+      await loadHistory(activeTab);
     } catch (err) {
-      showToast(`Failed to update context: ${err.message}`, 'error');
-    } finally {
-      updating = false;
-    }
-  }
-
-  async function loadFileContent(fileName) {
-    try {
-      loadingContent = true;
-      selectedFile = fileName;
-      const data = await fetchContextFile(fileName);
-      selectedContent = data.content;
-    } catch (err) {
-      showToast(`Failed to load file: ${err.message}`, 'error');
-      selectedContent = null;
-    } finally {
-      loadingContent = false;
+      showToast(`Failed to delete: ${err.message}`, 'error');
     }
   }
 
   function handleCopyContent() {
-    if (selectedContent) {
-      navigator.clipboard.writeText(selectedContent);
+    if (selectedEntry?.content) {
+      navigator.clipboard.writeText(selectedEntry.content);
       showToast('Content copied to clipboard', 'success');
     }
   }
 
-  function formatFileSize(bytes) {
-    if (bytes < 1024) return `${bytes} B`;
-    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
-    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
-  }
-
   function formatDate(isoString) {
     if (!isoString) return '-';
-    return new Date(isoString).toLocaleString();
-  }
-
-  function getFileLabel(fileName) {
-    const labels = {
-      'codebase_summary.md': 'Codebase Summary',
-      'architecture_summary.md': 'Architecture Summary',
-      'prompts_summary.md': 'Prompts Summary'
-    };
-    return labels[fileName] || fileName;
-  }
-
-  function getFileDescription(fileName) {
-    const descriptions = {
-      'codebase_summary.md': 'File structure, key components, and file types',
-      'architecture_summary.md': 'Project type, patterns, and architectural overview',
-      'prompts_summary.md': 'Summary of AI prompts used in this repository'
-    };
-    return descriptions[fileName] || '';
+    const date = new Date(isoString);
+    return date.toLocaleDateString() + ' ' + date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
   }
 </script>
 
@@ -102,94 +156,170 @@
   <div class="context-library-panel" on:click|stopPropagation>
     <div class="panel-header">
       <h3>Context Library</h3>
-      <div class="header-actions">
-        <button
-          class="update-all-btn"
-          on:click={handleUpdateAll}
-          disabled={updating}
-        >
-          {updating ? 'Updating...' : 'Update All'}
-        </button>
-        <button class="close-btn" on:click={onClose}>X</button>
+      <button class="close-btn" on:click={onClose}>X</button>
+    </div>
+
+    {#if loading}
+      <div class="loading">
+        <div class="spinner"></div>
+        <p>Loading...</p>
       </div>
-    </div>
+    {:else}
+      <div class="panel-body">
+        <!-- Tabs -->
+        <div class="tabs">
+          {#each CONTEXT_TYPES as type}
+            <button
+              class="tab"
+              class:active={activeTab === type}
+              on:click={() => handleTabChange(type)}
+            >
+              <span class="tab-label">{TYPE_LABELS[type]}</span>
+              <span class="tab-count">{counts[type]}</span>
+            </button>
+          {/each}
+        </div>
 
-    <div class="panel-content">
-      {#if loading}
-        <div class="loading">
-          <div class="spinner"></div>
-          <p>Loading context status...</p>
-        </div>
-      {:else if error}
-        <div class="error">
-          <p>{error}</p>
-        </div>
-      {:else}
-        <div class="context-layout">
-          <!-- File List -->
-          <div class="file-list">
-            <div class="list-header">Context Files</div>
-            {#each contextFiles as file}
-              <button
-                class="file-item"
-                class:selected={selectedFile === file.file_name}
-                class:missing={!file.exists}
-                on:click={() => loadFileContent(file.file_name)}
-              >
-                <div class="file-info">
-                  <span class="file-name">{getFileLabel(file.file_name)}</span>
-                  <span class="file-desc">{getFileDescription(file.file_name)}</span>
-                </div>
-                <div class="file-meta">
-                  {#if file.exists}
-                    <span class="file-status exists">Ready</span>
-                    <span class="file-size">{formatFileSize(file.size_bytes)}</span>
-                  {:else}
-                    <span class="file-status missing">Not generated</span>
-                  {/if}
-                </div>
+        <!-- Tab Content -->
+        <div class="tab-content">
+          <div class="tab-header">
+            <div class="tab-info">
+              <h4>{TYPE_LABELS[activeTab]} Summaries</h4>
+              <p class="tab-description">{TYPE_DESCRIPTIONS[activeTab]}</p>
+            </div>
+            <div class="tab-actions">
+              <button class="action-btn primary" on:click={handleGeneratePrompt}>
+                Generate Prompt
               </button>
-            {/each}
+              <button class="action-btn" on:click={handleOpenSaveModal}>
+                Save Summary
+              </button>
+            </div>
           </div>
 
-          <!-- Content Viewer -->
-          <div class="content-viewer">
-            {#if loadingContent}
-              <div class="loading">
-                <div class="spinner"></div>
-                <p>Loading content...</p>
-              </div>
-            {:else if selectedFile && selectedContent}
-              <div class="content-header">
-                <span class="content-title">{getFileLabel(selectedFile)}</span>
-                <button class="copy-btn" on:click={handleCopyContent}>Copy</button>
-              </div>
-              <div class="content-body">
-                <pre>{selectedContent}</pre>
-              </div>
-            {:else if selectedFile && !selectedContent}
-              <div class="empty-content">
-                <p>File not generated yet</p>
-                <p class="empty-hint">Click "Update All" to generate context files</p>
-              </div>
-            {:else}
-              <div class="empty-content">
-                <p>Select a file to view its content</p>
-                <p class="empty-hint">Context files help AI assistants understand your codebase</p>
-              </div>
-            {/if}
+          <div class="content-layout">
+            <!-- History Table -->
+            <div class="history-panel">
+              <div class="history-header">History</div>
+              {#if loadingHistory}
+                <div class="loading-small">
+                  <div class="spinner-small"></div>
+                </div>
+              {:else if history.length === 0}
+                <div class="empty-history">
+                  <p>No summaries yet</p>
+                  <p class="hint">Click "Generate Prompt" to create one</p>
+                </div>
+              {:else}
+                <div class="history-list">
+                  {#each history as entry}
+                    <div
+                      class="history-item"
+                      class:selected={selectedEntry?.id === entry.id}
+                      role="button"
+                      tabindex="0"
+                      on:click={() => handleEntryClick(entry)}
+                      on:keydown={(e) => e.key === 'Enter' && handleEntryClick(entry)}
+                    >
+                      <div class="history-date">{formatDate(entry.created_at)}</div>
+                      <div class="history-preview">{entry.preview}</div>
+                      <button
+                        class="delete-btn"
+                        on:click|stopPropagation={() => handleDelete(entry.id)}
+                        title="Delete"
+                      >
+                        X
+                      </button>
+                    </div>
+                  {/each}
+                </div>
+              {/if}
+            </div>
+
+            <!-- Content Viewer -->
+            <div class="content-panel">
+              {#if selectedEntry}
+                <div class="content-header">
+                  <span class="content-date">{formatDate(selectedEntry.created_at)}</span>
+                  <button class="copy-btn" on:click={handleCopyContent}>Copy</button>
+                </div>
+                <div class="content-body">
+                  <pre>{selectedEntry.content}</pre>
+                </div>
+              {:else}
+                <div class="empty-content">
+                  <p>Select a summary to view</p>
+                </div>
+              {/if}
+            </div>
           </div>
         </div>
-
-        <div class="panel-footer">
-          <span class="info-text">
-            Files stored in: <code>.branch_monkey/</code>
-          </span>
-        </div>
-      {/if}
-    </div>
+      </div>
+    {/if}
   </div>
 </div>
+
+<!-- Prompt Modal -->
+{#if showPromptModal}
+  <div class="modal-backdrop" on:click={() => showPromptModal = false}>
+    <div class="modal" on:click|stopPropagation>
+      <div class="modal-header">
+        <h4>AI Prompt for {TYPE_LABELS[activeTab]}</h4>
+        <button class="close-btn" on:click={() => showPromptModal = false}>X</button>
+      </div>
+      <div class="modal-body">
+        <p class="modal-instructions">
+          Copy this prompt and paste it into your AI tool (Claude, ChatGPT, etc.).
+          The AI will analyze your codebase and generate a summary.
+        </p>
+        <pre class="prompt-content">{currentPrompt}</pre>
+      </div>
+      <div class="modal-footer">
+        <button class="action-btn primary" on:click={handleCopyPrompt}>
+          Copy Prompt
+        </button>
+        <button class="action-btn" on:click={() => showPromptModal = false}>
+          Close
+        </button>
+      </div>
+    </div>
+  </div>
+{/if}
+
+<!-- Save Modal -->
+{#if showSaveModal}
+  <div class="modal-backdrop" on:click={() => showSaveModal = false}>
+    <div class="modal" on:click|stopPropagation>
+      <div class="modal-header">
+        <h4>Save {TYPE_LABELS[activeTab]} Summary</h4>
+        <button class="close-btn" on:click={() => showSaveModal = false}>X</button>
+      </div>
+      <div class="modal-body">
+        <p class="modal-instructions">
+          Paste the AI-generated summary below:
+        </p>
+        <textarea
+          class="save-textarea"
+          bind:value={saveContent}
+          placeholder="Paste your AI-generated summary here..."
+          rows="15"
+        ></textarea>
+      </div>
+      <div class="modal-footer">
+        <button
+          class="action-btn primary"
+          on:click={handleSave}
+          disabled={saving}
+        >
+          {saving ? 'Saving...' : 'Save Summary'}
+        </button>
+        <button class="action-btn" on:click={() => showSaveModal = false}>
+          Cancel
+        </button>
+      </div>
+    </div>
+  </div>
+{/if}
 
 <style>
   .context-library-backdrop {
@@ -204,12 +334,6 @@
     justify-content: center;
     z-index: 1000;
     backdrop-filter: blur(2px);
-    animation: fadeIn 0.2s ease;
-  }
-
-  @keyframes fadeIn {
-    from { opacity: 0; }
-    to { opacity: 1; }
   }
 
   .context-library-panel {
@@ -218,22 +342,10 @@
     border-radius: 2px;
     width: 95%;
     max-width: 1200px;
-    max-height: 85vh;
+    height: 85vh;
     display: flex;
     flex-direction: column;
     box-shadow: var(--shadow-large);
-    animation: slideUp 0.2s ease;
-  }
-
-  @keyframes slideUp {
-    from {
-      opacity: 0;
-      transform: translateY(20px);
-    }
-    to {
-      opacity: 1;
-      transform: translateY(0);
-    }
   }
 
   .panel-header {
@@ -242,6 +354,7 @@
     display: flex;
     justify-content: space-between;
     align-items: center;
+    flex-shrink: 0;
   }
 
   .panel-header h3 {
@@ -253,35 +366,6 @@
     letter-spacing: 0.5px;
   }
 
-  .header-actions {
-    display: flex;
-    gap: 12px;
-    align-items: center;
-  }
-
-  .update-all-btn {
-    padding: 6px 16px;
-    background: var(--accent-primary);
-    border: none;
-    color: var(--bg-primary);
-    font-size: 10px;
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-    border-radius: 1px;
-    cursor: pointer;
-    transition: all 0.15s;
-  }
-
-  .update-all-btn:hover:not(:disabled) {
-    opacity: 0.9;
-  }
-
-  .update-all-btn:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
-  }
-
   .close-btn {
     background: transparent;
     border: none;
@@ -290,7 +374,6 @@
     cursor: pointer;
     padding: 4px 8px;
     border-radius: 2px;
-    transition: all 0.15s;
   }
 
   .close-btn:hover {
@@ -298,163 +381,241 @@
     color: var(--text-primary);
   }
 
-  .panel-content {
+  .panel-body {
     flex: 1;
+    display: flex;
+    flex-direction: column;
     overflow: hidden;
-    display: flex;
-    flex-direction: column;
   }
 
-  .loading,
-  .error,
-  .empty-content {
+  .tabs {
     display: flex;
-    flex-direction: column;
+    border-bottom: 1px solid var(--border-primary);
+    padding: 0 16px;
+    flex-shrink: 0;
+  }
+
+  .tab {
+    padding: 12px 20px;
+    background: transparent;
+    border: none;
+    border-bottom: 2px solid transparent;
+    color: var(--text-secondary);
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    cursor: pointer;
+    display: flex;
     align-items: center;
-    justify-content: center;
-    padding: 48px;
+    gap: 8px;
+    transition: all 0.15s;
+  }
+
+  .tab:hover {
+    color: var(--text-primary);
+    background: var(--bg-hover);
+  }
+
+  .tab.active {
+    color: var(--text-primary);
+    border-bottom-color: var(--accent-primary);
+  }
+
+  .tab-count {
+    background: var(--bg-secondary);
+    padding: 2px 6px;
+    border-radius: 10px;
+    font-size: 10px;
+  }
+
+  .tab.active .tab-count {
+    background: var(--accent-primary);
+    color: var(--bg-primary);
+  }
+
+  .tab-content {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  .tab-header {
+    padding: 16px 20px;
+    border-bottom: 1px solid var(--border-secondary);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-shrink: 0;
+  }
+
+  .tab-info h4 {
+    margin: 0 0 4px;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--text-primary);
+  }
+
+  .tab-description {
+    margin: 0;
+    font-size: 11px;
     color: var(--text-tertiary);
-    gap: 16px;
   }
 
-  .empty-hint {
-    font-size: 12px;
-    opacity: 0.7;
+  .tab-actions {
+    display: flex;
+    gap: 8px;
   }
 
-  .spinner {
-    width: 32px;
-    height: 32px;
-    border: 2px solid var(--border-secondary);
-    border-top-color: var(--text-secondary);
-    border-radius: 50%;
-    animation: spin 1s linear infinite;
+  .action-btn {
+    padding: 8px 16px;
+    background: var(--bg-primary);
+    border: 1px solid var(--border-primary);
+    color: var(--text-secondary);
+    font-size: 10px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    border-radius: 1px;
+    cursor: pointer;
+    transition: all 0.15s;
   }
 
-  @keyframes spin {
-    to { transform: rotate(360deg); }
+  .action-btn:hover {
+    background: var(--bg-hover);
+    border-color: var(--border-hover);
+    color: var(--text-primary);
   }
 
-  .context-layout {
+  .action-btn.primary {
+    background: var(--accent-primary);
+    border-color: var(--accent-primary);
+    color: var(--bg-primary);
+  }
+
+  .action-btn.primary:hover {
+    opacity: 0.9;
+  }
+
+  .action-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+
+  .content-layout {
+    flex: 1;
     display: grid;
     grid-template-columns: 300px 1fr;
-    height: 100%;
     overflow: hidden;
   }
 
-  .file-list {
+  .history-panel {
     border-right: 1px solid var(--border-primary);
-    overflow-y: auto;
     display: flex;
     flex-direction: column;
+    overflow: hidden;
   }
 
-  .list-header {
-    padding: 12px 16px;
+  .history-header {
+    padding: 10px 16px;
     font-size: 10px;
     font-weight: 600;
     text-transform: uppercase;
     letter-spacing: 0.5px;
     color: var(--text-tertiary);
-    border-bottom: 1px solid var(--border-secondary);
     background: var(--bg-secondary);
+    border-bottom: 1px solid var(--border-secondary);
+    flex-shrink: 0;
   }
 
-  .file-item {
+  .history-list {
+    flex: 1;
+    overflow-y: auto;
+  }
+
+  .history-item {
     display: flex;
     flex-direction: column;
-    gap: 8px;
-    padding: 16px;
+    gap: 4px;
+    padding: 12px 16px;
     border: none;
     border-bottom: 1px solid var(--border-secondary);
     background: transparent;
     cursor: pointer;
     text-align: left;
-    transition: all 0.15s;
     width: 100%;
+    position: relative;
+    transition: all 0.15s;
   }
 
-  .file-item:hover {
+  .history-item:hover {
     background: var(--bg-hover);
   }
 
-  .file-item.selected {
+  .history-item.selected {
     background: var(--bg-secondary);
     border-left: 3px solid var(--accent-primary);
     padding-left: 13px;
   }
 
-  .file-item.missing {
-    opacity: 0.6;
-  }
-
-  .file-info {
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-  }
-
-  .file-name {
-    font-size: 12px;
+  .history-date {
+    font-size: 10px;
     font-weight: 500;
     color: var(--text-primary);
   }
 
-  .file-desc {
+  .history-preview {
     font-size: 10px;
     color: var(--text-tertiary);
-    line-height: 1.4;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    padding-right: 24px;
   }
 
-  .file-meta {
-    display: flex;
-    gap: 12px;
-    align-items: center;
-  }
-
-  .file-status {
-    font-size: 9px;
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-    padding: 2px 6px;
-    border-radius: 1px;
-  }
-
-  .file-status.exists {
-    background: rgba(16, 185, 129, 0.1);
-    color: #10b981;
-  }
-
-  .file-status.missing {
-    background: rgba(245, 158, 11, 0.1);
-    color: #f59e0b;
-  }
-
-  .file-size {
+  .history-item .delete-btn {
+    position: absolute;
+    right: 8px;
+    top: 50%;
+    transform: translateY(-50%);
+    padding: 4px 8px;
     font-size: 10px;
+    background: transparent;
+    border: none;
     color: var(--text-tertiary);
+    cursor: pointer;
+    opacity: 0;
+    transition: all 0.15s;
   }
 
-  .content-viewer {
+  .history-item:hover .delete-btn {
+    opacity: 1;
+  }
+
+  .history-item .delete-btn:hover {
+    color: #ff6b6b;
+  }
+
+  .content-panel {
     display: flex;
     flex-direction: column;
     overflow: hidden;
   }
 
   .content-header {
-    padding: 12px 16px;
+    padding: 10px 16px;
     border-bottom: 1px solid var(--border-secondary);
     display: flex;
     justify-content: space-between;
     align-items: center;
     background: var(--bg-secondary);
+    flex-shrink: 0;
   }
 
-  .content-title {
-    font-size: 12px;
-    font-weight: 500;
-    color: var(--text-primary);
+  .content-date {
+    font-size: 11px;
+    color: var(--text-secondary);
   }
 
   .copy-btn {
@@ -468,7 +629,6 @@
     letter-spacing: 0.5px;
     border-radius: 1px;
     cursor: pointer;
-    transition: all 0.15s;
   }
 
   .copy-btn:hover {
@@ -493,36 +653,160 @@
     word-break: break-word;
   }
 
-  .panel-footer {
-    padding: 12px 24px;
-    border-top: 1px solid var(--border-secondary);
+  .empty-history,
+  .empty-content,
+  .loading,
+  .loading-small {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 32px;
+    color: var(--text-tertiary);
+    gap: 8px;
+  }
+
+  .empty-history p,
+  .empty-content p {
+    margin: 0;
+    font-size: 12px;
+  }
+
+  .hint {
+    font-size: 11px !important;
+    opacity: 0.7;
+  }
+
+  .spinner {
+    width: 32px;
+    height: 32px;
+    border: 2px solid var(--border-secondary);
+    border-top-color: var(--text-secondary);
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+  }
+
+  .spinner-small {
+    width: 20px;
+    height: 20px;
+    border: 2px solid var(--border-secondary);
+    border-top-color: var(--text-secondary);
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+  }
+
+  @keyframes spin {
+    to { transform: rotate(360deg); }
+  }
+
+  /* Modal Styles */
+  .modal-backdrop {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.8);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 2000;
+  }
+
+  .modal {
+    background: var(--bg-primary);
+    border: 1px solid var(--border-primary);
+    border-radius: 2px;
+    width: 90%;
+    max-width: 800px;
+    max-height: 80vh;
+    display: flex;
+    flex-direction: column;
+    box-shadow: var(--shadow-large);
+  }
+
+  .modal-header {
+    padding: 16px 20px;
+    border-bottom: 1px solid var(--border-primary);
     display: flex;
     justify-content: space-between;
     align-items: center;
   }
 
-  .info-text {
-    font-size: 11px;
-    color: var(--text-tertiary);
+  .modal-header h4 {
+    margin: 0;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--text-primary);
   }
 
-  .info-text code {
-    font-family: 'Courier New', Courier, monospace;
+  .modal-body {
+    flex: 1;
+    padding: 20px;
+    overflow: auto;
+  }
+
+  .modal-instructions {
+    margin: 0 0 16px;
+    font-size: 12px;
+    color: var(--text-secondary);
+    line-height: 1.5;
+  }
+
+  .prompt-content {
     background: var(--bg-secondary);
-    padding: 2px 6px;
+    padding: 16px;
     border-radius: 2px;
+    font-family: 'Courier New', Courier, monospace;
+    font-size: 11px;
+    line-height: 1.5;
+    color: var(--text-primary);
+    white-space: pre-wrap;
+    word-break: break-word;
+    max-height: 400px;
+    overflow: auto;
+  }
+
+  .save-textarea {
+    width: 100%;
+    padding: 12px;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-primary);
+    border-radius: 2px;
+    font-family: 'Courier New', Courier, monospace;
+    font-size: 11px;
+    line-height: 1.5;
+    color: var(--text-primary);
+    resize: vertical;
+  }
+
+  .save-textarea:focus {
+    outline: none;
+    border-color: var(--accent-primary);
+  }
+
+  .modal-footer {
+    padding: 16px 20px;
+    border-top: 1px solid var(--border-primary);
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
   }
 
   @media (max-width: 768px) {
-    .context-layout {
+    .content-layout {
       grid-template-columns: 1fr;
       grid-template-rows: auto 1fr;
     }
 
-    .file-list {
+    .history-panel {
       border-right: none;
       border-bottom: 1px solid var(--border-primary);
       max-height: 200px;
+    }
+
+    .tabs {
+      overflow-x: auto;
     }
   }
 </style>

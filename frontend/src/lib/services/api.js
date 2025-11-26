@@ -373,85 +373,101 @@ export async function fetchAllPrompts() {
 // === Context Library API ===
 
 /**
- * Get status of all context files
- * @returns {Promise<Object>} Context files status
+ * Get counts of summaries for each context type
+ * @returns {Promise<Object>} Counts by type
  */
-export async function fetchContextStatus() {
-  const response = await fetch(`${API_BASE}/context/status`);
+export async function fetchContextCounts() {
+  const response = await fetch(`${API_BASE}/context/counts`);
   if (!response.ok) {
-    throw new Error(`Failed to fetch context status: ${response.statusText}`);
+    throw new Error(`Failed to fetch context counts: ${response.statusText}`);
   }
   return response.json();
 }
 
 /**
- * Update all context files
- * @returns {Promise<Object>} Update result
+ * Get the AI prompt for generating a context summary
+ * @param {string} contextType - One of 'codebase', 'architecture', 'prompts'
+ * @returns {Promise<Object>} Prompt data
  */
-export async function updateAllContext() {
-  const response = await fetch(`${API_BASE}/context/update`, {
+export async function fetchContextPrompt(contextType) {
+  const response = await fetch(`${API_BASE}/context/prompt/${contextType}`);
+  if (!response.ok) {
+    throw new Error(`Failed to fetch context prompt: ${response.statusText}`);
+  }
+  return response.json();
+}
+
+/**
+ * Save an AI-generated context summary
+ * @param {string} contextType - One of 'codebase', 'architecture', 'prompts'
+ * @param {string} content - The summary content
+ * @returns {Promise<Object>} Saved entry
+ */
+export async function saveContextSummary(contextType, content) {
+  const response = await fetch(`${API_BASE}/context/save/${contextType}`, {
     method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ content }),
   });
   if (!response.ok) {
-    throw new Error(`Failed to update context: ${response.statusText}`);
+    throw new Error(`Failed to save context summary: ${response.statusText}`);
   }
   return response.json();
 }
 
 /**
- * Get a specific context file content
- * @param {string} fileName - Name of the context file
- * @returns {Promise<Object>} File content
+ * Get historical summaries for a context type
+ * @param {string} contextType - One of 'codebase', 'architecture', 'prompts'
+ * @param {number} limit - Maximum entries to return
+ * @returns {Promise<Object>} History data
  */
-export async function fetchContextFile(fileName) {
-  const response = await fetch(`${API_BASE}/context/${encodeURIComponent(fileName)}`);
+export async function fetchContextHistory(contextType, limit = 50) {
+  const response = await fetch(`${API_BASE}/context/history/${contextType}?limit=${limit}`);
   if (!response.ok) {
-    if (response.status === 404) {
-      return { success: true, content: null };
-    }
-    throw new Error(`Failed to fetch context file: ${response.statusText}`);
+    throw new Error(`Failed to fetch context history: ${response.statusText}`);
   }
   return response.json();
 }
 
 /**
- * Update only codebase context
- * @returns {Promise<Object>} Update result
+ * Get a specific context entry by ID
+ * @param {number} entryId - Entry ID
+ * @returns {Promise<Object>} Entry data
  */
-export async function updateCodebaseContext() {
-  const response = await fetch(`${API_BASE}/context/update/codebase`, {
-    method: 'POST',
+export async function fetchContextEntry(entryId) {
+  const response = await fetch(`${API_BASE}/context/entry/${entryId}`);
+  if (!response.ok) {
+    throw new Error(`Failed to fetch context entry: ${response.statusText}`);
+  }
+  return response.json();
+}
+
+/**
+ * Delete a context entry
+ * @param {number} entryId - Entry ID to delete
+ * @returns {Promise<Object>} Delete result
+ */
+export async function deleteContextEntry(entryId) {
+  const response = await fetch(`${API_BASE}/context/entry/${entryId}`, {
+    method: 'DELETE',
   });
   if (!response.ok) {
-    throw new Error(`Failed to update codebase context: ${response.statusText}`);
+    throw new Error(`Failed to delete context entry: ${response.statusText}`);
   }
   return response.json();
 }
 
 /**
- * Update only architecture context
- * @returns {Promise<Object>} Update result
+ * Get the latest summary for a context type
+ * @param {string} contextType - One of 'codebase', 'architecture', 'prompts'
+ * @returns {Promise<Object>} Latest entry
  */
-export async function updateArchitectureContext() {
-  const response = await fetch(`${API_BASE}/context/update/architecture`, {
-    method: 'POST',
-  });
+export async function fetchLatestContext(contextType) {
+  const response = await fetch(`${API_BASE}/context/latest/${contextType}`);
   if (!response.ok) {
-    throw new Error(`Failed to update architecture context: ${response.statusText}`);
-  }
-  return response.json();
-}
-
-/**
- * Update only prompts context
- * @returns {Promise<Object>} Update result
- */
-export async function updatePromptsContext() {
-  const response = await fetch(`${API_BASE}/context/update/prompts`, {
-    method: 'POST',
-  });
-  if (!response.ok) {
-    throw new Error(`Failed to update prompts context: ${response.statusText}`);
+    throw new Error(`Failed to fetch latest context: ${response.statusText}`);
   }
   return response.json();
 }
