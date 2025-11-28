@@ -15,11 +15,24 @@
   let loading = true;
   let loadingHistory = false;
   let selectedEntry = null;
+  let parsedArchitecture = null;
+  let parseError = null;
+  let activeSection = 'overview';
   let showPromptModal = false;
   let showSaveModal = false;
   let currentPrompt = '';
   let saveContent = '';
   let saving = false;
+
+  const SECTIONS = [
+    { id: 'overview', label: 'Overview', icon: 'info' },
+    { id: 'tech_stack', label: 'Tech Stack', icon: 'stack' },
+    { id: 'endpoints', label: 'Endpoints', icon: 'api' },
+    { id: 'entities', label: 'Entities', icon: 'data' },
+    { id: 'tables', label: 'Database', icon: 'db' },
+    { id: 'ui_components', label: 'UI/UX', icon: 'ui' },
+    { id: 'notes', label: 'Notes', icon: 'notes' },
+  ];
 
   onMount(async () => {
     await loadHistory();
@@ -43,8 +56,23 @@
     try {
       const data = await fetchContextEntry(entry.id);
       selectedEntry = data.entry;
+      parseArchitecture(selectedEntry.content);
     } catch (err) {
       showToast(`Failed to load entry: ${err.message}`, 'error');
+    }
+  }
+
+  function parseArchitecture(content) {
+    try {
+      // Try to parse as JSON
+      const parsed = JSON.parse(content);
+      parsedArchitecture = parsed;
+      parseError = null;
+      activeSection = 'overview';
+    } catch (err) {
+      // Not valid JSON - treat as plain text
+      parsedArchitecture = null;
+      parseError = 'Content is not structured JSON. Displaying as plain text.';
     }
   }
 
@@ -70,14 +98,22 @@
 
   async function handleSave() {
     if (!saveContent.trim()) {
-      showToast('Please enter the summary content', 'error');
+      showToast('Please enter the architecture JSON', 'error');
+      return;
+    }
+
+    // Validate JSON
+    try {
+      JSON.parse(saveContent);
+    } catch (err) {
+      showToast('Invalid JSON format. Please check your input.', 'error');
       return;
     }
 
     try {
       saving = true;
       await saveContextSummary('architecture', saveContent);
-      showToast('Summary saved successfully!', 'success');
+      showToast('Architecture saved successfully!', 'success');
       showSaveModal = false;
       saveContent = '';
       await loadHistory();
@@ -89,15 +125,16 @@
   }
 
   async function handleDelete(entryId) {
-    if (!confirm('Are you sure you want to delete this summary?')) {
+    if (!confirm('Are you sure you want to delete this architecture?')) {
       return;
     }
 
     try {
       await deleteContextEntry(entryId);
-      showToast('Summary deleted', 'success');
+      showToast('Architecture deleted', 'success');
       if (selectedEntry?.id === entryId) {
         selectedEntry = null;
+        parsedArchitecture = null;
       }
       await loadHistory();
     } catch (err) {
@@ -117,6 +154,28 @@
     const date = new Date(isoString);
     return date.toLocaleDateString() + ' ' + date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
   }
+
+  function getMethodColor(method) {
+    const colors = {
+      GET: '#61affe',
+      POST: '#49cc90',
+      PUT: '#fca130',
+      PATCH: '#50e3c2',
+      DELETE: '#f93e3e',
+    };
+    return colors[method] || '#999';
+  }
+
+  function getCategoryIcon(category) {
+    const icons = {
+      language: 'L',
+      framework: 'F',
+      database: 'D',
+      tool: 'T',
+      service: 'S',
+    };
+    return icons[category] || '?';
+  }
 </script>
 
 <div class="architecture-backdrop" on:click={onClose}>
@@ -135,20 +194,20 @@
       <div class="panel-body">
         <div class="tab-header">
           <div class="tab-info">
-            <p class="tab-description">System design, tech stack, and API structure</p>
+            <p class="tab-description">System design, tech stack, API endpoints, entities, and UI components</p>
           </div>
           <div class="tab-actions">
             <button class="action-btn primary" on:click={handleGeneratePrompt}>
               Generate Prompt
             </button>
             <button class="action-btn" on:click={handleOpenSaveModal}>
-              Save Summary
+              Save Architecture
             </button>
           </div>
         </div>
 
         <div class="content-layout">
-          <!-- History Table -->
+          <!-- History Panel -->
           <div class="history-panel">
             <div class="history-header">History ({history.length})</div>
             {#if loadingHistory}
@@ -157,7 +216,7 @@
               </div>
             {:else if history.length === 0}
               <div class="empty-history">
-                <p>No summaries yet</p>
+                <p>No architecture docs yet</p>
                 <p class="hint">Click "Generate Prompt" to create one</p>
               </div>
             {:else}
@@ -186,19 +245,342 @@
             {/if}
           </div>
 
-          <!-- Content Viewer -->
+          <!-- Content Panel -->
           <div class="content-panel">
             {#if selectedEntry}
-              <div class="content-header">
-                <span class="content-date">{formatDate(selectedEntry.created_at)}</span>
-                <button class="copy-btn" on:click={handleCopyContent}>Copy</button>
-              </div>
-              <div class="content-body">
-                <pre>{selectedEntry.content}</pre>
-              </div>
+              {#if parsedArchitecture}
+                <!-- Structured View -->
+                <div class="structured-view">
+                  <div class="section-tabs">
+                    {#each SECTIONS as section}
+                      <button
+                        class="section-tab"
+                        class:active={activeSection === section.id}
+                        on:click={() => activeSection = section.id}
+                      >
+                        {section.label}
+                        {#if section.id !== 'overview' && section.id !== 'notes'}
+                          <span class="count">
+                            {parsedArchitecture[section.id]?.length || 0}
+                          </span>
+                        {/if}
+                      </button>
+                    {/each}
+                  </div>
+
+                  <div class="section-content">
+                    {#if activeSection === 'overview'}
+                      <div class="overview-section">
+                        <h2>{parsedArchitecture.project_name || 'Unnamed Project'}</h2>
+                        {#if parsedArchitecture.version}
+                          <span class="version">v{parsedArchitecture.version}</span>
+                        {/if}
+                        <p class="description">{parsedArchitecture.description || 'No description'}</p>
+                        <div class="overview-stats">
+                          <div class="stat">
+                            <span class="stat-value">{parsedArchitecture.tech_stack?.length || 0}</span>
+                            <span class="stat-label">Technologies</span>
+                          </div>
+                          <div class="stat">
+                            <span class="stat-value">{parsedArchitecture.endpoints?.length || 0}</span>
+                            <span class="stat-label">Endpoints</span>
+                          </div>
+                          <div class="stat">
+                            <span class="stat-value">{parsedArchitecture.entities?.length || 0}</span>
+                            <span class="stat-label">Entities</span>
+                          </div>
+                          <div class="stat">
+                            <span class="stat-value">{parsedArchitecture.tables?.length || 0}</span>
+                            <span class="stat-label">Tables</span>
+                          </div>
+                          <div class="stat">
+                            <span class="stat-value">{parsedArchitecture.ui_components?.length || 0}</span>
+                            <span class="stat-label">Components</span>
+                          </div>
+                        </div>
+                      </div>
+
+                    {:else if activeSection === 'tech_stack'}
+                      <div class="tech-stack-section">
+                        {#if parsedArchitecture.tech_stack?.length > 0}
+                          <div class="tech-grid">
+                            {#each parsedArchitecture.tech_stack as tech}
+                              <div class="tech-card">
+                                <div class="tech-icon">{getCategoryIcon(tech.category)}</div>
+                                <div class="tech-info">
+                                  <div class="tech-name">
+                                    {tech.name}
+                                    {#if tech.version}
+                                      <span class="tech-version">{tech.version}</span>
+                                    {/if}
+                                  </div>
+                                  <div class="tech-category">{tech.category}</div>
+                                  {#if tech.purpose}
+                                    <div class="tech-purpose">{tech.purpose}</div>
+                                  {/if}
+                                </div>
+                              </div>
+                            {/each}
+                          </div>
+                        {:else}
+                          <div class="empty-section">No tech stack defined</div>
+                        {/if}
+                      </div>
+
+                    {:else if activeSection === 'endpoints'}
+                      <div class="endpoints-section">
+                        {#if parsedArchitecture.endpoints?.length > 0}
+                          <div class="endpoints-list">
+                            {#each parsedArchitecture.endpoints as endpoint}
+                              <div class="endpoint-card">
+                                <div class="endpoint-header">
+                                  <span class="method" style="background: {getMethodColor(endpoint.method)}">{endpoint.method}</span>
+                                  <span class="path">{endpoint.path}</span>
+                                  {#if endpoint.auth_required}
+                                    <span class="auth-badge">AUTH</span>
+                                  {/if}
+                                </div>
+                                <div class="endpoint-description">{endpoint.description}</div>
+                                {#if endpoint.params?.length > 0}
+                                  <div class="endpoint-params">
+                                    <div class="params-label">Parameters:</div>
+                                    {#each endpoint.params as param}
+                                      <div class="param">
+                                        <span class="param-name">{param.name}</span>
+                                        <span class="param-type">{param.type}</span>
+                                        <span class="param-location">{param.location}</span>
+                                        {#if !param.required}
+                                          <span class="param-optional">optional</span>
+                                        {/if}
+                                      </div>
+                                    {/each}
+                                  </div>
+                                {/if}
+                                {#if endpoint.response_type}
+                                  <div class="endpoint-response">
+                                    <span class="response-label">Returns:</span>
+                                    <span class="response-type">{endpoint.response_type}</span>
+                                  </div>
+                                {/if}
+                                {#if endpoint.tags?.length > 0}
+                                  <div class="endpoint-tags">
+                                    {#each endpoint.tags as tag}
+                                      <span class="tag">{tag}</span>
+                                    {/each}
+                                  </div>
+                                {/if}
+                              </div>
+                            {/each}
+                          </div>
+                        {:else}
+                          <div class="empty-section">No endpoints defined</div>
+                        {/if}
+                      </div>
+
+                    {:else if activeSection === 'entities'}
+                      <div class="entities-section">
+                        {#if parsedArchitecture.entities?.length > 0}
+                          <div class="entities-list">
+                            {#each parsedArchitecture.entities as entity}
+                              <div class="entity-card">
+                                <div class="entity-header">
+                                  <span class="entity-name">{entity.name}</span>
+                                  {#if entity.file_path}
+                                    <span class="entity-path">{entity.file_path}</span>
+                                  {/if}
+                                </div>
+                                <div class="entity-description">{entity.description}</div>
+                                {#if entity.fields?.length > 0}
+                                  <table class="fields-table">
+                                    <thead>
+                                      <tr>
+                                        <th>Field</th>
+                                        <th>Type</th>
+                                        <th>Description</th>
+                                        <th>Constraints</th>
+                                      </tr>
+                                    </thead>
+                                    <tbody>
+                                      {#each entity.fields as field}
+                                        <tr>
+                                          <td class="field-name">
+                                            {field.name}
+                                            {#if !field.required}
+                                              <span class="optional">?</span>
+                                            {/if}
+                                          </td>
+                                          <td class="field-type">{field.type}</td>
+                                          <td class="field-desc">{field.description || '-'}</td>
+                                          <td class="field-constraints">
+                                            {field.constraints?.join(', ') || '-'}
+                                          </td>
+                                        </tr>
+                                      {/each}
+                                    </tbody>
+                                  </table>
+                                {/if}
+                                {#if entity.relationships?.length > 0}
+                                  <div class="entity-relationships">
+                                    <span class="rel-label">Relationships:</span>
+                                    {#each entity.relationships as rel}
+                                      <span class="relationship">{rel}</span>
+                                    {/each}
+                                  </div>
+                                {/if}
+                              </div>
+                            {/each}
+                          </div>
+                        {:else}
+                          <div class="empty-section">No entities defined</div>
+                        {/if}
+                      </div>
+
+                    {:else if activeSection === 'tables'}
+                      <div class="tables-section">
+                        {#if parsedArchitecture.tables?.length > 0}
+                          <div class="tables-list">
+                            {#each parsedArchitecture.tables as table}
+                              <div class="table-card">
+                                <div class="table-header">
+                                  <span class="table-name">{table.name}</span>
+                                </div>
+                                <div class="table-description">{table.description}</div>
+                                {#if table.columns?.length > 0}
+                                  <table class="columns-table">
+                                    <thead>
+                                      <tr>
+                                        <th>Column</th>
+                                        <th>Type</th>
+                                        <th>Nullable</th>
+                                        <th>Key</th>
+                                        <th>Default</th>
+                                      </tr>
+                                    </thead>
+                                    <tbody>
+                                      {#each table.columns as col}
+                                        <tr>
+                                          <td class="col-name">
+                                            {col.name}
+                                            {#if col.primary_key}
+                                              <span class="pk">PK</span>
+                                            {/if}
+                                          </td>
+                                          <td class="col-type">{col.type}</td>
+                                          <td class="col-nullable">{col.nullable ? 'YES' : 'NO'}</td>
+                                          <td class="col-fk">
+                                            {#if col.foreign_key}
+                                              <span class="fk">FK: {col.foreign_key}</span>
+                                            {:else}
+                                              -
+                                            {/if}
+                                          </td>
+                                          <td class="col-default">{col.default || '-'}</td>
+                                        </tr>
+                                      {/each}
+                                    </tbody>
+                                  </table>
+                                {/if}
+                                {#if table.indexes?.length > 0}
+                                  <div class="table-indexes">
+                                    <span class="idx-label">Indexes:</span>
+                                    {#each table.indexes as idx}
+                                      <span class="index">
+                                        {idx.name} ({idx.columns.join(', ')})
+                                        {#if idx.unique}
+                                          <span class="unique">UNIQUE</span>
+                                        {/if}
+                                      </span>
+                                    {/each}
+                                  </div>
+                                {/if}
+                              </div>
+                            {/each}
+                          </div>
+                        {:else}
+                          <div class="empty-section">No database tables defined</div>
+                        {/if}
+                      </div>
+
+                    {:else if activeSection === 'ui_components'}
+                      <div class="ui-section">
+                        {#if parsedArchitecture.ui_components?.length > 0}
+                          <div class="ui-list">
+                            {#each parsedArchitecture.ui_components as comp}
+                              <div class="ui-card">
+                                <div class="ui-header">
+                                  <span class="ui-name">{comp.name}</span>
+                                  <span class="ui-type">{comp.type}</span>
+                                </div>
+                                <div class="ui-description">{comp.description}</div>
+                                {#if comp.file_path}
+                                  <div class="ui-path">{comp.file_path}</div>
+                                {/if}
+                                {#if comp.routes?.length > 0}
+                                  <div class="ui-routes">
+                                    <span class="routes-label">Routes:</span>
+                                    {#each comp.routes as route}
+                                      <span class="route">{route}</span>
+                                    {/each}
+                                  </div>
+                                {/if}
+                                {#if comp.props?.length > 0}
+                                  <div class="ui-props">
+                                    <span class="props-label">Props:</span>
+                                    {#each comp.props as prop}
+                                      <span class="prop">{prop}</span>
+                                    {/each}
+                                  </div>
+                                {/if}
+                                {#if comp.children?.length > 0}
+                                  <div class="ui-children">
+                                    <span class="children-label">Children:</span>
+                                    {#each comp.children as child}
+                                      <span class="child">{child}</span>
+                                    {/each}
+                                  </div>
+                                {/if}
+                              </div>
+                            {/each}
+                          </div>
+                        {:else}
+                          <div class="empty-section">No UI components defined</div>
+                        {/if}
+                      </div>
+
+                    {:else if activeSection === 'notes'}
+                      <div class="notes-section">
+                        {#if parsedArchitecture.notes?.length > 0}
+                          <ul class="notes-list">
+                            {#each parsedArchitecture.notes as note}
+                              <li>{note}</li>
+                            {/each}
+                          </ul>
+                        {:else}
+                          <div class="empty-section">No notes</div>
+                        {/if}
+                      </div>
+                    {/if}
+                  </div>
+                </div>
+              {:else}
+                <!-- Plain Text View (legacy) -->
+                <div class="plain-view">
+                  <div class="content-header">
+                    <span class="content-date">{formatDate(selectedEntry.created_at)}</span>
+                    <button class="copy-btn" on:click={handleCopyContent}>Copy</button>
+                  </div>
+                  {#if parseError}
+                    <div class="parse-warning">{parseError}</div>
+                  {/if}
+                  <div class="content-body">
+                    <pre>{selectedEntry.content}</pre>
+                  </div>
+                </div>
+              {/if}
             {:else}
               <div class="empty-content">
-                <p>Select a summary to view</p>
+                <p>Select an architecture document to view</p>
+                <p class="hint">Or generate a new one using the prompt</p>
               </div>
             {/if}
           </div>
@@ -211,7 +593,7 @@
 <!-- Prompt Modal -->
 {#if showPromptModal}
   <div class="modal-backdrop" on:click={() => showPromptModal = false}>
-    <div class="modal" on:click|stopPropagation>
+    <div class="modal large" on:click|stopPropagation>
       <div class="modal-header">
         <h4>AI Prompt for Architecture</h4>
         <button class="close-btn" on:click={() => showPromptModal = false}>X</button>
@@ -219,7 +601,7 @@
       <div class="modal-body">
         <p class="modal-instructions">
           Copy this prompt and paste it into your AI tool (Claude, ChatGPT, etc.).
-          The AI will analyze your codebase and generate a summary.
+          The AI will analyze your codebase and generate a structured JSON architecture document.
         </p>
         <pre class="prompt-content">{currentPrompt}</pre>
       </div>
@@ -238,20 +620,20 @@
 <!-- Save Modal -->
 {#if showSaveModal}
   <div class="modal-backdrop" on:click={() => showSaveModal = false}>
-    <div class="modal" on:click|stopPropagation>
+    <div class="modal large" on:click|stopPropagation>
       <div class="modal-header">
-        <h4>Save Architecture Summary</h4>
+        <h4>Save Architecture</h4>
         <button class="close-btn" on:click={() => showSaveModal = false}>X</button>
       </div>
       <div class="modal-body">
         <p class="modal-instructions">
-          Paste the AI-generated summary below:
+          Paste the AI-generated JSON architecture below:
         </p>
         <textarea
           class="save-textarea"
           bind:value={saveContent}
-          placeholder="Paste your AI-generated summary here..."
-          rows="15"
+          placeholder='{"project_name": "...", "description": "...", ...}'
+          rows="20"
         ></textarea>
       </div>
       <div class="modal-footer">
@@ -260,7 +642,7 @@
           on:click={handleSave}
           disabled={saving}
         >
-          {saving ? 'Saving...' : 'Save Summary'}
+          {saving ? 'Saving...' : 'Save Architecture'}
         </button>
         <button class="action-btn" on:click={() => showSaveModal = false}>
           Cancel
@@ -290,8 +672,8 @@
     border: 1px solid var(--border-primary);
     border-radius: 2px;
     width: 95%;
-    max-width: 1000px;
-    height: 80vh;
+    max-width: 1400px;
+    height: 90vh;
     display: flex;
     flex-direction: column;
     box-shadow: var(--shadow-large);
@@ -338,7 +720,7 @@
   }
 
   .tab-header {
-    padding: 16px 20px;
+    padding: 12px 20px;
     border-bottom: 1px solid var(--border-secondary);
     display: flex;
     justify-content: space-between;
@@ -395,7 +777,7 @@
   .content-layout {
     flex: 1;
     display: grid;
-    grid-template-columns: 280px 1fr;
+    grid-template-columns: 220px 1fr;
     overflow: hidden;
   }
 
@@ -492,6 +874,464 @@
     overflow: hidden;
   }
 
+  /* Structured View */
+  .structured-view {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    overflow: hidden;
+  }
+
+  .section-tabs {
+    display: flex;
+    gap: 0;
+    border-bottom: 1px solid var(--border-primary);
+    background: var(--bg-secondary);
+    flex-shrink: 0;
+    overflow-x: auto;
+  }
+
+  .section-tab {
+    padding: 10px 16px;
+    background: transparent;
+    border: none;
+    border-bottom: 2px solid transparent;
+    color: var(--text-secondary);
+    font-size: 10px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    white-space: nowrap;
+    transition: all 0.15s;
+  }
+
+  .section-tab:hover {
+    color: var(--text-primary);
+    background: var(--bg-hover);
+  }
+
+  .section-tab.active {
+    color: var(--text-primary);
+    border-bottom-color: var(--accent-primary);
+  }
+
+  .section-tab .count {
+    background: var(--bg-primary);
+    padding: 2px 6px;
+    border-radius: 10px;
+    font-size: 9px;
+  }
+
+  .section-tab.active .count {
+    background: var(--accent-primary);
+    color: var(--bg-primary);
+  }
+
+  .section-content {
+    flex: 1;
+    overflow: auto;
+    padding: 20px;
+  }
+
+  /* Overview Section */
+  .overview-section h2 {
+    margin: 0 0 8px;
+    font-size: 24px;
+    font-weight: 600;
+    color: var(--text-primary);
+  }
+
+  .version {
+    display: inline-block;
+    padding: 2px 8px;
+    background: var(--bg-secondary);
+    border-radius: 2px;
+    font-size: 11px;
+    color: var(--text-secondary);
+    margin-bottom: 16px;
+  }
+
+  .overview-section .description {
+    font-size: 14px;
+    color: var(--text-secondary);
+    line-height: 1.6;
+    margin-bottom: 24px;
+  }
+
+  .overview-stats {
+    display: flex;
+    gap: 24px;
+    flex-wrap: wrap;
+  }
+
+  .stat {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 16px 24px;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-primary);
+    border-radius: 2px;
+  }
+
+  .stat-value {
+    font-size: 28px;
+    font-weight: 600;
+    color: var(--text-primary);
+  }
+
+  .stat-label {
+    font-size: 10px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--text-tertiary);
+    margin-top: 4px;
+  }
+
+  /* Tech Stack Section */
+  .tech-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+    gap: 12px;
+  }
+
+  .tech-card {
+    display: flex;
+    gap: 12px;
+    padding: 12px;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-primary);
+    border-radius: 2px;
+  }
+
+  .tech-icon {
+    width: 36px;
+    height: 36px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--accent-primary);
+    color: var(--bg-primary);
+    font-weight: 600;
+    border-radius: 2px;
+    flex-shrink: 0;
+  }
+
+  .tech-info {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .tech-name {
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--text-primary);
+  }
+
+  .tech-version {
+    font-size: 11px;
+    color: var(--text-tertiary);
+    margin-left: 6px;
+  }
+
+  .tech-category {
+    font-size: 10px;
+    text-transform: uppercase;
+    color: var(--text-tertiary);
+    letter-spacing: 0.5px;
+  }
+
+  .tech-purpose {
+    font-size: 11px;
+    color: var(--text-secondary);
+    margin-top: 4px;
+  }
+
+  /* Endpoints Section */
+  .endpoints-list {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .endpoint-card {
+    padding: 16px;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-primary);
+    border-radius: 2px;
+  }
+
+  .endpoint-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 8px;
+  }
+
+  .method {
+    padding: 4px 8px;
+    font-size: 10px;
+    font-weight: 700;
+    color: white;
+    border-radius: 2px;
+  }
+
+  .path {
+    font-family: 'Courier New', monospace;
+    font-size: 13px;
+    color: var(--text-primary);
+  }
+
+  .auth-badge {
+    padding: 2px 6px;
+    font-size: 9px;
+    font-weight: 600;
+    background: var(--bg-primary);
+    border: 1px solid var(--border-primary);
+    color: var(--text-tertiary);
+    border-radius: 2px;
+  }
+
+  .endpoint-description {
+    font-size: 12px;
+    color: var(--text-secondary);
+    margin-bottom: 12px;
+  }
+
+  .endpoint-params {
+    margin-bottom: 12px;
+  }
+
+  .params-label, .response-label {
+    font-size: 10px;
+    font-weight: 600;
+    text-transform: uppercase;
+    color: var(--text-tertiary);
+    margin-bottom: 6px;
+  }
+
+  .param {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 4px 0;
+    font-size: 11px;
+  }
+
+  .param-name {
+    font-family: 'Courier New', monospace;
+    color: var(--text-primary);
+  }
+
+  .param-type {
+    color: var(--accent-primary);
+  }
+
+  .param-location {
+    padding: 1px 6px;
+    background: var(--bg-primary);
+    border-radius: 2px;
+    color: var(--text-tertiary);
+    font-size: 10px;
+  }
+
+  .param-optional {
+    color: var(--text-tertiary);
+    font-style: italic;
+  }
+
+  .endpoint-response {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 12px;
+  }
+
+  .response-type {
+    font-family: 'Courier New', monospace;
+    font-size: 12px;
+    color: var(--accent-primary);
+  }
+
+  .endpoint-tags {
+    display: flex;
+    gap: 6px;
+  }
+
+  .tag {
+    padding: 2px 8px;
+    background: var(--bg-primary);
+    border: 1px solid var(--border-primary);
+    border-radius: 2px;
+    font-size: 10px;
+    color: var(--text-secondary);
+  }
+
+  /* Entities & Tables Section */
+  .entities-list, .tables-list, .ui-list {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  .entity-card, .table-card, .ui-card {
+    padding: 16px;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-primary);
+    border-radius: 2px;
+  }
+
+  .entity-header, .table-header, .ui-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 8px;
+  }
+
+  .entity-name, .table-name, .ui-name {
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--text-primary);
+  }
+
+  .entity-path, .ui-path {
+    font-family: 'Courier New', monospace;
+    font-size: 11px;
+    color: var(--text-tertiary);
+  }
+
+  .entity-description, .table-description, .ui-description {
+    font-size: 12px;
+    color: var(--text-secondary);
+    margin-bottom: 16px;
+  }
+
+  .fields-table, .columns-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 11px;
+    margin-bottom: 12px;
+  }
+
+  .fields-table th, .columns-table th {
+    text-align: left;
+    padding: 8px;
+    background: var(--bg-primary);
+    border: 1px solid var(--border-primary);
+    font-weight: 600;
+    text-transform: uppercase;
+    font-size: 10px;
+    color: var(--text-tertiary);
+  }
+
+  .fields-table td, .columns-table td {
+    padding: 8px;
+    border: 1px solid var(--border-primary);
+    color: var(--text-primary);
+  }
+
+  .field-name, .col-name {
+    font-family: 'Courier New', monospace;
+  }
+
+  .field-type, .col-type {
+    color: var(--accent-primary);
+  }
+
+  .optional {
+    color: var(--text-tertiary);
+  }
+
+  .pk, .fk, .unique {
+    padding: 1px 4px;
+    font-size: 9px;
+    font-weight: 600;
+    border-radius: 2px;
+    margin-left: 4px;
+  }
+
+  .pk {
+    background: #fca130;
+    color: white;
+  }
+
+  .fk {
+    background: #61affe;
+    color: white;
+  }
+
+  .unique {
+    background: #49cc90;
+    color: white;
+  }
+
+  .entity-relationships, .table-indexes {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+
+  .rel-label, .idx-label, .routes-label, .props-label, .children-label {
+    font-size: 10px;
+    font-weight: 600;
+    text-transform: uppercase;
+    color: var(--text-tertiary);
+  }
+
+  .relationship, .index, .route, .prop, .child {
+    padding: 4px 8px;
+    background: var(--bg-primary);
+    border: 1px solid var(--border-primary);
+    border-radius: 2px;
+    font-size: 11px;
+    color: var(--text-secondary);
+  }
+
+  /* UI Section */
+  .ui-type {
+    padding: 2px 8px;
+    background: var(--accent-primary);
+    color: var(--bg-primary);
+    font-size: 10px;
+    font-weight: 600;
+    text-transform: uppercase;
+    border-radius: 2px;
+  }
+
+  .ui-routes, .ui-props, .ui-children {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin-top: 8px;
+  }
+
+  /* Notes Section */
+  .notes-list {
+    margin: 0;
+    padding: 0 0 0 20px;
+  }
+
+  .notes-list li {
+    font-size: 13px;
+    color: var(--text-secondary);
+    line-height: 1.8;
+    margin-bottom: 8px;
+  }
+
+  /* Plain Text View */
+  .plain-view {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+  }
+
   .content-header {
     padding: 10px 16px;
     border-bottom: 1px solid var(--border-secondary);
@@ -526,6 +1366,18 @@
     color: var(--text-primary);
   }
 
+  .parse-warning {
+    padding: 8px 16px;
+    background: #fef3cd;
+    color: #856404;
+    font-size: 11px;
+  }
+
+  :global([data-theme="dark"]) .parse-warning {
+    background: #3d3200;
+    color: #ffc107;
+  }
+
   .content-body {
     flex: 1;
     overflow: auto;
@@ -540,6 +1392,13 @@
     color: var(--text-primary);
     white-space: pre-wrap;
     word-break: break-word;
+  }
+
+  .empty-section {
+    padding: 40px;
+    text-align: center;
+    color: var(--text-tertiary);
+    font-size: 13px;
   }
 
   .empty-history,
@@ -614,6 +1473,11 @@
     box-shadow: var(--shadow-large);
   }
 
+  .modal.large {
+    max-width: 1000px;
+    max-height: 90vh;
+  }
+
   .modal-header {
     padding: 16px 20px;
     border-bottom: 1px solid var(--border-primary);
@@ -652,7 +1516,7 @@
     color: var(--text-primary);
     white-space: pre-wrap;
     word-break: break-word;
-    max-height: 400px;
+    max-height: 500px;
     overflow: auto;
   }
 
@@ -691,7 +1555,23 @@
     .history-panel {
       border-right: none;
       border-bottom: 1px solid var(--border-primary);
-      max-height: 200px;
+      max-height: 150px;
+    }
+
+    .section-tabs {
+      flex-wrap: nowrap;
+    }
+
+    .overview-stats {
+      gap: 12px;
+    }
+
+    .stat {
+      padding: 12px 16px;
+    }
+
+    .tech-grid {
+      grid-template-columns: 1fr;
     }
   }
 </style>

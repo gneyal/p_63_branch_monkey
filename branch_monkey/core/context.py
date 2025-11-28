@@ -116,49 +116,113 @@ curl -X POST http://localhost:8081/api/context/save/codebase -H "Content-Type: a
 '''
 
         elif context_type == "architecture":
-            return f'''Please analyze the architecture of the project at "{repo_path_str}" and generate a detailed summary.
+            return f'''Please analyze the architecture of the project at "{repo_path_str}" and generate a STRUCTURED JSON document.
 
-Include the following sections:
+IMPORTANT: Output ONLY valid JSON, no markdown or explanation. The JSON must follow this exact schema:
 
-## System Overview
-- High-level architecture description
-- Main components and their relationships
+{{
+  "project_name": "Name of the project",
+  "description": "Brief description of what the project does",
+  "version": "Version if known",
+  "tech_stack": [
+    {{
+      "name": "Technology name (e.g., Python, React)",
+      "category": "language|framework|database|tool|service",
+      "version": "Version if known",
+      "purpose": "What it's used for"
+    }}
+  ],
+  "endpoints": [
+    {{
+      "method": "GET|POST|PUT|PATCH|DELETE",
+      "path": "/api/example",
+      "description": "What this endpoint does",
+      "params": [
+        {{
+          "name": "param_name",
+          "type": "string|integer|boolean|object|array",
+          "required": true,
+          "description": "What this param is for",
+          "location": "body|query|path|header"
+        }}
+      ],
+      "response_type": "ReturnType",
+      "response_description": "What the response contains",
+      "auth_required": true,
+      "tags": ["category"]
+    }}
+  ],
+  "entities": [
+    {{
+      "name": "EntityName",
+      "description": "What this entity represents",
+      "fields": [
+        {{
+          "name": "field_name",
+          "type": "string|integer|boolean|datetime|etc",
+          "description": "What this field is",
+          "required": true,
+          "default": null,
+          "constraints": ["unique", "min:0", "max:100"]
+        }}
+      ],
+      "relationships": ["has_many: OtherEntity", "belongs_to: Parent"],
+      "file_path": "path/to/model.py"
+    }}
+  ],
+  "tables": [
+    {{
+      "name": "table_name",
+      "description": "What this table stores",
+      "columns": [
+        {{
+          "name": "column_name",
+          "type": "INTEGER|TEXT|DATETIME|BOOLEAN|etc",
+          "nullable": false,
+          "primary_key": false,
+          "foreign_key": "other_table.id or null",
+          "default": "default value or null",
+          "description": "What this column is"
+        }}
+      ],
+      "indexes": [
+        {{
+          "name": "idx_name",
+          "columns": ["col1", "col2"],
+          "unique": true
+        }}
+      ],
+      "relationships": ["Foreign key to users table"]
+    }}
+  ],
+  "ui_components": [
+    {{
+      "name": "ComponentName",
+      "type": "page|component|layout|modal|form|widget",
+      "description": "What this component does",
+      "file_path": "src/components/Name.svelte",
+      "props": ["prop1: Type", "prop2: Type"],
+      "children": ["ChildComponent1", "ChildComponent2"],
+      "routes": ["/path/to/page"]
+    }}
+  ],
+  "notes": [
+    "Important architectural decisions",
+    "Authentication method used",
+    "Deployment notes"
+  ]
+}}
 
-## Technology Stack
-- Languages and frameworks
-- Databases and storage
-- External services/APIs
+INSTRUCTIONS:
+1. Analyze all source files in the project
+2. Extract ALL API endpoints (look for route decorators, handlers)
+3. Extract ALL data models/entities (classes, schemas, types)
+4. Extract ALL database tables (migrations, ORM models, SQL files)
+5. Extract ALL UI components (React/Vue/Svelte components, pages)
+6. List the complete tech stack with versions where possible
+7. Include any important architectural notes
 
-## Component Architecture
-- Frontend architecture (if applicable)
-- Backend architecture (if applicable)
-- Data flow between components
-
-## API Design
-- API patterns used (REST, GraphQL, etc.)
-- Key endpoints and their purposes
-- Authentication/authorization approach
-
-## Data Models
-- Key data structures
-- Database schema overview
-- Data relationships
-
-## Infrastructure
-- Deployment architecture
-- CI/CD pipeline
-- Environment configuration
-
-## Design Decisions
-- Notable architectural decisions
-- Trade-offs made
-- Areas for improvement
-
-Please format the output as Markdown. Reference specific files and code where relevant.
-
-After generating the summary, save it by calling:
-curl -X POST http://localhost:8081/api/context/save/architecture -H "Content-Type: application/json" -d '{{"content": "<YOUR_SUMMARY_HERE>"}}'
-'''
+OUTPUT: Return ONLY the JSON object, no markdown code blocks, no explanations.'''
 
         elif context_type == "prompts":
             return f'''Please analyze the AI prompts that have been used in the project at "{repo_path_str}".
