@@ -20,7 +20,7 @@
   let showRemoteStatus = false;
   let showPromptsLibrary = false;
   let showContextLibrary = false;
-  let currentView = 'flow'; // 'flow' or 'buildings'
+  let currentView = 'buildings'; // 'flow' or 'buildings'
   let commitTreeComponent;
   let currentOffset = 0;
   let hasMore = false;

@@ -82,15 +82,6 @@
     </svg>
   </button>
 
-  <button
-    class="favorite-toggle"
-    class:is-favorite={isFavorite}
-    on:click={() => toggleFavorite($repoInfo.path)}
-    title={isFavorite ? 'Remove from favorites' : 'Add to favorites'}
-  >
-    ★
-  </button>
-
   {#if showMenu}
     <div class="menu-dropdown">
       <div class="menu-tabs">
