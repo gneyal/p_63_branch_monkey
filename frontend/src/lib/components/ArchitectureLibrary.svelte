@@ -1,7 +1,6 @@
 <script>
   import { onMount } from 'svelte';
   import {
-    fetchContextCounts,
     fetchContextPrompt,
     fetchContextHistory,
     fetchContextEntry,
@@ -12,20 +11,6 @@
 
   export let onClose = () => {};
 
-  const CONTEXT_TYPES = ['codebase', 'prompts'];
-  const TYPE_LABELS = {
-    codebase: 'Codebase',
-    architecture: 'Architecture',
-    prompts: 'Prompts'
-  };
-  const TYPE_DESCRIPTIONS = {
-    codebase: 'File structure, key components, and code patterns',
-    architecture: 'System design, tech stack, and API structure',
-    prompts: 'AI prompts inventory and patterns'
-  };
-
-  let activeTab = 'codebase';
-  let counts = { codebase: 0, architecture: 0, prompts: 0 };
   let history = [];
   let loading = true;
   let loadingHistory = false;
@@ -37,24 +22,14 @@
   let saving = false;
 
   onMount(async () => {
-    await loadCounts();
-    await loadHistory(activeTab);
+    await loadHistory();
     loading = false;
   });
 
-  async function loadCounts() {
-    try {
-      const data = await fetchContextCounts();
-      counts = data.counts;
-    } catch (err) {
-      console.error('Failed to load counts:', err);
-    }
-  }
-
-  async function loadHistory(contextType) {
+  async function loadHistory() {
     try {
       loadingHistory = true;
-      const data = await fetchContextHistory(contextType);
+      const data = await fetchContextHistory('architecture');
       history = data.history || [];
     } catch (err) {
       showToast(`Failed to load history: ${err.message}`, 'error');
@@ -62,12 +37,6 @@
     } finally {
       loadingHistory = false;
     }
-  }
-
-  async function handleTabChange(tab) {
-    activeTab = tab;
-    selectedEntry = null;
-    await loadHistory(tab);
   }
 
   async function handleEntryClick(entry) {
@@ -81,7 +50,7 @@
 
   async function handleGeneratePrompt() {
     try {
-      const data = await fetchContextPrompt(activeTab);
+      const data = await fetchContextPrompt('architecture');
       currentPrompt = data.prompt;
       showPromptModal = true;
     } catch (err) {
@@ -107,12 +76,11 @@
 
     try {
       saving = true;
-      await saveContextSummary(activeTab, saveContent);
+      await saveContextSummary('architecture', saveContent);
       showToast('Summary saved successfully!', 'success');
       showSaveModal = false;
       saveContent = '';
-      await loadCounts();
-      await loadHistory(activeTab);
+      await loadHistory();
     } catch (err) {
       showToast(`Failed to save: ${err.message}`, 'error');
     } finally {
@@ -131,8 +99,7 @@
       if (selectedEntry?.id === entryId) {
         selectedEntry = null;
       }
-      await loadCounts();
-      await loadHistory(activeTab);
+      await loadHistory();
     } catch (err) {
       showToast(`Failed to delete: ${err.message}`, 'error');
     }
@@ -152,10 +119,10 @@
   }
 </script>
 
-<div class="context-library-backdrop" on:click={onClose}>
-  <div class="context-library-panel" on:click|stopPropagation>
+<div class="architecture-backdrop" on:click={onClose}>
+  <div class="architecture-panel" on:click|stopPropagation>
     <div class="panel-header">
-      <h3>Context Library</h3>
+      <h3>Architecture</h3>
       <button class="close-btn" on:click={onClose}>X</button>
     </div>
 
@@ -166,92 +133,74 @@
       </div>
     {:else}
       <div class="panel-body">
-        <!-- Tabs -->
-        <div class="tabs">
-          {#each CONTEXT_TYPES as type}
-            <button
-              class="tab"
-              class:active={activeTab === type}
-              on:click={() => handleTabChange(type)}
-            >
-              <span class="tab-label">{TYPE_LABELS[type]}</span>
-              <span class="tab-count">{counts[type]}</span>
+        <div class="tab-header">
+          <div class="tab-info">
+            <p class="tab-description">System design, tech stack, and API structure</p>
+          </div>
+          <div class="tab-actions">
+            <button class="action-btn primary" on:click={handleGeneratePrompt}>
+              Generate Prompt
             </button>
-          {/each}
+            <button class="action-btn" on:click={handleOpenSaveModal}>
+              Save Summary
+            </button>
+          </div>
         </div>
 
-        <!-- Tab Content -->
-        <div class="tab-content">
-          <div class="tab-header">
-            <div class="tab-info">
-              <h4>{TYPE_LABELS[activeTab]} Summaries</h4>
-              <p class="tab-description">{TYPE_DESCRIPTIONS[activeTab]}</p>
-            </div>
-            <div class="tab-actions">
-              <button class="action-btn primary" on:click={handleGeneratePrompt}>
-                Generate Prompt
-              </button>
-              <button class="action-btn" on:click={handleOpenSaveModal}>
-                Save Summary
-              </button>
-            </div>
+        <div class="content-layout">
+          <!-- History Table -->
+          <div class="history-panel">
+            <div class="history-header">History ({history.length})</div>
+            {#if loadingHistory}
+              <div class="loading-small">
+                <div class="spinner-small"></div>
+              </div>
+            {:else if history.length === 0}
+              <div class="empty-history">
+                <p>No summaries yet</p>
+                <p class="hint">Click "Generate Prompt" to create one</p>
+              </div>
+            {:else}
+              <div class="history-list">
+                {#each history as entry}
+                  <div
+                    class="history-item"
+                    class:selected={selectedEntry?.id === entry.id}
+                    role="button"
+                    tabindex="0"
+                    on:click={() => handleEntryClick(entry)}
+                    on:keydown={(e) => e.key === 'Enter' && handleEntryClick(entry)}
+                  >
+                    <div class="history-date">{formatDate(entry.created_at)}</div>
+                    <div class="history-preview">{entry.preview}</div>
+                    <button
+                      class="delete-btn"
+                      on:click|stopPropagation={() => handleDelete(entry.id)}
+                      title="Delete"
+                    >
+                      X
+                    </button>
+                  </div>
+                {/each}
+              </div>
+            {/if}
           </div>
 
-          <div class="content-layout">
-            <!-- History Table -->
-            <div class="history-panel">
-              <div class="history-header">History</div>
-              {#if loadingHistory}
-                <div class="loading-small">
-                  <div class="spinner-small"></div>
-                </div>
-              {:else if history.length === 0}
-                <div class="empty-history">
-                  <p>No summaries yet</p>
-                  <p class="hint">Click "Generate Prompt" to create one</p>
-                </div>
-              {:else}
-                <div class="history-list">
-                  {#each history as entry}
-                    <div
-                      class="history-item"
-                      class:selected={selectedEntry?.id === entry.id}
-                      role="button"
-                      tabindex="0"
-                      on:click={() => handleEntryClick(entry)}
-                      on:keydown={(e) => e.key === 'Enter' && handleEntryClick(entry)}
-                    >
-                      <div class="history-date">{formatDate(entry.created_at)}</div>
-                      <div class="history-preview">{entry.preview}</div>
-                      <button
-                        class="delete-btn"
-                        on:click|stopPropagation={() => handleDelete(entry.id)}
-                        title="Delete"
-                      >
-                        X
-                      </button>
-                    </div>
-                  {/each}
-                </div>
-              {/if}
-            </div>
-
-            <!-- Content Viewer -->
-            <div class="content-panel">
-              {#if selectedEntry}
-                <div class="content-header">
-                  <span class="content-date">{formatDate(selectedEntry.created_at)}</span>
-                  <button class="copy-btn" on:click={handleCopyContent}>Copy</button>
-                </div>
-                <div class="content-body">
-                  <pre>{selectedEntry.content}</pre>
-                </div>
-              {:else}
-                <div class="empty-content">
-                  <p>Select a summary to view</p>
-                </div>
-              {/if}
-            </div>
+          <!-- Content Viewer -->
+          <div class="content-panel">
+            {#if selectedEntry}
+              <div class="content-header">
+                <span class="content-date">{formatDate(selectedEntry.created_at)}</span>
+                <button class="copy-btn" on:click={handleCopyContent}>Copy</button>
+              </div>
+              <div class="content-body">
+                <pre>{selectedEntry.content}</pre>
+              </div>
+            {:else}
+              <div class="empty-content">
+                <p>Select a summary to view</p>
+              </div>
+            {/if}
           </div>
         </div>
       </div>
@@ -264,7 +213,7 @@
   <div class="modal-backdrop" on:click={() => showPromptModal = false}>
     <div class="modal" on:click|stopPropagation>
       <div class="modal-header">
-        <h4>AI Prompt for {TYPE_LABELS[activeTab]}</h4>
+        <h4>AI Prompt for Architecture</h4>
         <button class="close-btn" on:click={() => showPromptModal = false}>X</button>
       </div>
       <div class="modal-body">
@@ -291,7 +240,7 @@
   <div class="modal-backdrop" on:click={() => showSaveModal = false}>
     <div class="modal" on:click|stopPropagation>
       <div class="modal-header">
-        <h4>Save {TYPE_LABELS[activeTab]} Summary</h4>
+        <h4>Save Architecture Summary</h4>
         <button class="close-btn" on:click={() => showSaveModal = false}>X</button>
       </div>
       <div class="modal-body">
@@ -322,7 +271,7 @@
 {/if}
 
 <style>
-  .context-library-backdrop {
+  .architecture-backdrop {
     position: fixed;
     top: 0;
     left: 0;
@@ -336,13 +285,13 @@
     backdrop-filter: blur(2px);
   }
 
-  .context-library-panel {
+  .architecture-panel {
     background: var(--bg-primary);
     border: 1px solid var(--border-primary);
     border-radius: 2px;
     width: 95%;
-    max-width: 1200px;
-    height: 85vh;
+    max-width: 1000px;
+    height: 80vh;
     display: flex;
     flex-direction: column;
     box-shadow: var(--shadow-large);
@@ -388,59 +337,6 @@
     overflow: hidden;
   }
 
-  .tabs {
-    display: flex;
-    border-bottom: 1px solid var(--border-primary);
-    padding: 0 16px;
-    flex-shrink: 0;
-  }
-
-  .tab {
-    padding: 12px 20px;
-    background: transparent;
-    border: none;
-    border-bottom: 2px solid transparent;
-    color: var(--text-secondary);
-    font-size: 11px;
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    transition: all 0.15s;
-  }
-
-  .tab:hover {
-    color: var(--text-primary);
-    background: var(--bg-hover);
-  }
-
-  .tab.active {
-    color: var(--text-primary);
-    border-bottom-color: var(--accent-primary);
-  }
-
-  .tab-count {
-    background: var(--bg-secondary);
-    padding: 2px 6px;
-    border-radius: 10px;
-    font-size: 10px;
-  }
-
-  .tab.active .tab-count {
-    background: var(--accent-primary);
-    color: var(--bg-primary);
-  }
-
-  .tab-content {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-    overflow: hidden;
-  }
-
   .tab-header {
     padding: 16px 20px;
     border-bottom: 1px solid var(--border-secondary);
@@ -448,13 +344,6 @@
     justify-content: space-between;
     align-items: center;
     flex-shrink: 0;
-  }
-
-  .tab-info h4 {
-    margin: 0 0 4px;
-    font-size: 13px;
-    font-weight: 500;
-    color: var(--text-primary);
   }
 
   .tab-description {
@@ -506,7 +395,7 @@
   .content-layout {
     flex: 1;
     display: grid;
-    grid-template-columns: 300px 1fr;
+    grid-template-columns: 280px 1fr;
     overflow: hidden;
   }
 
@@ -803,10 +692,6 @@
       border-right: none;
       border-bottom: 1px solid var(--border-primary);
       max-height: 200px;
-    }
-
-    .tabs {
-      overflow-x: auto;
     }
   }
 </style>

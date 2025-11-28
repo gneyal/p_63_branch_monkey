@@ -5,6 +5,7 @@
   export let onNameBranches = () => {};
   export let onShowPrompts = () => {};
   export let onShowContext = () => {};
+  export let onShowArchitecture = () => {};
 
   function handleGoToTop() {
     onGoToTop();
@@ -29,6 +30,10 @@
   function handleShowContext() {
     onShowContext();
   }
+
+  function handleShowArchitecture() {
+    onShowArchitecture();
+  }
 </script>
 
 <div class="global-actions">
@@ -50,6 +55,10 @@
 
   <button class="action-item" on:click={handleShowPrompts} title="View prompts library">
     <span>Prompts</span>
+  </button>
+
+  <button class="action-item" on:click={handleShowArchitecture} title="View architecture summary">
+    <span>Architecture</span>
   </button>
 
   <button class="action-item" on:click={handleShowContext} title="View context library">
