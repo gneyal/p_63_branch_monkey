@@ -22,9 +22,6 @@
   let showContextLibrary = false;
   let currentView = 'buildings'; // 'flow' or 'buildings'
   let commitTreeComponent;
-  let currentOffset = 0;
-  let hasMore = false;
-  let totalCommits = 0;
   let showMonkey = false;
   let monkeyFrame = 0;
 
@@ -90,9 +87,8 @@
     await loadRepoInfo();
     await loadData();
     await loadWorkingTreeStatus();
-    // Refresh data every 5 seconds
+    // Refresh working tree status every 5 seconds (don't reset commit tree)
     const interval = setInterval(() => {
-      loadData();
       loadWorkingTreeStatus();
     }, 5000);
     return () => clearInterval(interval);
@@ -116,28 +112,44 @@
     }
   }
 
+  // Derive pagination state from the store
+  $: currentOffset = $commitTree?.commits?.length || 0;
+  $: hasMore = $commitTree?.has_more || false;
+  $: totalCommits = $commitTree?.total || 0;
+
   async function loadData(append = false) {
+    // Prevent concurrent loads
+    if ($isLoading) {
+      console.log('Already loading, skipping');
+      return;
+    }
+
     try {
       isLoading.set(true);
-      const offset = append ? currentOffset : 0;
+      const existingCommits = $commitTree?.commits || [];
+      const offset = append ? existingCommits.length : 0;
+      console.log('Loading commits with offset:', offset, 'append:', append);
       const treeData = await fetchCommitTree(50, offset);
       console.log('Loaded commit tree data:', treeData);
 
-      if (append) {
+      if (append && existingCommits.length > 0) {
         // Append new commits to existing ones
-        commitTree.update(current => ({
+        const newCommits = treeData.commits || [];
+        console.log('Appending', newCommits.length, 'commits to existing', existingCommits.length);
+        commitTree.set({
           ...treeData,
-          commits: [...(current?.commits || []), ...(treeData.commits || [])]
-        }));
+          commits: [...existingCommits, ...newCommits]
+        });
       } else {
         // Replace commits (initial load or refresh)
         commitTree.set(treeData);
       }
 
-      currentOffset = treeData.offset + treeData.commits.length;
-      hasMore = treeData.has_more;
-      totalCommits = treeData.total;
-      console.log('Pagination state:', { currentOffset, hasMore, totalCommits, loaded: treeData.commits.length });
+      console.log('Pagination state:', {
+        loaded: $commitTree?.commits?.length,
+        hasMore: treeData.has_more,
+        total: treeData.total
+      });
       error = null;
     } catch (err) {
       console.error('Failed to load data:', err);
@@ -149,7 +161,15 @@
   }
 
   async function loadMore() {
-    if (!hasMore || $isLoading) return;
+    if (!hasMore) {
+      console.log('No more commits to load');
+      return;
+    }
+    if ($isLoading) {
+      console.log('Already loading, skipping loadMore');
+      return;
+    }
+    console.log('loadMore called, currentOffset:', currentOffset);
     await loadData(true);
   }
 
@@ -278,7 +298,7 @@
     </div>
 
     <div class="footer-center">
-      <div class="commit-info">
+      <div class="commit-info" class:has-more={hasMore}>
         <span class="commit-count">{currentOffset} / {totalCommits} saves</span>
         {#if hasMore}
           <button class="load-more-compact" on:click={loadMore} title="Show older saves">
@@ -467,12 +487,21 @@
 
   .commit-info {
     display: flex;
-    gap: 8px;
+    gap: 0;
     align-items: center;
     padding: 6px 12px;
     background: var(--bg-primary);
     border: 1px solid var(--border-primary);
     border-radius: 1px;
+    cursor: default;
+  }
+
+  .commit-info.has-more {
+    cursor: pointer;
+  }
+
+  .commit-info.has-more:hover {
+    border-color: var(--border-hover);
   }
 
   .commit-count {
@@ -520,22 +549,25 @@
   }
 
   .load-more-compact {
-    padding: 5px 10px;
-    background: var(--bg-primary);
-    border: 1px solid var(--border-primary);
-    color: var(--text-secondary);
-    border-radius: 1px;
+    padding: 0;
+    margin-left: 8px;
+    background: transparent;
+    border: none;
+    color: var(--accent-primary);
     font-size: 9px;
     font-weight: 600;
     text-transform: uppercase;
-    letter-spacing: 0.8px;
+    letter-spacing: 0.5px;
     cursor: pointer;
-    transition: all 0.2s ease;
+    opacity: 0;
+    transition: opacity 0.2s ease, color 0.2s ease;
+  }
+
+  .commit-info:hover .load-more-compact {
+    opacity: 1;
   }
 
   .load-more-compact:hover {
-    background: var(--bg-hover);
-    border-color: var(--border-hover);
     color: var(--text-primary);
   }
 
