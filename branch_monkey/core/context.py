@@ -116,9 +116,18 @@ curl -X POST http://localhost:8081/api/context/save/codebase -H "Content-Type: a
 '''
 
         elif context_type == "architecture":
-            return f'''Please analyze the architecture of the project at "{repo_path_str}" and generate a STRUCTURED JSON document.
+            return f'''Please analyze the architecture of the project at "{repo_path_str}" and generate a STRUCTURED JSON document for visualization as a flow diagram.
 
-IMPORTANT: Output ONLY valid JSON, no markdown or explanation. The JSON must follow this exact schema:
+IMPORTANT: Output ONLY valid JSON, no markdown or explanation. Each element must have a unique "id" and "connects_to" array for the flow diagram.
+
+ID NAMING CONVENTION:
+- tech_stack: "tech_<name>" (e.g., "tech_python", "tech_react")
+- endpoints: "ep_<method>_<path>" (e.g., "ep_get_users", "ep_post_auth_login")
+- entities: "entity_<name>" (e.g., "entity_user", "entity_post")
+- tables: "table_<name>" (e.g., "table_users", "table_posts")
+- ui_components: "ui_<name>" (e.g., "ui_userlist", "ui_loginform")
+
+The JSON must follow this exact schema:
 
 {{
   "project_name": "Name of the project",
@@ -126,6 +135,7 @@ IMPORTANT: Output ONLY valid JSON, no markdown or explanation. The JSON must fol
   "version": "Version if known",
   "tech_stack": [
     {{
+      "id": "tech_python",
       "name": "Technology name (e.g., Python, React)",
       "category": "language|framework|database|tool|service",
       "version": "Version if known",
@@ -134,6 +144,7 @@ IMPORTANT: Output ONLY valid JSON, no markdown or explanation. The JSON must fol
   ],
   "endpoints": [
     {{
+      "id": "ep_get_users",
       "method": "GET|POST|PUT|PATCH|DELETE",
       "path": "/api/example",
       "description": "What this endpoint does",
@@ -149,11 +160,13 @@ IMPORTANT: Output ONLY valid JSON, no markdown or explanation. The JSON must fol
       "response_type": "ReturnType",
       "response_description": "What the response contains",
       "auth_required": true,
-      "tags": ["category"]
+      "tags": ["category"],
+      "connects_to": ["entity_user"]
     }}
   ],
   "entities": [
     {{
+      "id": "entity_user",
       "name": "EntityName",
       "description": "What this entity represents",
       "fields": [
@@ -167,11 +180,13 @@ IMPORTANT: Output ONLY valid JSON, no markdown or explanation. The JSON must fol
         }}
       ],
       "relationships": ["has_many: OtherEntity", "belongs_to: Parent"],
-      "file_path": "path/to/model.py"
+      "file_path": "path/to/model.py",
+      "connects_to": ["table_users", "entity_post"]
     }}
   ],
   "tables": [
     {{
+      "id": "table_users",
       "name": "table_name",
       "description": "What this table stores",
       "columns": [
@@ -192,18 +207,21 @@ IMPORTANT: Output ONLY valid JSON, no markdown or explanation. The JSON must fol
           "unique": true
         }}
       ],
-      "relationships": ["Foreign key to users table"]
+      "relationships": ["Foreign key to users table"],
+      "connects_to": ["table_posts"]
     }}
   ],
   "ui_components": [
     {{
+      "id": "ui_userlist",
       "name": "ComponentName",
       "type": "page|component|layout|modal|form|widget",
       "description": "What this component does",
       "file_path": "src/components/Name.svelte",
       "props": ["prop1: Type", "prop2: Type"],
       "children": ["ChildComponent1", "ChildComponent2"],
-      "routes": ["/path/to/page"]
+      "routes": ["/path/to/page"],
+      "connects_to": ["ui_usercard", "ep_get_users"]
     }}
   ],
   "notes": [
@@ -221,6 +239,11 @@ INSTRUCTIONS:
 5. Extract ALL UI components (React/Vue/Svelte components, pages)
 6. List the complete tech stack with versions where possible
 7. Include any important architectural notes
+8. IMPORTANT: Set "connects_to" arrays to show relationships:
+   - Endpoints connect to entities they use/return
+   - Entities connect to their database tables and related entities
+   - Tables connect to other tables via foreign keys
+   - UI components connect to child components and endpoints they call
 
 OUTPUT: Return ONLY the JSON object, no markdown code blocks, no explanations.'''
 

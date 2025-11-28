@@ -1,5 +1,14 @@
 <script>
   import { onMount } from 'svelte';
+  import { writable } from 'svelte/store';
+  import {
+    SvelteFlow,
+    Controls,
+    Background,
+    BackgroundVariant,
+    MiniMap
+  } from '@xyflow/svelte';
+  import '@xyflow/svelte/dist/style.css';
   import {
     fetchContextPrompt,
     fetchContextHistory,
@@ -8,6 +17,7 @@
     deleteContextEntry
   } from '../services/api.js';
   import { showToast } from '../stores/store.js';
+  import ArchitectureNode from './ArchitectureNode.svelte';
 
   export let onClose = () => {};
 
@@ -23,6 +33,14 @@
   let currentPrompt = '';
   let saveContent = '';
   let saving = false;
+  let viewMode = 'list'; // 'list' or 'flow'
+
+  const nodes = writable([]);
+  const edges = writable([]);
+
+  const nodeTypes = {
+    architecture: ArchitectureNode
+  };
 
   const SECTIONS = [
     { id: 'overview', label: 'Overview', icon: 'info' },
@@ -69,11 +87,181 @@
       parsedArchitecture = parsed;
       parseError = null;
       activeSection = 'overview';
+      // Generate flow data from the architecture
+      generateFlowData(parsed);
     } catch (err) {
       // Not valid JSON - treat as plain text
       parsedArchitecture = null;
       parseError = 'Content is not structured JSON. Displaying as plain text.';
+      nodes.set([]);
+      edges.set([]);
     }
+  }
+
+  function generateFlowData(arch) {
+    const newNodes = [];
+    const newEdges = [];
+
+    // Layout configuration
+    const columnWidth = 350;
+    const rowHeight = 120;
+    const startY = 50;
+
+    // Column positions for each type
+    const columns = {
+      ui: 0,        // Left column - UI components
+      endpoint: 1,  // Second column - API endpoints
+      entity: 2,    // Third column - Entities
+      table: 3,     // Fourth column - Database tables
+    };
+
+    // Track y position for each column
+    const columnYPositions = { ui: startY, endpoint: startY, entity: startY, table: startY };
+
+    // Create UI component nodes
+    if (arch.ui_components?.length > 0) {
+      arch.ui_components.forEach((comp, i) => {
+        const id = comp.id || `ui_${comp.name?.toLowerCase().replace(/\s+/g, '_') || i}`;
+        newNodes.push({
+          id,
+          type: 'architecture',
+          position: { x: columns.ui * columnWidth, y: columnYPositions.ui },
+          data: {
+            nodeType: 'ui',
+            name: comp.name,
+            description: comp.description,
+            type: comp.type,
+            file_path: comp.file_path,
+            props: comp.props,
+            connects_to: comp.connects_to || []
+          }
+        });
+        columnYPositions.ui += rowHeight;
+
+        // Create edges for UI connections
+        if (comp.connects_to) {
+          comp.connects_to.forEach(targetId => {
+            newEdges.push({
+              id: `${id}-${targetId}`,
+              source: id,
+              target: targetId,
+              type: 'smoothstep',
+              animated: false,
+              style: 'stroke: #00bcd4; stroke-width: 2px;'
+            });
+          });
+        }
+      });
+    }
+
+    // Create endpoint nodes
+    if (arch.endpoints?.length > 0) {
+      arch.endpoints.forEach((ep, i) => {
+        const id = ep.id || `ep_${ep.method?.toLowerCase()}_${ep.path?.replace(/\//g, '_') || i}`;
+        newNodes.push({
+          id,
+          type: 'architecture',
+          position: { x: columns.endpoint * columnWidth, y: columnYPositions.endpoint },
+          data: {
+            nodeType: 'endpoint',
+            name: ep.path,
+            description: ep.description,
+            method: ep.method,
+            path: ep.path,
+            params: ep.params,
+            connects_to: ep.connects_to || []
+          }
+        });
+        columnYPositions.endpoint += rowHeight;
+
+        // Create edges for endpoint connections
+        if (ep.connects_to) {
+          ep.connects_to.forEach(targetId => {
+            newEdges.push({
+              id: `${id}-${targetId}`,
+              source: id,
+              target: targetId,
+              type: 'smoothstep',
+              animated: false,
+              style: 'stroke: #2196f3; stroke-width: 2px;'
+            });
+          });
+        }
+      });
+    }
+
+    // Create entity nodes
+    if (arch.entities?.length > 0) {
+      arch.entities.forEach((entity, i) => {
+        const id = entity.id || `entity_${entity.name?.toLowerCase().replace(/\s+/g, '_') || i}`;
+        newNodes.push({
+          id,
+          type: 'architecture',
+          position: { x: columns.entity * columnWidth, y: columnYPositions.entity },
+          data: {
+            nodeType: 'entity',
+            name: entity.name,
+            description: entity.description,
+            fields: entity.fields,
+            relationships: entity.relationships,
+            connects_to: entity.connects_to || []
+          }
+        });
+        columnYPositions.entity += rowHeight;
+
+        // Create edges for entity connections
+        if (entity.connects_to) {
+          entity.connects_to.forEach(targetId => {
+            newEdges.push({
+              id: `${id}-${targetId}`,
+              source: id,
+              target: targetId,
+              type: 'smoothstep',
+              animated: false,
+              style: 'stroke: #4caf50; stroke-width: 2px;'
+            });
+          });
+        }
+      });
+    }
+
+    // Create table nodes
+    if (arch.tables?.length > 0) {
+      arch.tables.forEach((table, i) => {
+        const id = table.id || `table_${table.name?.toLowerCase().replace(/\s+/g, '_') || i}`;
+        newNodes.push({
+          id,
+          type: 'architecture',
+          position: { x: columns.table * columnWidth, y: columnYPositions.table },
+          data: {
+            nodeType: 'table',
+            name: table.name,
+            description: table.description,
+            columns: table.columns,
+            indexes: table.indexes,
+            connects_to: table.connects_to || []
+          }
+        });
+        columnYPositions.table += rowHeight;
+
+        // Create edges for table connections
+        if (table.connects_to) {
+          table.connects_to.forEach(targetId => {
+            newEdges.push({
+              id: `${id}-${targetId}`,
+              source: id,
+              target: targetId,
+              type: 'smoothstep',
+              animated: false,
+              style: 'stroke: #ff9800; stroke-width: 2px;'
+            });
+          });
+        }
+      });
+    }
+
+    nodes.set(newNodes);
+    edges.set(newEdges);
   }
 
   async function handleGeneratePrompt() {
@@ -249,26 +437,82 @@
           <div class="content-panel">
             {#if selectedEntry}
               {#if parsedArchitecture}
-                <!-- Structured View -->
-                <div class="structured-view">
-                  <div class="section-tabs">
-                    {#each SECTIONS as section}
-                      <button
-                        class="section-tab"
-                        class:active={activeSection === section.id}
-                        on:click={() => activeSection = section.id}
-                      >
-                        {section.label}
-                        {#if section.id !== 'overview' && section.id !== 'notes'}
-                          <span class="count">
-                            {parsedArchitecture[section.id]?.length || 0}
-                          </span>
-                        {/if}
-                      </button>
-                    {/each}
-                  </div>
+                <!-- View Mode Toggle -->
+                <div class="view-mode-toggle">
+                  <button
+                    class="view-mode-btn"
+                    class:active={viewMode === 'list'}
+                    on:click={() => viewMode = 'list'}
+                  >
+                    List View
+                  </button>
+                  <button
+                    class="view-mode-btn"
+                    class:active={viewMode === 'flow'}
+                    on:click={() => viewMode = 'flow'}
+                  >
+                    Flow View
+                  </button>
+                </div>
 
-                  <div class="section-content">
+                {#if viewMode === 'flow'}
+                  <!-- Flow View -->
+                  <div class="flow-view">
+                    {#if $nodes.length > 0}
+                      <SvelteFlow
+                        nodes={$nodes}
+                        edges={$edges}
+                        {nodeTypes}
+                        fitView
+                        nodesDraggable={true}
+                        nodesConnectable={false}
+                        elementsSelectable={true}
+                        panOnDrag={true}
+                        zoomOnScroll={true}
+                        zoomOnPinch={true}
+                        zoomOnDoubleClick={true}
+                        minZoom={0.2}
+                        maxZoom={2}
+                        defaultZoom={0.8}
+                      >
+                        <Controls showZoom={true} showFitView={true} showInteractive={false} />
+                        <Background variant={BackgroundVariant.Dots} />
+                        <MiniMap />
+                      </SvelteFlow>
+                      <div class="flow-legend">
+                        <span class="legend-item"><span class="legend-color" style="background: #00bcd4;"></span> UI Components</span>
+                        <span class="legend-item"><span class="legend-color" style="background: #2196f3;"></span> Endpoints</span>
+                        <span class="legend-item"><span class="legend-color" style="background: #4caf50;"></span> Entities</span>
+                        <span class="legend-item"><span class="legend-color" style="background: #ff9800;"></span> Tables</span>
+                      </div>
+                    {:else}
+                      <div class="empty-flow">
+                        <p>No flow data available.</p>
+                        <p class="hint">Generate new architecture with the updated prompt to include flow connections.</p>
+                      </div>
+                    {/if}
+                  </div>
+                {:else}
+                  <!-- Structured View -->
+                  <div class="structured-view">
+                    <div class="section-tabs">
+                      {#each SECTIONS as section}
+                        <button
+                          class="section-tab"
+                          class:active={activeSection === section.id}
+                          on:click={() => activeSection = section.id}
+                        >
+                          {section.label}
+                          {#if section.id !== 'overview' && section.id !== 'notes'}
+                            <span class="count">
+                              {parsedArchitecture[section.id]?.length || 0}
+                            </span>
+                          {/if}
+                        </button>
+                      {/each}
+                    </div>
+
+                    <div class="section-content">
                     {#if activeSection === 'overview'}
                       <div class="overview-section">
                         <h2>{parsedArchitecture.project_name || 'Unnamed Project'}</h2>
@@ -560,8 +804,9 @@
                         {/if}
                       </div>
                     {/if}
+                    </div>
                   </div>
-                </div>
+                {/if}
               {:else}
                 <!-- Plain Text View (legacy) -->
                 <div class="plain-view">
@@ -632,7 +877,7 @@
         <textarea
           class="save-textarea"
           bind:value={saveContent}
-          placeholder='{"project_name": "...", "description": "...", ...}'
+          placeholder="Paste the JSON architecture here..."
           rows="20"
         ></textarea>
       </div>
@@ -1573,5 +1818,117 @@
     .tech-grid {
       grid-template-columns: 1fr;
     }
+  }
+
+  /* View Mode Toggle */
+  .view-mode-toggle {
+    display: flex;
+    gap: 4px;
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--border-secondary);
+    background: var(--bg-primary);
+  }
+
+  .view-mode-btn {
+    padding: 8px 16px;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-secondary);
+    color: var(--text-secondary);
+    font-size: 12px;
+    font-weight: 500;
+    cursor: pointer;
+    border-radius: 4px;
+    transition: all 0.15s;
+  }
+
+  .view-mode-btn:hover {
+    background: var(--bg-hover);
+    border-color: var(--border-hover);
+  }
+
+  .view-mode-btn.active {
+    background: var(--accent-primary);
+    border-color: var(--accent-primary);
+    color: white;
+  }
+
+  /* Flow View */
+  .flow-view {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    position: relative;
+    min-height: 500px;
+  }
+
+  .flow-view :global(.svelte-flow) {
+    flex: 1;
+    background: var(--bg-secondary) !important;
+  }
+
+  .flow-view :global(.svelte-flow__controls) {
+    background: var(--bg-primary) !important;
+    border: 1px solid var(--border-primary) !important;
+    box-shadow: var(--shadow-medium) !important;
+  }
+
+  .flow-view :global(.svelte-flow__controls button) {
+    background: var(--bg-primary) !important;
+    border-bottom: 1px solid var(--border-secondary) !important;
+    color: var(--text-secondary) !important;
+  }
+
+  .flow-view :global(.svelte-flow__controls button:hover) {
+    background: var(--bg-hover) !important;
+  }
+
+  .flow-view :global(.svelte-flow__minimap) {
+    background: var(--bg-primary) !important;
+    border: 1px solid var(--border-primary) !important;
+    box-shadow: var(--shadow-medium) !important;
+  }
+
+  .flow-legend {
+    display: flex;
+    gap: 16px;
+    padding: 12px 16px;
+    background: var(--bg-primary);
+    border-top: 1px solid var(--border-secondary);
+    flex-shrink: 0;
+  }
+
+  .legend-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 11px;
+    color: var(--text-secondary);
+  }
+
+  .legend-color {
+    width: 12px;
+    height: 12px;
+    border-radius: 3px;
+  }
+
+  .empty-flow {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    color: var(--text-tertiary);
+    gap: 8px;
+    padding: 40px;
+    text-align: center;
+  }
+
+  .empty-flow p {
+    margin: 0;
+  }
+
+  .empty-flow .hint {
+    font-size: 12px;
+    opacity: 0.7;
   }
 </style>

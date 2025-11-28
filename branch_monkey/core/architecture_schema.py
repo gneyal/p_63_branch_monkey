@@ -37,6 +37,13 @@ class ColumnType(str, Enum):
 
 
 @dataclass
+class FlowPosition:
+    """Position for a node in the flow diagram."""
+    x: float = 0
+    y: float = 0
+
+
+@dataclass
 class EndpointParam:
     """A parameter for an API endpoint."""
     name: str
@@ -49,14 +56,16 @@ class EndpointParam:
 @dataclass
 class Endpoint:
     """An API endpoint definition."""
-    method: str  # GET, POST, PUT, DELETE, etc.
-    path: str
-    description: str
+    id: str = ""  # Unique ID for flow diagram
+    method: str = ""  # GET, POST, PUT, DELETE, etc.
+    path: str = ""
+    description: str = ""
     params: List[EndpointParam] = field(default_factory=list)
     response_type: str = ""
     response_description: str = ""
     auth_required: bool = True
     tags: List[str] = field(default_factory=list)
+    connects_to: List[str] = field(default_factory=list)  # IDs of entities this endpoint uses
 
 
 @dataclass
@@ -73,11 +82,13 @@ class EntityField:
 @dataclass
 class Entity:
     """A data entity/model definition."""
-    name: str
-    description: str
+    id: str = ""  # Unique ID for flow diagram
+    name: str = ""
+    description: str = ""
     fields: List[EntityField] = field(default_factory=list)
     relationships: List[str] = field(default_factory=list)  # e.g., "has_many: Posts", "belongs_to: User"
     file_path: str = ""
+    connects_to: List[str] = field(default_factory=list)  # IDs of tables/entities this connects to
 
 
 @dataclass
@@ -103,30 +114,35 @@ class TableIndex:
 @dataclass
 class DatabaseTable:
     """A database table definition."""
-    name: str
-    description: str
+    id: str = ""  # Unique ID for flow diagram
+    name: str = ""
+    description: str = ""
     columns: List[TableColumn] = field(default_factory=list)
     indexes: List[TableIndex] = field(default_factory=list)
     relationships: List[str] = field(default_factory=list)  # Descriptions of relationships
+    connects_to: List[str] = field(default_factory=list)  # IDs of other tables (foreign keys)
 
 
 @dataclass
 class UIComponent:
     """A UI component definition."""
-    name: str
-    type: str  # page, component, layout, modal, etc.
-    description: str
+    id: str = ""  # Unique ID for flow diagram
+    name: str = ""
+    type: str = ""  # page, component, layout, modal, etc.
+    description: str = ""
     file_path: str = ""
     props: List[str] = field(default_factory=list)
     children: List[str] = field(default_factory=list)
     routes: List[str] = field(default_factory=list)  # For pages
+    connects_to: List[str] = field(default_factory=list)  # IDs of child components or API endpoints used
 
 
 @dataclass
 class TechStackItem:
     """A technology in the stack."""
-    name: str
-    category: str  # language, framework, database, tool, service
+    id: str = ""  # Unique ID for flow diagram
+    name: str = ""
+    category: str = ""  # language, framework, database, tool, service
     version: str = ""
     purpose: str = ""
 
