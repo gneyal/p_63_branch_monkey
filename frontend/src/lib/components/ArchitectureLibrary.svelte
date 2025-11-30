@@ -294,7 +294,7 @@
     try {
       JSON.parse(saveContent);
     } catch (err) {
-      showToast('Invalid JSON format. Please check your input.', 'error');
+      showToast(`Invalid JSON: ${err.message}`, 'error');
       return;
     }
 
@@ -444,53 +444,152 @@
                     class:active={viewMode === 'list'}
                     on:click={() => viewMode = 'list'}
                   >
-                    List View
+                    List
                   </button>
                   <button
                     class="view-mode-btn"
                     class:active={viewMode === 'flow'}
                     on:click={() => viewMode = 'flow'}
                   >
-                    Flow View
+                    Flow
+                  </button>
+                  <button
+                    class="view-mode-btn"
+                    class:active={viewMode === 'raw'}
+                    on:click={() => viewMode = 'raw'}
+                  >
+                    Raw
                   </button>
                 </div>
 
                 {#if viewMode === 'flow'}
-                  <!-- Flow View -->
-                  <div class="flow-view">
-                    {#if $nodes.length > 0}
-                      <SvelteFlow
-                        nodes={$nodes}
-                        edges={$edges}
-                        {nodeTypes}
-                        fitView
-                        nodesDraggable={true}
-                        nodesConnectable={false}
-                        elementsSelectable={true}
-                        panOnDrag={true}
-                        zoomOnScroll={true}
-                        zoomOnPinch={true}
-                        zoomOnDoubleClick={true}
-                        minZoom={0.2}
-                        maxZoom={2}
-                        defaultZoom={0.8}
-                      >
-                        <Controls showZoom={true} showFitView={true} showInteractive={false} />
-                        <Background variant={BackgroundVariant.Dots} />
-                        <MiniMap />
-                      </SvelteFlow>
-                      <div class="flow-legend">
-                        <span class="legend-item"><span class="legend-color" style="background: #00bcd4;"></span> UI Components</span>
-                        <span class="legend-item"><span class="legend-color" style="background: #2196f3;"></span> Endpoints</span>
-                        <span class="legend-item"><span class="legend-color" style="background: #4caf50;"></span> Entities</span>
-                        <span class="legend-item"><span class="legend-color" style="background: #ff9800;"></span> Tables</span>
-                      </div>
-                    {:else}
-                      <div class="empty-flow">
-                        <p>No flow data available.</p>
-                        <p class="hint">Generate new architecture with the updated prompt to include flow connections.</p>
+                  <!-- Chip Flow View -->
+                  <div class="chip-flow-view">
+                    <div class="chip-flow-container">
+                      <!-- UI Chip -->
+                      {#if parsedArchitecture.ui_components?.length > 0}
+                        <div class="arch-chip ui-chip">
+                          <div class="chip-header">
+                            <span class="chip-icon">UI</span>
+                            <span class="chip-title">Components</span>
+                            <span class="chip-count">{parsedArchitecture.ui_components.length}</span>
+                          </div>
+                          <div class="chip-items">
+                            {#each parsedArchitecture.ui_components as comp}
+                              <div class="chip-item">
+                                <span class="item-name">{comp.name}</span>
+                                {#if comp.type}
+                                  <span class="item-badge">{comp.type}</span>
+                                {/if}
+                              </div>
+                            {/each}
+                          </div>
+                        </div>
+                      {/if}
+
+                      <!-- Connection Arrow -->
+                      {#if parsedArchitecture.ui_components?.length > 0 && parsedArchitecture.endpoints?.length > 0}
+                        <div class="chip-connector">
+                          <div class="connector-line"></div>
+                          <div class="connector-arrow"></div>
+                        </div>
+                      {/if}
+
+                      <!-- API Chip -->
+                      {#if parsedArchitecture.endpoints?.length > 0}
+                        <div class="arch-chip api-chip">
+                          <div class="chip-header">
+                            <span class="chip-icon">API</span>
+                            <span class="chip-title">Endpoints</span>
+                            <span class="chip-count">{parsedArchitecture.endpoints.length}</span>
+                          </div>
+                          <div class="chip-items">
+                            {#each parsedArchitecture.endpoints as ep}
+                              <div class="chip-item">
+                                <span class="item-method" style="background: {getMethodColor(ep.method)}">{ep.method}</span>
+                                <span class="item-path">{ep.path}</span>
+                              </div>
+                            {/each}
+                          </div>
+                        </div>
+                      {/if}
+
+                      <!-- Connection Arrow -->
+                      {#if parsedArchitecture.endpoints?.length > 0 && parsedArchitecture.entities?.length > 0}
+                        <div class="chip-connector">
+                          <div class="connector-line"></div>
+                          <div class="connector-arrow"></div>
+                        </div>
+                      {/if}
+
+                      <!-- Entities Chip -->
+                      {#if parsedArchitecture.entities?.length > 0}
+                        <div class="arch-chip entity-chip">
+                          <div class="chip-header">
+                            <span class="chip-icon">E</span>
+                            <span class="chip-title">Entities</span>
+                            <span class="chip-count">{parsedArchitecture.entities.length}</span>
+                          </div>
+                          <div class="chip-items">
+                            {#each parsedArchitecture.entities as entity}
+                              <div class="chip-item">
+                                <span class="item-name">{entity.name}</span>
+                                {#if entity.fields?.length}
+                                  <span class="item-meta">{entity.fields.length} fields</span>
+                                {/if}
+                              </div>
+                            {/each}
+                          </div>
+                        </div>
+                      {/if}
+
+                      <!-- Connection Arrow -->
+                      {#if parsedArchitecture.entities?.length > 0 && parsedArchitecture.tables?.length > 0}
+                        <div class="chip-connector">
+                          <div class="connector-line"></div>
+                          <div class="connector-arrow"></div>
+                        </div>
+                      {/if}
+
+                      <!-- Database Chip -->
+                      {#if parsedArchitecture.tables?.length > 0}
+                        <div class="arch-chip db-chip">
+                          <div class="chip-header">
+                            <span class="chip-icon">DB</span>
+                            <span class="chip-title">Tables</span>
+                            <span class="chip-count">{parsedArchitecture.tables.length}</span>
+                          </div>
+                          <div class="chip-items">
+                            {#each parsedArchitecture.tables as table}
+                              <div class="chip-item">
+                                <span class="item-name">{table.name}</span>
+                                {#if table.columns?.length}
+                                  <span class="item-meta">{table.columns.length} cols</span>
+                                {/if}
+                              </div>
+                            {/each}
+                          </div>
+                        </div>
+                      {/if}
+                    </div>
+
+                    <!-- Tech Stack Bar -->
+                    {#if parsedArchitecture.tech_stack?.length > 0}
+                      <div class="tech-bar">
+                        <span class="tech-bar-label">Stack:</span>
+                        {#each parsedArchitecture.tech_stack as tech}
+                          <span class="tech-tag">{tech.name}</span>
+                        {/each}
                       </div>
                     {/if}
+                  </div>
+                {:else if viewMode === 'raw'}
+                  <!-- Raw JSON View -->
+                  <div class="raw-view">
+                    <div class="raw-header">
+                      <button class="copy-btn" on:click={handleCopyContent}>Copy JSON</button>
+                    </div>
+                    <pre class="raw-content">{JSON.stringify(parsedArchitecture, null, 2)}</pre>
                   </div>
                 {:else}
                   <!-- Structured View -->
@@ -1930,5 +2029,239 @@
   .empty-flow .hint {
     font-size: 12px;
     opacity: 0.7;
+  }
+
+  /* Chip Flow View */
+  .chip-flow-view {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: auto;
+    padding: 24px;
+    background: var(--bg-secondary);
+  }
+
+  .chip-flow-container {
+    display: flex;
+    align-items: flex-start;
+    gap: 0;
+    overflow-x: auto;
+    padding-bottom: 16px;
+  }
+
+  .arch-chip {
+    min-width: 220px;
+    max-width: 280px;
+    background: var(--bg-primary);
+    border: 1px solid var(--border-primary);
+    border-radius: 8px;
+    overflow: hidden;
+    flex-shrink: 0;
+    box-shadow: var(--shadow-small);
+  }
+
+  .chip-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 12px 16px;
+    background: var(--bg-secondary);
+    border-bottom: 1px solid var(--border-secondary);
+  }
+
+  .chip-icon {
+    width: 28px;
+    height: 28px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 10px;
+    font-weight: 700;
+    border-radius: 4px;
+    flex-shrink: 0;
+  }
+
+  .ui-chip .chip-icon {
+    background: #00bcd4;
+    color: white;
+  }
+
+  .api-chip .chip-icon {
+    background: #2196f3;
+    color: white;
+  }
+
+  .entity-chip .chip-icon {
+    background: #4caf50;
+    color: white;
+  }
+
+  .db-chip .chip-icon {
+    background: #ff9800;
+    color: white;
+  }
+
+  .chip-title {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text-primary);
+    flex: 1;
+  }
+
+  .chip-count {
+    font-size: 10px;
+    font-weight: 600;
+    padding: 2px 8px;
+    background: var(--bg-primary);
+    border-radius: 10px;
+    color: var(--text-secondary);
+  }
+
+  .chip-items {
+    padding: 8px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    max-height: 400px;
+    overflow-y: auto;
+  }
+
+  .chip-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 10px;
+    background: var(--bg-secondary);
+    border-radius: 4px;
+    font-size: 11px;
+    transition: background 0.15s;
+  }
+
+  .chip-item:hover {
+    background: var(--bg-hover);
+  }
+
+  .item-name {
+    color: var(--text-primary);
+    font-weight: 500;
+    flex: 1;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .item-badge {
+    font-size: 9px;
+    padding: 2px 6px;
+    background: var(--accent-primary);
+    color: var(--bg-primary);
+    border-radius: 2px;
+    text-transform: uppercase;
+    font-weight: 600;
+  }
+
+  .item-method {
+    font-size: 8px;
+    padding: 2px 5px;
+    color: white;
+    border-radius: 2px;
+    font-weight: 700;
+    flex-shrink: 0;
+  }
+
+  .item-path {
+    font-family: 'Courier New', monospace;
+    font-size: 10px;
+    color: var(--text-primary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .item-meta {
+    font-size: 9px;
+    color: var(--text-tertiary);
+    flex-shrink: 0;
+  }
+
+  /* Chip Connector */
+  .chip-connector {
+    display: flex;
+    align-items: center;
+    padding: 0 4px;
+    flex-shrink: 0;
+  }
+
+  .connector-line {
+    width: 24px;
+    height: 2px;
+    background: var(--border-primary);
+  }
+
+  .connector-arrow {
+    width: 0;
+    height: 0;
+    border-top: 6px solid transparent;
+    border-bottom: 6px solid transparent;
+    border-left: 8px solid var(--border-primary);
+  }
+
+  /* Tech Stack Bar */
+  .tech-bar {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+    padding: 16px 0 0;
+    border-top: 1px solid var(--border-secondary);
+    margin-top: 16px;
+  }
+
+  .tech-bar-label {
+    font-size: 10px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--text-tertiary);
+  }
+
+  .tech-tag {
+    font-size: 10px;
+    padding: 4px 10px;
+    background: var(--bg-primary);
+    border: 1px solid var(--border-primary);
+    border-radius: 12px;
+    color: var(--text-secondary);
+  }
+
+  /* Raw View */
+  .raw-view {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  .raw-header {
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--border-secondary);
+    display: flex;
+    justify-content: flex-end;
+    background: var(--bg-secondary);
+    flex-shrink: 0;
+  }
+
+  .raw-content {
+    flex: 1;
+    margin: 0;
+    padding: 16px;
+    overflow: auto;
+    font-family: 'Courier New', monospace;
+    font-size: 11px;
+    line-height: 1.5;
+    color: var(--text-primary);
+    background: var(--bg-primary);
+    white-space: pre;
+    tab-size: 2;
   }
 </style>
