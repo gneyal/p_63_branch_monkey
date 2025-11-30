@@ -17,9 +17,10 @@
     deleteContextEntry
   } from '../services/api.js';
   import { showToast } from '../stores/store.js';
-  import ArchitectureNode from './ArchitectureNode.svelte';
+  import ChipNode from './ChipNode.svelte';
 
   export let onClose = () => {};
+  export let inline = true;
 
   let history = [];
   let loading = true;
@@ -39,7 +40,7 @@
   const edges = writable([]);
 
   const nodeTypes = {
-    architecture: ArchitectureNode
+    chip: ChipNode
   };
 
   const SECTIONS = [
@@ -102,161 +103,245 @@
     const newNodes = [];
     const newEdges = [];
 
-    // Layout configuration
-    const columnWidth = 350;
-    const rowHeight = 120;
-    const startY = 50;
+    // Layout configuration - layered architecture
+    const nodeWidth = 180;
+    const nodeHeight = 100;
+    const horizontalGap = 40;
+    const verticalGap = 80;
+    const layerGap = 120;
 
-    // Column positions for each type
-    const columns = {
-      ui: 0,        // Left column - UI components
-      endpoint: 1,  // Second column - API endpoints
-      entity: 2,    // Third column - Entities
-      table: 3,     // Fourth column - Database tables
+    // Track node IDs by layer for connections
+    const layers = {
+      pages: [],      // Layer 0 - Pages/Views
+      components: [], // Layer 1 - UI Components
+      endpoints: [],  // Layer 2 - API Endpoints
+      entities: [],   // Layer 3 - Data Entities
+      tables: []      // Layer 4 - Database Tables
     };
 
-    // Track y position for each column
-    const columnYPositions = { ui: startY, endpoint: startY, entity: startY, table: startY };
+    // Helper to calculate X position for centering items in a row
+    function getRowStartX(itemCount) {
+      const totalWidth = itemCount * nodeWidth + (itemCount - 1) * horizontalGap;
+      return Math.max(50, (1200 - totalWidth) / 2);
+    }
 
-    // Create UI component nodes
-    if (arch.ui_components?.length > 0) {
-      arch.ui_components.forEach((comp, i) => {
-        const id = comp.id || `ui_${comp.name?.toLowerCase().replace(/\s+/g, '_') || i}`;
+    let currentY = 50;
+
+    // Layer 0: Pages (extracted from UI components with type 'page' or routes)
+    const pages = arch.ui_components?.filter(c => c.type === 'page' || c.routes?.length > 0) || [];
+    if (pages.length > 0) {
+      const startX = getRowStartX(pages.length);
+      pages.forEach((page, i) => {
+        const id = `page-${i}`;
+        layers.pages.push(id);
         newNodes.push({
           id,
-          type: 'architecture',
-          position: { x: columns.ui * columnWidth, y: columnYPositions.ui },
+          type: 'chip',
+          position: { x: startX + i * (nodeWidth + horizontalGap), y: currentY },
           data: {
-            nodeType: 'ui',
+            layerType: 'page',
+            name: page.name,
+            description: page.description,
+            path: page.routes?.[0] || page.file_path
+          }
+        });
+      });
+      currentY += nodeHeight + layerGap;
+    }
+
+    // Layer 1: Components (UI components that are not pages)
+    const components = arch.ui_components?.filter(c => c.type !== 'page' && !c.routes?.length) || [];
+    if (components.length > 0) {
+      const startX = getRowStartX(Math.min(components.length, 6));
+      components.slice(0, 6).forEach((comp, i) => {
+        const id = `comp-${i}`;
+        layers.components.push(id);
+        newNodes.push({
+          id,
+          type: 'chip',
+          position: { x: startX + i * (nodeWidth + horizontalGap), y: currentY },
+          data: {
+            layerType: 'component',
             name: comp.name,
             description: comp.description,
-            type: comp.type,
-            file_path: comp.file_path,
-            props: comp.props,
-            connects_to: comp.connects_to || []
+            meta: comp.type || (comp.props?.length ? `${comp.props.length} props` : null)
           }
         });
-        columnYPositions.ui += rowHeight;
-
-        // Create edges for UI connections
-        if (comp.connects_to) {
-          comp.connects_to.forEach(targetId => {
-            newEdges.push({
-              id: `${id}-${targetId}`,
-              source: id,
-              target: targetId,
-              type: 'smoothstep',
-              animated: false,
-              style: 'stroke: #00bcd4; stroke-width: 2px;'
-            });
-          });
-        }
       });
+      if (components.length > 6) {
+        newNodes.push({
+          id: 'comp-more',
+          type: 'chip',
+          position: { x: startX + 6 * (nodeWidth + horizontalGap), y: currentY },
+          data: {
+            layerType: 'component',
+            name: `+${components.length - 6} more`,
+            meta: 'components'
+          }
+        });
+      }
+      currentY += nodeHeight + layerGap;
     }
 
-    // Create endpoint nodes
+    // Layer 2: API Endpoints
     if (arch.endpoints?.length > 0) {
-      arch.endpoints.forEach((ep, i) => {
-        const id = ep.id || `ep_${ep.method?.toLowerCase()}_${ep.path?.replace(/\//g, '_') || i}`;
+      const startX = getRowStartX(Math.min(arch.endpoints.length, 5));
+      arch.endpoints.slice(0, 5).forEach((ep, i) => {
+        const id = `endpoint-${i}`;
+        layers.endpoints.push(id);
         newNodes.push({
           id,
-          type: 'architecture',
-          position: { x: columns.endpoint * columnWidth, y: columnYPositions.endpoint },
+          type: 'chip',
+          position: { x: startX + i * (nodeWidth + horizontalGap), y: currentY },
           data: {
-            nodeType: 'endpoint',
-            name: ep.path,
-            description: ep.description,
-            method: ep.method,
+            layerType: 'endpoint',
+            name: ep.path?.split('/').pop() || ep.path,
             path: ep.path,
-            params: ep.params,
-            connects_to: ep.connects_to || []
+            method: ep.method,
+            description: ep.description
           }
         });
-        columnYPositions.endpoint += rowHeight;
-
-        // Create edges for endpoint connections
-        if (ep.connects_to) {
-          ep.connects_to.forEach(targetId => {
-            newEdges.push({
-              id: `${id}-${targetId}`,
-              source: id,
-              target: targetId,
-              type: 'smoothstep',
-              animated: false,
-              style: 'stroke: #2196f3; stroke-width: 2px;'
-            });
-          });
-        }
       });
+      if (arch.endpoints.length > 5) {
+        newNodes.push({
+          id: 'endpoint-more',
+          type: 'chip',
+          position: { x: startX + 5 * (nodeWidth + horizontalGap), y: currentY },
+          data: {
+            layerType: 'endpoint',
+            name: `+${arch.endpoints.length - 5} more`,
+            meta: 'endpoints'
+          }
+        });
+      }
+      currentY += nodeHeight + layerGap;
     }
 
-    // Create entity nodes
+    // Layer 3: Entities
     if (arch.entities?.length > 0) {
-      arch.entities.forEach((entity, i) => {
-        const id = entity.id || `entity_${entity.name?.toLowerCase().replace(/\s+/g, '_') || i}`;
+      const startX = getRowStartX(Math.min(arch.entities.length, 5));
+      arch.entities.slice(0, 5).forEach((entity, i) => {
+        const id = `entity-${i}`;
+        layers.entities.push(id);
         newNodes.push({
           id,
-          type: 'architecture',
-          position: { x: columns.entity * columnWidth, y: columnYPositions.entity },
+          type: 'chip',
+          position: { x: startX + i * (nodeWidth + horizontalGap), y: currentY },
           data: {
-            nodeType: 'entity',
+            layerType: 'entity',
             name: entity.name,
             description: entity.description,
-            fields: entity.fields,
-            relationships: entity.relationships,
-            connects_to: entity.connects_to || []
+            meta: entity.fields?.length ? `${entity.fields.length} fields` : null
           }
         });
-        columnYPositions.entity += rowHeight;
+      });
+      if (arch.entities.length > 5) {
+        newNodes.push({
+          id: 'entity-more',
+          type: 'chip',
+          position: { x: startX + 5 * (nodeWidth + horizontalGap), y: currentY },
+          data: {
+            layerType: 'entity',
+            name: `+${arch.entities.length - 5} more`,
+            meta: 'entities'
+          }
+        });
+      }
+      currentY += nodeHeight + layerGap;
+    }
 
-        // Create edges for entity connections
-        if (entity.connects_to) {
-          entity.connects_to.forEach(targetId => {
-            newEdges.push({
-              id: `${id}-${targetId}`,
-              source: id,
-              target: targetId,
-              type: 'smoothstep',
-              animated: false,
-              style: 'stroke: #4caf50; stroke-width: 2px;'
-            });
+    // Layer 4: Database Tables
+    if (arch.tables?.length > 0) {
+      const startX = getRowStartX(Math.min(arch.tables.length, 5));
+      arch.tables.slice(0, 5).forEach((table, i) => {
+        const id = `table-${i}`;
+        layers.tables.push(id);
+        newNodes.push({
+          id,
+          type: 'chip',
+          position: { x: startX + i * (nodeWidth + horizontalGap), y: currentY },
+          data: {
+            layerType: 'table',
+            name: table.name,
+            description: table.description,
+            meta: table.columns?.length ? `${table.columns.length} columns` : null
+          }
+        });
+      });
+      if (arch.tables.length > 5) {
+        newNodes.push({
+          id: 'table-more',
+          type: 'chip',
+          position: { x: startX + 5 * (nodeWidth + horizontalGap), y: currentY },
+          data: {
+            layerType: 'table',
+            name: `+${arch.tables.length - 5} more`,
+            meta: 'tables'
+          }
+        });
+      }
+    }
+
+    // Create edges between layers (connecting related items)
+    // Pages -> Components (fan out)
+    if (layers.pages.length > 0 && layers.components.length > 0) {
+      layers.pages.forEach(pageId => {
+        layers.components.forEach(compId => {
+          newEdges.push({
+            id: `${pageId}-${compId}`,
+            source: pageId,
+            target: compId,
+            type: 'smoothstep',
+            style: 'stroke: #9c27b0; stroke-width: 1.5px; opacity: 0.4;'
           });
-        }
+        });
       });
     }
 
-    // Create table nodes
-    if (arch.tables?.length > 0) {
-      arch.tables.forEach((table, i) => {
-        const id = table.id || `table_${table.name?.toLowerCase().replace(/\s+/g, '_') || i}`;
-        newNodes.push({
-          id,
-          type: 'architecture',
-          position: { x: columns.table * columnWidth, y: columnYPositions.table },
-          data: {
-            nodeType: 'table',
-            name: table.name,
-            description: table.description,
-            columns: table.columns,
-            indexes: table.indexes,
-            connects_to: table.connects_to || []
-          }
-        });
-        columnYPositions.table += rowHeight;
-
-        // Create edges for table connections
-        if (table.connects_to) {
-          table.connects_to.forEach(targetId => {
-            newEdges.push({
-              id: `${id}-${targetId}`,
-              source: id,
-              target: targetId,
-              type: 'smoothstep',
-              animated: false,
-              style: 'stroke: #ff9800; stroke-width: 2px;'
-            });
+    // Components -> Endpoints (fan out)
+    const sourceLayer1 = layers.components.length > 0 ? layers.components : layers.pages;
+    if (sourceLayer1.length > 0 && layers.endpoints.length > 0) {
+      sourceLayer1.forEach(srcId => {
+        layers.endpoints.forEach(epId => {
+          newEdges.push({
+            id: `${srcId}-${epId}`,
+            source: srcId,
+            target: epId,
+            type: 'smoothstep',
+            style: 'stroke: #2196f3; stroke-width: 1.5px; opacity: 0.4;'
           });
-        }
+        });
+      });
+    }
+
+    // Endpoints -> Entities
+    if (layers.endpoints.length > 0 && layers.entities.length > 0) {
+      layers.endpoints.forEach(epId => {
+        layers.entities.forEach(entityId => {
+          newEdges.push({
+            id: `${epId}-${entityId}`,
+            source: epId,
+            target: entityId,
+            type: 'smoothstep',
+            style: 'stroke: #4caf50; stroke-width: 1.5px; opacity: 0.4;'
+          });
+        });
+      });
+    }
+
+    // Entities -> Tables (try to match by name, otherwise fan out)
+    if (layers.entities.length > 0 && layers.tables.length > 0) {
+      layers.entities.forEach((entityId, i) => {
+        // Connect each entity to corresponding table or all tables
+        const tableId = layers.tables[i] || layers.tables[0];
+        newEdges.push({
+          id: `${entityId}-${tableId}`,
+          source: entityId,
+          target: tableId,
+          type: 'smoothstep',
+          animated: true,
+          style: 'stroke: #ff9800; stroke-width: 2px;'
+        });
       });
     }
 
@@ -366,12 +451,7 @@
   }
 </script>
 
-<div class="architecture-backdrop" on:click={onClose}>
-  <div class="architecture-panel" on:click|stopPropagation>
-    <div class="panel-header">
-      <h3>Architecture</h3>
-      <button class="close-btn" on:click={onClose}>X</button>
-    </div>
+<div class="architecture-inline">
 
     {#if loading}
       <div class="loading">
@@ -463,122 +543,37 @@
                 </div>
 
                 {#if viewMode === 'flow'}
-                  <!-- Chip Flow View -->
-                  <div class="chip-flow-view">
-                    <div class="chip-flow-container">
-                      <!-- UI Chip -->
-                      {#if parsedArchitecture.ui_components?.length > 0}
-                        <div class="arch-chip ui-chip">
-                          <div class="chip-header">
-                            <span class="chip-icon">UI</span>
-                            <span class="chip-title">Components</span>
-                            <span class="chip-count">{parsedArchitecture.ui_components.length}</span>
-                          </div>
-                          <div class="chip-items">
-                            {#each parsedArchitecture.ui_components as comp}
-                              <div class="chip-item">
-                                <span class="item-name">{comp.name}</span>
-                                {#if comp.type}
-                                  <span class="item-badge">{comp.type}</span>
-                                {/if}
-                              </div>
-                            {/each}
-                          </div>
-                        </div>
-                      {/if}
+                  <!-- SvelteFlow Chip View -->
+                  <div class="svelteflow-view">
+                    {#if $nodes.length > 0}
+                      <SvelteFlow
+                        nodes={$nodes}
+                        edges={$edges}
+                        {nodeTypes}
+                        fitView
+                        minZoom={0.3}
+                        maxZoom={1.5}
+                        defaultViewport={{ x: 0, y: 0, zoom: 0.8 }}
+                      >
+                        <Background variant={BackgroundVariant.Dots} gap={20} />
+                        <Controls />
+                        <MiniMap />
+                      </SvelteFlow>
+                    {:else}
+                      <div class="empty-flow">
+                        <p>No architecture data to visualize</p>
+                        <p class="hint">Architecture needs UI components, endpoints, entities, or tables</p>
+                      </div>
+                    {/if}
 
-                      <!-- Connection Arrow -->
-                      {#if parsedArchitecture.ui_components?.length > 0 && parsedArchitecture.endpoints?.length > 0}
-                        <div class="chip-connector">
-                          <div class="connector-line"></div>
-                          <div class="connector-arrow"></div>
-                        </div>
-                      {/if}
-
-                      <!-- API Chip -->
-                      {#if parsedArchitecture.endpoints?.length > 0}
-                        <div class="arch-chip api-chip">
-                          <div class="chip-header">
-                            <span class="chip-icon">API</span>
-                            <span class="chip-title">Endpoints</span>
-                            <span class="chip-count">{parsedArchitecture.endpoints.length}</span>
-                          </div>
-                          <div class="chip-items">
-                            {#each parsedArchitecture.endpoints as ep}
-                              <div class="chip-item">
-                                <span class="item-method" style="background: {getMethodColor(ep.method)}">{ep.method}</span>
-                                <span class="item-path">{ep.path}</span>
-                              </div>
-                            {/each}
-                          </div>
-                        </div>
-                      {/if}
-
-                      <!-- Connection Arrow -->
-                      {#if parsedArchitecture.endpoints?.length > 0 && parsedArchitecture.entities?.length > 0}
-                        <div class="chip-connector">
-                          <div class="connector-line"></div>
-                          <div class="connector-arrow"></div>
-                        </div>
-                      {/if}
-
-                      <!-- Entities Chip -->
-                      {#if parsedArchitecture.entities?.length > 0}
-                        <div class="arch-chip entity-chip">
-                          <div class="chip-header">
-                            <span class="chip-icon">E</span>
-                            <span class="chip-title">Entities</span>
-                            <span class="chip-count">{parsedArchitecture.entities.length}</span>
-                          </div>
-                          <div class="chip-items">
-                            {#each parsedArchitecture.entities as entity}
-                              <div class="chip-item">
-                                <span class="item-name">{entity.name}</span>
-                                {#if entity.fields?.length}
-                                  <span class="item-meta">{entity.fields.length} fields</span>
-                                {/if}
-                              </div>
-                            {/each}
-                          </div>
-                        </div>
-                      {/if}
-
-                      <!-- Connection Arrow -->
-                      {#if parsedArchitecture.entities?.length > 0 && parsedArchitecture.tables?.length > 0}
-                        <div class="chip-connector">
-                          <div class="connector-line"></div>
-                          <div class="connector-arrow"></div>
-                        </div>
-                      {/if}
-
-                      <!-- Database Chip -->
-                      {#if parsedArchitecture.tables?.length > 0}
-                        <div class="arch-chip db-chip">
-                          <div class="chip-header">
-                            <span class="chip-icon">DB</span>
-                            <span class="chip-title">Tables</span>
-                            <span class="chip-count">{parsedArchitecture.tables.length}</span>
-                          </div>
-                          <div class="chip-items">
-                            {#each parsedArchitecture.tables as table}
-                              <div class="chip-item">
-                                <span class="item-name">{table.name}</span>
-                                {#if table.columns?.length}
-                                  <span class="item-meta">{table.columns.length} cols</span>
-                                {/if}
-                              </div>
-                            {/each}
-                          </div>
-                        </div>
-                      {/if}
-                    </div>
-
-                    <!-- Tech Stack Bar -->
+                    <!-- Tech Stack Footer -->
                     {#if parsedArchitecture.tech_stack?.length > 0}
                       <div class="tech-bar">
                         <span class="tech-bar-label">Stack:</span>
                         {#each parsedArchitecture.tech_stack as tech}
-                          <span class="tech-tag">{tech.name}</span>
+                          <span class="tech-tag" class:lang={tech.category === 'language'} class:framework={tech.category === 'framework'} class:database={tech.category === 'database'}>
+                            {tech.name}
+                          </span>
                         {/each}
                       </div>
                     {/if}
@@ -931,7 +926,7 @@
         </div>
       </div>
     {/if}
-  </div>
+
 </div>
 
 <!-- Prompt Modal -->
@@ -2206,6 +2201,93 @@
     border-left: 8px solid var(--border-primary);
   }
 
+  /* SvelteFlow Chip View */
+  .svelteflow-view {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    background: var(--bg-secondary);
+  }
+
+  .svelteflow-view :global(.svelte-flow) {
+    flex: 1;
+    background: var(--bg-secondary);
+  }
+
+  .svelteflow-view :global(.svelte-flow__background) {
+    background: var(--bg-secondary);
+  }
+
+  .svelteflow-view :global(.svelte-flow__background pattern circle) {
+    fill: var(--border-secondary);
+  }
+
+  .svelteflow-view :global(.svelte-flow__controls) {
+    background: var(--bg-primary);
+    border: 1px solid var(--border-primary);
+    border-radius: 4px;
+    box-shadow: var(--shadow-small);
+  }
+
+  .svelteflow-view :global(.svelte-flow__controls button) {
+    background: var(--bg-primary);
+    border: none;
+    border-bottom: 1px solid var(--border-secondary);
+    color: var(--text-secondary);
+  }
+
+  .svelteflow-view :global(.svelte-flow__controls button:hover) {
+    background: var(--bg-hover);
+    color: var(--text-primary);
+  }
+
+  .svelteflow-view :global(.svelte-flow__controls button:last-child) {
+    border-bottom: none;
+  }
+
+  .svelteflow-view :global(.svelte-flow__minimap) {
+    background: var(--bg-primary);
+    border: 1px solid var(--border-primary);
+    border-radius: 4px;
+  }
+
+  .svelteflow-view :global(.svelte-flow__edge-path) {
+    stroke: var(--border-primary);
+    stroke-width: 2px;
+  }
+
+  .svelteflow-view :global(.svelte-flow__edge.animated path) {
+    stroke-dasharray: 5;
+    animation: dash 0.5s linear infinite;
+  }
+
+  @keyframes dash {
+    to {
+      stroke-dashoffset: -10;
+    }
+  }
+
+  .empty-flow {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    color: var(--text-tertiary);
+    padding: 48px;
+  }
+
+  .empty-flow p {
+    margin: 4px 0;
+    font-size: 13px;
+  }
+
+  .empty-flow .hint {
+    font-size: 11px;
+    opacity: 0.7;
+  }
+
   /* Tech Stack Bar */
   .tech-bar {
     display: flex;
@@ -2232,6 +2314,21 @@
     border: 1px solid var(--border-primary);
     border-radius: 12px;
     color: var(--text-secondary);
+  }
+
+  .tech-tag.lang {
+    border-color: #9c27b0;
+    color: #ce93d8;
+  }
+
+  .tech-tag.framework {
+    border-color: #2196f3;
+    color: #90caf9;
+  }
+
+  .tech-tag.database {
+    border-color: #ff9800;
+    color: #ffcc80;
   }
 
   /* Raw View */
@@ -2263,5 +2360,31 @@
     background: var(--bg-primary);
     white-space: pre;
     tab-size: 2;
+  }
+
+  /* Inline Mode */
+  .architecture-inline {
+    height: 100%;
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    background: var(--bg-primary);
+  }
+
+  .architecture-inline .panel-body {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  .architecture-inline .content-layout {
+    flex: 1;
+    overflow: hidden;
+  }
+
+  .architecture-inline .tab-header {
+    border-bottom: 1px solid var(--border-primary);
   }
 </style>

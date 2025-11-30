@@ -3,12 +3,14 @@
   import LandingPage from './lib/components/LandingPage.svelte';
   import MainApp from './lib/components/MainApp.svelte';
   import TasksPage from './lib/components/TasksPage.svelte';
+  import ArchitecturePage from './lib/components/ArchitecturePage.svelte';
   import { push } from 'svelte-spa-router';
 
   const routes = {
     '/': MainApp,
     '/home': LandingPage,
     '/tasks': TasksPage,
+    '/architecture': ArchitecturePage,
   };
 
   function handleGetStarted() {

@@ -1,5 +1,6 @@
 <script>
   import { onMount } from 'svelte';
+  import { push } from 'svelte-spa-router';
   import { commitTree, isLoading, showToast, showModal, repoInfo, workingTreeStatus } from '../stores/store.js';
   import { theme, toggleTheme } from '../stores/theme.js';
   import { fetchCommitTree, fetchRepoInfo, fetchWorkingTreeStatus } from '../services/api.js';
@@ -14,14 +15,11 @@
   import RemoteStatus from './RemoteStatus.svelte';
   import PromptsLibrary from './PromptsLibrary.svelte';
   import ContextLibrary from './ContextLibrary.svelte';
-  import ArchitectureLibrary from './ArchitectureLibrary.svelte';
-
   let error = null;
   let showBranchesList = false;
   let showRemoteStatus = false;
   let showPromptsLibrary = false;
   let showContextLibrary = false;
-  let showArchitectureLibrary = false;
   let currentView = 'buildings'; // 'flow' or 'buildings'
   let commitTreeComponent;
   let showMonkey = false;
@@ -219,7 +217,7 @@
   }
 
   function handleShowArchitecture() {
-    showArchitectureLibrary = true;
+    push('/architecture');
   }
 </script>
 
@@ -264,6 +262,22 @@
           title="Buildings view"
         >
           Buildings
+        </button>
+      </div>
+      <div class="page-toggle">
+        <button
+          class="view-btn"
+          on:click={() => push('/tasks')}
+          title="Tasks"
+        >
+          Tasks
+        </button>
+        <button
+          class="view-btn"
+          on:click={() => push('/architecture')}
+          title="Architecture"
+        >
+          Arch
         </button>
       </div>
     </div>
@@ -360,12 +374,6 @@
   {#if showContextLibrary}
     <ContextLibrary
       onClose={() => showContextLibrary = false}
-    />
-  {/if}
-
-  {#if showArchitectureLibrary}
-    <ArchitectureLibrary
-      onClose={() => showArchitectureLibrary = false}
     />
   {/if}
 

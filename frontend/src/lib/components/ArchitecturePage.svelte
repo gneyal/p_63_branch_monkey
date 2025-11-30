@@ -5,13 +5,12 @@
   import { repoInfo } from '../stores/store.js';
   import { fetchRepoInfo } from '../services/api.js';
   import Toast from './Toast.svelte';
-  import TaskManager from './TaskManager.svelte';
+  import ArchitectureLibrary from './ArchitectureLibrary.svelte';
   import RecentRepos from './RecentRepos.svelte';
   import RepoSelector from './RepoSelector.svelte';
   import GlobalActions from './GlobalActions.svelte';
 
   onMount(async () => {
-    // Load repo info if not already loaded (check for empty path too)
     if (!$repoInfo || !$repoInfo.path) {
       try {
         const info = await fetchRepoInfo();
@@ -26,7 +25,6 @@
     push('/');
   }
 
-  // Handlers for GlobalActions - navigate back to main view for most actions
   function handleGoToTop() {
     push('/');
   }
@@ -52,11 +50,11 @@
   }
 
   function handleShowArchitecture() {
-    push('/');
+    // Already on architecture page
   }
 </script>
 
-<main class="tasks-page">
+<main class="architecture-page">
   <header class="app-header">
     <div class="header-left">
       <div class="title-container">
@@ -79,14 +77,14 @@
           Commits
         </button>
         <button
-          class="view-btn active"
+          class="view-btn"
+          on:click={() => push('/tasks')}
           title="Tasks view"
         >
           Tasks
         </button>
         <button
-          class="view-btn"
-          on:click={() => push('/architecture')}
+          class="view-btn active"
           title="Architecture view"
         >
           Arch
@@ -96,7 +94,7 @@
   </header>
 
   <div class="page-content">
-    <TaskManager inline={true} />
+    <ArchitectureLibrary inline={true} />
   </div>
 
   <footer class="app-footer">
@@ -113,7 +111,7 @@
     </div>
 
     <div class="footer-center">
-      <span class="page-indicator">Tasks</span>
+      <span class="page-indicator">Architecture</span>
     </div>
 
     <div class="footer-right">
@@ -143,7 +141,7 @@
 </main>
 
 <style>
-  .tasks-page {
+  .architecture-page {
     height: 100vh;
     width: 100vw;
     display: flex;
