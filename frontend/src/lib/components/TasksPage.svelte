@@ -11,8 +11,8 @@
   import GlobalActions from './GlobalActions.svelte';
 
   onMount(async () => {
-    // Load repo info if not already loaded
-    if (!$repoInfo) {
+    // Load repo info if not already loaded (check for empty path too)
+    if (!$repoInfo || !$repoInfo.path) {
       try {
         const info = await fetchRepoInfo();
         repoInfo.set(info);
