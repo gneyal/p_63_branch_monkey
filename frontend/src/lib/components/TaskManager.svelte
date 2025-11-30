@@ -1,0 +1,2389 @@
+<script>
+  import { onMount, tick } from 'svelte';
+  import { fetchTasks, createTask, updateTask, deleteTask, fetchVersions, createVersion, updateVersion, deleteVersion as deleteVersionApi, reorderVersions } from '../services/api.js';
+  import { showToast } from '../stores/store.js';
+
+  export let onClose = () => {};
+  export let inline = false; // When true, renders as inline content without modal backdrop
+
+  const STATUSES = ['todo', 'in_progress', 'done'];
+  const STATUS_LABELS = {
+    todo: 'To Do',
+    in_progress: 'In Progress',
+    done: 'Done'
+  };
+
+  const INITIAL_VERSIONS = ['backlog', 'v1', 'v2'];
+  let hiddenDefaultVersions = []; // Default versions that have been "deleted" (hidden)
+  let customVersions = []; // User-added versions
+  let versionLabels = {
+    backlog: 'Backlog',
+    v1: 'Version 1',
+    v2: 'Version 2'
+  };
+
+  let tasks = [];
+  let loading = true;
+  let viewMode = 'kanban'; // 'kanban' or 'list'
+  let showAddModal = false;
+  let editingTask = null;
+  let newTaskTitle = '';
+  let newTaskDescription = '';
+  let newTaskVersion = 'backlog';
+  let showVersionLanes = true;
+
+  // Quick add state
+  let quickAddVersion = null;
+  let quickAddStatus = null;
+  let quickAddTitle = '';
+  let quickAddInput = null;
+  let isQuickAdding = false; // Prevent double submission
+
+  // Versions menu state
+  let showVersionsMenu = false;
+  let showNewVersionInput = false;
+  let newVersionName = '';
+  let editingVersion = null;
+  let editingVersionName = '';
+  let deletingVersion = null;
+  let deleteTargetVersion = 'backlog';
+  let isDeleting = false;
+  let draggedVersionItem = null;
+  let dragOverVersionItem = null;
+
+  // Ordered versions (for custom ordering) - backlog always last
+  let versionOrder = ['v1', 'v2', 'backlog'];
+
+  // Drag state
+  let draggedTask = null;
+  let dragOverColumn = null;
+  let dragOverVersion = null;
+
+  // Reactive: filter tasks by status
+  $: todoTasks = tasks.filter(t => t.status === 'todo');
+  $: inProgressTasks = tasks.filter(t => t.status === 'in_progress');
+  $: doneTasks = tasks.filter(t => t.status === 'done');
+
+  // Reactive: get tasks by status
+  $: tasksByStatus = {
+    todo: todoTasks,
+    in_progress: inProgressTasks,
+    done: doneTasks
+  };
+
+  // Get visible default versions (initial minus hidden)
+  $: visibleDefaultVersions = INITIAL_VERSIONS.filter(v => !hiddenDefaultVersions.includes(v));
+
+  // Get unique versions from tasks and custom versions, respecting order
+  $: allVersions = [...new Set([...versionOrder, ...customVersions, ...tasks.map(t => t.sprint || 'backlog')])].filter(v => !hiddenDefaultVersions.includes(v));
+  $: versions = allVersions.sort((a, b) => {
+    const aIdx = versionOrder.indexOf(a);
+    const bIdx = versionOrder.indexOf(b);
+    if (aIdx === -1 && bIdx === -1) return 0;
+    if (aIdx === -1) return 1;
+    if (bIdx === -1) return 1;
+    return aIdx - bIdx;
+  });
+
+  // Reactive: swim lane data - combines versions with their tasks to ensure reactivity
+  // Explicitly reference tasks.length to ensure Svelte tracks it as a dependency
+  $: swimLaneData = (tasks.length, versions.map(version => ({
+    version,
+    label: versionLabels[version] || version,
+    tasks: tasks.filter(t => (t.sprint || 'backlog') === version),
+    isDefault: visibleDefaultVersions.includes(version),
+    isCustom: !INITIAL_VERSIONS.includes(version) && customVersions.includes(version),
+    byStatus: {
+      todo: tasks.filter(t => (t.sprint || 'backlog') === version && t.status === 'todo'),
+      in_progress: tasks.filter(t => (t.sprint || 'backlog') === version && t.status === 'in_progress'),
+      done: tasks.filter(t => (t.sprint || 'backlog') === version && t.status === 'done')
+    }
+  })));
+
+  // Get version label (supports custom versions)
+  function getVersionLabel(version) {
+    return versionLabels[version] || version;
+  }
+
+  // Get tasks by version and status
+  function getTasksByVersionAndStatus(version, status) {
+    return tasks.filter(t => (t.sprint || 'backlog') === version && t.status === status);
+  }
+
+  onMount(async () => {
+    await Promise.all([loadTasks(), loadVersions()]);
+    loading = false;
+  });
+
+  async function loadTasks() {
+    try {
+      const data = await fetchTasks();
+      // Force reactivity with spread
+      tasks = [...(data.tasks || [])];
+      // Extract custom versions from tasks (only if not already in customVersions)
+      tasks.forEach(t => {
+        if (t.sprint && !INITIAL_VERSIONS.includes(t.sprint) && !customVersions.includes(t.sprint)) {
+          customVersions = [...customVersions, t.sprint];
+        }
+      });
+    } catch (err) {
+      showToast(`Failed to load tasks: ${err.message}`, 'error');
+      tasks = [];
+    }
+  }
+
+  async function loadVersions() {
+    try {
+      const data = await fetchVersions();
+      const loadedVersions = data.versions || [];
+
+      // Build customVersions, hiddenDefaultVersions and versionLabels from backend
+      const newCustomVersions = [];
+      const newHiddenDefaults = [];
+      const newVersionOrder = [];
+
+      // Check for hidden default versions (stored with key like "_hidden_v1")
+      loadedVersions.forEach(v => {
+        if (v.key.startsWith('_hidden_')) {
+          const hiddenKey = v.key.replace('_hidden_', '');
+          newHiddenDefaults.push(hiddenKey);
+        } else if (!INITIAL_VERSIONS.includes(v.key)) {
+          newCustomVersions.push(v.key);
+          versionLabels[v.key] = v.label;
+          newVersionOrder.push(v.key);
+        } else {
+          // It's a default version with custom label
+          versionLabels[v.key] = v.label;
+          newVersionOrder.push(v.key);
+        }
+      });
+
+      customVersions = newCustomVersions;
+      hiddenDefaultVersions = newHiddenDefaults;
+      versionLabels = { ...versionLabels };
+
+      // Use loaded order if available, otherwise keep default
+      if (newVersionOrder.length > 0) {
+        // Ensure backlog is always last and filter out hidden versions
+        const withoutBacklog = newVersionOrder.filter(v => v !== 'backlog' && !hiddenDefaultVersions.includes(v));
+        versionOrder = [...withoutBacklog, 'backlog'];
+      } else {
+        // Filter hidden versions from default order
+        versionOrder = versionOrder.filter(v => !hiddenDefaultVersions.includes(v));
+      }
+    } catch (err) {
+      // Silently fail - versions will use defaults
+      console.error('Failed to load versions:', err);
+    }
+  }
+
+  // Version Management Functions
+  async function handleAddVersion() {
+    if (!newVersionName.trim()) {
+      showToast('Please enter a version name', 'error');
+      return;
+    }
+    const versionKey = newVersionName.trim().toLowerCase().replace(/\s+/g, '-');
+    if (versions.includes(versionKey)) {
+      showToast('Version already exists', 'error');
+      return;
+    }
+
+    // Calculate sort order (before backlog)
+    const backlogIdx = versionOrder.indexOf('backlog');
+    const sortOrder = backlogIdx >= 0 ? backlogIdx : versionOrder.length;
+
+    try {
+      await createVersion({
+        key: versionKey,
+        label: newVersionName.trim(),
+        sort_order: sortOrder
+      });
+
+      customVersions = [...customVersions, versionKey];
+      // Insert before backlog (which is always last)
+      if (backlogIdx >= 0) {
+        versionOrder = [...versionOrder.slice(0, backlogIdx), versionKey, ...versionOrder.slice(backlogIdx)];
+      } else {
+        versionOrder = [...versionOrder, versionKey];
+      }
+      versionLabels[versionKey] = newVersionName.trim();
+      versionLabels = { ...versionLabels };
+      newVersionName = '';
+      showNewVersionInput = false;
+      showToast('Version added', 'success');
+    } catch (err) {
+      showToast(`Failed to add version: ${err.message}`, 'error');
+    }
+  }
+
+  function startEditVersion(version) {
+    if (version === 'backlog') return; // Can't rename backlog
+    editingVersion = version;
+    editingVersionName = versionLabels[version] || version;
+  }
+
+  async function handleRenameVersion() {
+    if (!editingVersionName.trim()) {
+      showToast('Please enter a version name', 'error');
+      return;
+    }
+
+    const versionKey = editingVersion;
+    const newLabel = editingVersionName.trim();
+
+    try {
+      await updateVersion(versionKey, { label: newLabel });
+      versionLabels[versionKey] = newLabel;
+      versionLabels = { ...versionLabels };
+      editingVersion = null;
+      editingVersionName = '';
+      showToast('Version renamed', 'success');
+    } catch (err) {
+      showToast(`Failed to rename version: ${err.message}`, 'error');
+    }
+  }
+
+  function startDeleteVersion(version) {
+    if (version === 'backlog') {
+      showToast('Cannot delete Backlog', 'error');
+      return;
+    }
+    deletingVersion = version;
+    deleteTargetVersion = 'backlog';
+  }
+
+  async function confirmDeleteVersion() {
+    if (!deletingVersion || isDeleting) return;
+
+    const versionToDelete = deletingVersion;
+    const targetVersion = deleteTargetVersion;
+    const tasksCount = tasks.filter(t => (t.sprint || 'backlog') === versionToDelete).length;
+    const isDefaultVersion = INITIAL_VERSIONS.includes(versionToDelete);
+
+    isDeleting = true;
+
+    try {
+      // Call backend API to delete version and move tasks
+      await deleteVersionApi(versionToDelete, targetVersion);
+
+      // For default versions, we also need to store a "hidden" marker
+      if (isDefaultVersion) {
+        try {
+          await createVersion({
+            key: `_hidden_${versionToDelete}`,
+            label: 'hidden',
+            sort_order: -1
+          });
+        } catch (e) {
+          // Ignore if already exists
+        }
+        hiddenDefaultVersions = [...hiddenDefaultVersions, versionToDelete];
+      } else {
+        customVersions = customVersions.filter(v => v !== versionToDelete);
+      }
+
+      // Update local state
+      tasks = tasks.map(t => (t.sprint || 'backlog') === versionToDelete ? { ...t, sprint: targetVersion } : t);
+      versionOrder = versionOrder.filter(v => v !== versionToDelete);
+      delete versionLabels[versionToDelete];
+      versionLabels = { ...versionLabels };
+
+      showToast(`Version deleted. ${tasksCount} task(s) moved to ${getVersionLabel(targetVersion)}`, 'success');
+    } catch (err) {
+      showToast(`Failed to delete version: ${err.message}`, 'error');
+    }
+
+    isDeleting = false;
+    deletingVersion = null;
+    deleteTargetVersion = 'backlog';
+  }
+
+  function cancelDeleteVersion() {
+    deletingVersion = null;
+    deleteTargetVersion = 'backlog';
+  }
+
+  // Version reordering via drag
+  function handleVersionDragStart(e, version) {
+    if (version === 'backlog') {
+      e.preventDefault();
+      return;
+    }
+    draggedVersionItem = version;
+    e.dataTransfer.effectAllowed = 'move';
+  }
+
+  function handleVersionDragOver(e, version) {
+    e.preventDefault();
+    if (draggedVersionItem && version !== draggedVersionItem) {
+      dragOverVersionItem = version;
+    }
+  }
+
+  async function handleVersionDrop(e, targetVersion) {
+    e.preventDefault();
+    if (!draggedVersionItem || draggedVersionItem === targetVersion) {
+      draggedVersionItem = null;
+      dragOverVersionItem = null;
+      return;
+    }
+
+    // Reorder: remove dragged and insert before target
+    const newOrder = versionOrder.filter(v => v !== draggedVersionItem);
+    let targetIdx = newOrder.indexOf(targetVersion);
+
+    // Ensure backlog always stays at the end
+    const backlogIdx = newOrder.indexOf('backlog');
+    if (targetIdx > backlogIdx) {
+      targetIdx = backlogIdx;
+    }
+
+    newOrder.splice(targetIdx, 0, draggedVersionItem);
+    versionOrder = newOrder;
+
+    draggedVersionItem = null;
+    dragOverVersionItem = null;
+
+    // Persist to backend
+    await saveVersionOrder(newOrder);
+  }
+
+  function handleVersionDragEnd() {
+    draggedVersionItem = null;
+    dragOverVersionItem = null;
+  }
+
+  async function moveVersionUp(version) {
+    if (version === 'backlog') return; // Backlog can't move
+    const idx = versionOrder.indexOf(version);
+    if (idx <= 0) return; // Already at top
+    const newOrder = [...versionOrder];
+    [newOrder[idx - 1], newOrder[idx]] = [newOrder[idx], newOrder[idx - 1]];
+    versionOrder = newOrder;
+
+    // Persist to backend
+    await saveVersionOrder(newOrder);
+  }
+
+  async function moveVersionDown(version) {
+    if (version === 'backlog') return; // Backlog can't move
+    const idx = versionOrder.indexOf(version);
+    const backlogIdx = versionOrder.indexOf('backlog');
+    // Can't move down if next item is backlog (backlog must stay last)
+    if (idx >= backlogIdx - 1) return;
+    const newOrder = [...versionOrder];
+    [newOrder[idx], newOrder[idx + 1]] = [newOrder[idx + 1], newOrder[idx]];
+    versionOrder = newOrder;
+
+    // Persist to backend
+    await saveVersionOrder(newOrder);
+  }
+
+  async function saveVersionOrder(order) {
+    try {
+      await reorderVersions(order);
+    } catch (err) {
+      console.error('Failed to save version order:', err);
+    }
+  }
+
+  // Quick add task to specific version+status
+  async function startQuickAdd(version, status) {
+    quickAddVersion = version;
+    quickAddStatus = status;
+    quickAddTitle = '';
+    await tick();
+    if (quickAddInput) {
+      quickAddInput.focus();
+    }
+  }
+
+  function cancelQuickAdd() {
+    quickAddVersion = null;
+    quickAddStatus = null;
+    quickAddTitle = '';
+  }
+
+  async function handleQuickAdd() {
+    if (!quickAddTitle.trim() || isQuickAdding) {
+      cancelQuickAdd();
+      return;
+    }
+
+    isQuickAdding = true;
+    const title = quickAddTitle.trim();
+    const version = quickAddVersion;
+    const status = quickAddStatus;
+
+    // Clear quick add state
+    cancelQuickAdd();
+
+    try {
+      const result = await createTask({
+        title,
+        description: '',
+        status,
+        sprint: version
+      });
+      // Handle API response - task may be in result.task or result directly
+      const newTask = result.task || result;
+      if (newTask && newTask.id) {
+        tasks = [...tasks, newTask];
+        showToast('Task created', 'success');
+      } else {
+        // Fallback: reload tasks from server
+        await loadTasks();
+        showToast('Task created', 'success');
+      }
+    } catch (err) {
+      showToast(`Failed to create task: ${err.message}`, 'error');
+      await loadTasks();
+    } finally {
+      isQuickAdding = false;
+    }
+  }
+
+  async function handleAddTask() {
+    if (!newTaskTitle.trim()) {
+      showToast('Please enter a task title', 'error');
+      return;
+    }
+
+    const title = newTaskTitle.trim();
+    const description = newTaskDescription.trim();
+    const version = newTaskVersion;
+
+    // Clear fields and close modal
+    newTaskTitle = '';
+    newTaskDescription = '';
+    newTaskVersion = 'backlog';
+    showAddModal = false;
+
+    try {
+      const result = await createTask({
+        title,
+        description,
+        status: 'todo',
+        sprint: version // Backend uses 'sprint' field
+      });
+      // Handle API response - task may be in result.task or result directly
+      const newTask = result.task || result;
+      if (newTask && newTask.id) {
+        tasks = [...tasks, newTask];
+        showToast('Task created', 'success');
+      } else {
+        // Fallback: reload tasks from server
+        await loadTasks();
+        showToast('Task created', 'success');
+      }
+    } catch (err) {
+      showToast(`Failed to create task: ${err.message}`, 'error');
+      // Reload to sync state
+      await loadTasks();
+    }
+  }
+
+  async function handleStatusChange(task, newStatus) {
+    const oldStatus = task.status;
+    // Optimistic update
+    tasks = tasks.map(t => t.id === task.id ? { ...t, status: newStatus } : t);
+
+    try {
+      await updateTask(task.id, { status: newStatus });
+    } catch (err) {
+      // Revert on error
+      tasks = tasks.map(t => t.id === task.id ? { ...t, status: oldStatus } : t);
+      showToast(`Failed to update task: ${err.message}`, 'error');
+    }
+  }
+
+  async function handleVersionChange(task, newVersion) {
+    const oldVersion = task.sprint;
+    // Optimistic update
+    tasks = tasks.map(t => t.id === task.id ? { ...t, sprint: newVersion } : t);
+
+    try {
+      await updateTask(task.id, { sprint: newVersion });
+    } catch (err) {
+      // Revert on error
+      tasks = tasks.map(t => t.id === task.id ? { ...t, sprint: oldVersion } : t);
+      showToast(`Failed to update task: ${err.message}`, 'error');
+    }
+  }
+
+  async function handleDeleteTask(task) {
+    const oldTasks = [...tasks];
+    // Optimistic delete
+    tasks = tasks.filter(t => t.id !== task.id);
+
+    try {
+      await deleteTask(task.id);
+      showToast('Task deleted', 'success');
+    } catch (err) {
+      // Revert on error
+      tasks = oldTasks;
+      showToast(`Failed to delete task: ${err.message}`, 'error');
+    }
+  }
+
+  async function handleSaveEdit() {
+    if (!editingTask || !editingTask.title.trim()) {
+      showToast('Please enter a task title', 'error');
+      return;
+    }
+
+    const updatedTask = {
+      ...editingTask,
+      title: editingTask.title.trim(),
+      description: editingTask.description.trim()
+    };
+    const taskId = editingTask.id;
+    const oldTasks = [...tasks];
+
+    // Optimistic update
+    tasks = tasks.map(t => t.id === taskId ? updatedTask : t);
+    editingTask = null;
+
+    try {
+      await updateTask(taskId, {
+        title: updatedTask.title,
+        description: updatedTask.description,
+        sprint: updatedTask.sprint
+      });
+      showToast('Task updated', 'success');
+    } catch (err) {
+      tasks = oldTasks;
+      showToast(`Failed to update task: ${err.message}`, 'error');
+    }
+  }
+
+  // Drag and drop handlers
+  function handleDragStart(e, task) {
+    draggedTask = task;
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/plain', task.id);
+  }
+
+  function handleDragEnd() {
+    draggedTask = null;
+    dragOverColumn = null;
+    dragOverVersion = null;
+  }
+
+  function handleDragOver(e, status, version = null) {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    dragOverColumn = status;
+    dragOverVersion = version;
+  }
+
+  function handleDragLeave() {
+    dragOverColumn = null;
+    dragOverVersion = null;
+  }
+
+  async function handleDrop(e, status, version = null) {
+    e.preventDefault();
+    dragOverColumn = null;
+    dragOverVersion = null;
+
+    if (!draggedTask) return;
+
+    const updates = {};
+    if (draggedTask.status !== status) {
+      updates.status = status;
+    }
+    if (version !== null && (draggedTask.sprint || 'backlog') !== version) {
+      updates.sprint = version;
+    }
+
+    if (Object.keys(updates).length === 0) {
+      draggedTask = null;
+      return;
+    }
+
+    const oldTask = { ...draggedTask };
+
+    // Optimistic update
+    tasks = tasks.map(t => t.id === draggedTask.id ? { ...t, ...updates } : t);
+
+    try {
+      await updateTask(draggedTask.id, updates);
+    } catch (err) {
+      // Revert on error
+      tasks = tasks.map(t => t.id === draggedTask.id ? oldTask : t);
+      showToast(`Failed to move task: ${err.message}`, 'error');
+    }
+
+    draggedTask = null;
+  }
+
+  function handleKeydown(e) {
+    if (e.key === 'Escape') {
+      if (deletingVersion) {
+        cancelDeleteVersion();
+      } else if (showVersionsMenu) {
+        showVersionsMenu = false;
+        showNewVersionInput = false;
+        editingVersion = null;
+      } else if (showAddModal) {
+        showAddModal = false;
+      } else if (editingTask) {
+        editingTask = null;
+      } else if (!inline) {
+        onClose();
+      }
+    }
+  }
+
+  function handleClickOutside(e) {
+    if (showVersionsMenu) {
+      const container = e.target.closest('.versions-menu-container');
+      if (!container) {
+        showVersionsMenu = false;
+        showNewVersionInput = false;
+        editingVersion = null;
+      }
+    }
+  }
+</script>
+
+<svelte:window on:keydown={handleKeydown} on:click={handleClickOutside} />
+
+{#if inline}
+  <!-- Inline mode: no backdrop, fills container -->
+  <div class="task-manager-inline">
+    <div class="panel-header">
+      <div class="header-left-section">
+        <label class="version-toggle">
+          <input type="checkbox" bind:checked={showVersionLanes} />
+          <span>Version Lanes</span>
+        </label>
+        <div class="versions-menu-container">
+          <button class="versions-menu-btn" on:click={() => showVersionsMenu = !showVersionsMenu}>
+            Versions
+            <span class="chevron">{showVersionsMenu ? '▲' : '▼'}</span>
+          </button>
+          {#if showVersionsMenu}
+            <div class="versions-dropdown" on:click|stopPropagation>
+              <div class="versions-list">
+                {#each versions as version, idx (version)}
+                  <div
+                    class="version-item"
+                    class:drag-over={dragOverVersionItem === version}
+                    class:is-backlog={version === 'backlog'}
+                    draggable={version !== 'backlog'}
+                    on:dragstart={(e) => handleVersionDragStart(e, version)}
+                    on:dragover={(e) => handleVersionDragOver(e, version)}
+                    on:drop={(e) => handleVersionDrop(e, version)}
+                    on:dragend={handleVersionDragEnd}
+                  >
+                    {#if editingVersion === version}
+                      <input
+                        class="version-edit-input"
+                        bind:value={editingVersionName}
+                        on:keydown={(e) => {
+                          if (e.key === 'Enter') handleRenameVersion();
+                          if (e.key === 'Escape') { editingVersion = null; editingVersionName = ''; }
+                        }}
+                        on:blur={handleRenameVersion}
+                      />
+                    {:else}
+                      <span class="version-name">{getVersionLabel(version)}</span>
+                      <span class="version-task-count">{tasks.filter(t => (t.sprint || 'backlog') === version).length}</span>
+                      <div class="version-actions">
+                        {#if version !== 'backlog'}
+                          <button class="version-action-btn" on:click|stopPropagation={() => moveVersionUp(version)} title="Move up" disabled={idx === 0}>↑</button>
+                          <button class="version-action-btn" on:click|stopPropagation={() => moveVersionDown(version)} title="Move down" disabled={idx >= versions.indexOf('backlog') - 1}>↓</button>
+                          <button class="version-action-btn" on:click|stopPropagation={() => startEditVersion(version)} title="Rename">✎</button>
+                          <button class="version-action-btn delete" on:click|stopPropagation={() => startDeleteVersion(version)} title="Delete">×</button>
+                        {/if}
+                      </div>
+                    {/if}
+                  </div>
+                {/each}
+              </div>
+              <div class="versions-add-section">
+                {#if showNewVersionInput}
+                  <div class="new-version-row">
+                    <input
+                      class="new-version-input-field"
+                      type="text"
+                      bind:value={newVersionName}
+                      placeholder="Version name"
+                      on:keydown={(e) => {
+                        if (e.key === 'Enter') handleAddVersion();
+                        if (e.key === 'Escape') { showNewVersionInput = false; newVersionName = ''; }
+                      }}
+                    />
+                    <button class="small-btn" on:click|stopPropagation={handleAddVersion}>Add</button>
+                    <button class="small-btn cancel" on:click|stopPropagation={() => { showNewVersionInput = false; newVersionName = ''; }}>×</button>
+                  </div>
+                {:else}
+                  <button class="add-version-in-menu" on:click|stopPropagation={() => showNewVersionInput = true}>+ Add Version</button>
+                {/if}
+              </div>
+            </div>
+          {/if}
+        </div>
+      </div>
+      <div class="header-actions">
+        <div class="view-toggle">
+          <button
+            class="view-btn"
+            class:active={viewMode === 'kanban'}
+            on:click={() => viewMode = 'kanban'}
+          >
+            Kanban
+          </button>
+          <button
+            class="view-btn"
+            class:active={viewMode === 'list'}
+            on:click={() => viewMode = 'list'}
+          >
+            List
+          </button>
+        </div>
+        <button class="add-btn" on:click={() => showAddModal = true}>+ Add Task</button>
+      </div>
+    </div>
+
+    <div class="panel-content">
+      {#if loading}
+        <div class="loading">Loading...</div>
+      {:else if viewMode === 'kanban'}
+        {#if showVersionLanes}
+          <!-- Version Swim Lanes View -->
+          <div class="swim-lanes">
+            {#each swimLaneData as lane (lane.version)}
+              {#if lane.tasks.length > 0 || lane.isDefault || lane.isCustom}
+                <div class="swim-lane">
+                  <div class="swim-lane-header">
+                    <span class="swim-lane-title">{lane.label}</span>
+                    <span class="swim-lane-count">{lane.tasks.length} tasks</span>
+                  </div>
+                  <div class="kanban-board">
+                    {#each STATUSES as status}
+                      {@const columnTasks = lane.byStatus[status]}
+                      <div
+                        class="kanban-column"
+                        class:drag-over={dragOverColumn === status && dragOverVersion === lane.version}
+                        on:dragover={(e) => handleDragOver(e, status, lane.version)}
+                        on:dragleave={handleDragLeave}
+                        on:drop={(e) => handleDrop(e, status, lane.version)}
+                        role="list"
+                      >
+                        <div class="column-header">
+                          <span class="column-title">{STATUS_LABELS[status]}</span>
+                          <div class="column-header-right">
+                            <span class="column-count">{columnTasks.length}</span>
+                            <button
+                              class="quick-add-btn"
+                              on:click={() => startQuickAdd(lane.version, status)}
+                              title="Add task"
+                            >+</button>
+                          </div>
+                        </div>
+                        <div class="column-tasks">
+                          {#if quickAddVersion === lane.version && quickAddStatus === status}
+                            <div class="quick-add-card">
+                              <input
+                                bind:this={quickAddInput}
+                                bind:value={quickAddTitle}
+                                class="quick-add-input"
+                                placeholder="Task title... (Enter to save)"
+                                on:keydown={(e) => {
+                                  if (e.key === 'Enter') handleQuickAdd();
+                                  if (e.key === 'Escape') cancelQuickAdd();
+                                }}
+                                on:blur={() => { if (!quickAddTitle.trim()) cancelQuickAdd(); }}
+                              />
+                            </div>
+                          {/if}
+                          {#each columnTasks as task (task.id)}
+                            <div
+                              class="task-card"
+                              class:dragging={draggedTask?.id === task.id}
+                              draggable="true"
+                              on:dragstart={(e) => handleDragStart(e, task)}
+                              on:dragend={handleDragEnd}
+                              role="listitem"
+                            >
+                              {#if editingTask?.id === task.id}
+                                <input
+                                  class="edit-title"
+                                  bind:value={editingTask.title}
+                                  placeholder="Task title"
+                                />
+                                <textarea
+                                  class="edit-description"
+                                  bind:value={editingTask.description}
+                                  placeholder="Description (optional)"
+                                  rows="2"
+                                ></textarea>
+                                <select class="version-select" bind:value={editingTask.sprint}>
+                                  {#each versions as v}
+                                    <option value={v}>{getVersionLabel(v)}</option>
+                                  {/each}
+                                </select>
+                                <div class="edit-actions">
+                                  <button class="save-btn" on:click={handleSaveEdit}>Save</button>
+                                  <button class="cancel-btn" on:click={() => editingTask = null}>Cancel</button>
+                                </div>
+                              {:else}
+                                <div class="task-title">{task.title}</div>
+                                {#if task.description}
+                                  <div class="task-description">{task.description}</div>
+                                {/if}
+                                <div class="task-actions">
+                                  <button
+                                    class="edit-btn"
+                                    on:click={() => editingTask = { ...task }}
+                                    title="Edit"
+                                  >
+                                    Edit
+                                  </button>
+                                  <button
+                                    class="delete-btn"
+                                    on:click={() => handleDeleteTask(task)}
+                                    title="Delete"
+                                  >
+                                    X
+                                  </button>
+                                </div>
+                              {/if}
+                            </div>
+                          {/each}
+                          {#if columnTasks.length === 0 && !(quickAddVersion === lane.version && quickAddStatus === status)}
+                            <div class="empty-column" on:click={() => startQuickAdd(lane.version, status)} role="button" tabindex="0" on:keydown={(e) => e.key === 'Enter' && startQuickAdd(lane.version, status)}>Click to add task</div>
+                          {/if}
+                        </div>
+                      </div>
+                    {/each}
+                  </div>
+                </div>
+              {/if}
+            {/each}
+          </div>
+        {:else}
+          <!-- Simple Kanban View (no version lanes) -->
+          <div class="kanban-board full-height">
+            {#each STATUSES as status}
+              <div
+                class="kanban-column"
+                class:drag-over={dragOverColumn === status && !dragOverVersion}
+                on:dragover={(e) => handleDragOver(e, status)}
+                on:dragleave={handleDragLeave}
+                on:drop={(e) => handleDrop(e, status)}
+                role="list"
+              >
+                <div class="column-header">
+                  <span class="column-title">{STATUS_LABELS[status]}</span>
+                  <div class="column-header-right">
+                    <span class="column-count">{tasksByStatus[status].length}</span>
+                    <button
+                      class="quick-add-btn"
+                      on:click={() => startQuickAdd('backlog', status)}
+                      title="Add task"
+                    >+</button>
+                  </div>
+                </div>
+                <div class="column-tasks">
+                  {#if quickAddVersion === 'backlog' && quickAddStatus === status && !showVersionLanes}
+                    <div class="quick-add-card">
+                      <input
+                        bind:this={quickAddInput}
+                        bind:value={quickAddTitle}
+                        class="quick-add-input"
+                        placeholder="Task title... (Enter to save)"
+                        on:keydown={(e) => {
+                          if (e.key === 'Enter') handleQuickAdd();
+                          if (e.key === 'Escape') cancelQuickAdd();
+                        }}
+                        on:blur={() => { if (!quickAddTitle.trim()) cancelQuickAdd(); }}
+                      />
+                    </div>
+                  {/if}
+                  {#each tasksByStatus[status] as task (task.id)}
+                    <div
+                      class="task-card"
+                      class:dragging={draggedTask?.id === task.id}
+                      draggable="true"
+                      on:dragstart={(e) => handleDragStart(e, task)}
+                      on:dragend={handleDragEnd}
+                      role="listitem"
+                    >
+                      {#if editingTask?.id === task.id}
+                        <input
+                          class="edit-title"
+                          bind:value={editingTask.title}
+                          placeholder="Task title"
+                        />
+                        <textarea
+                          class="edit-description"
+                          bind:value={editingTask.description}
+                          placeholder="Description (optional)"
+                          rows="2"
+                        ></textarea>
+                        <select class="version-select" bind:value={editingTask.sprint}>
+                          {#each versions as v}
+                            <option value={v}>{getVersionLabel(v)}</option>
+                          {/each}
+                        </select>
+                        <div class="edit-actions">
+                          <button class="save-btn" on:click={handleSaveEdit}>Save</button>
+                          <button class="cancel-btn" on:click={() => editingTask = null}>Cancel</button>
+                        </div>
+                      {:else}
+                        <div class="task-title">{task.title}</div>
+                        {#if task.description}
+                          <div class="task-description">{task.description}</div>
+                        {/if}
+                        {#if task.sprint && task.sprint !== 'backlog'}
+                          <div class="task-version-badge">{getVersionLabel(task.sprint)}</div>
+                        {/if}
+                        <div class="task-actions">
+                          <select
+                            class="status-select"
+                            value={task.status}
+                            on:change={(e) => handleStatusChange(task, e.target.value)}
+                          >
+                            {#each STATUSES as s}
+                              <option value={s}>{STATUS_LABELS[s]}</option>
+                            {/each}
+                          </select>
+                          <button
+                            class="edit-btn"
+                            on:click={() => editingTask = { ...task }}
+                            title="Edit"
+                          >
+                            Edit
+                          </button>
+                          <button
+                            class="delete-btn"
+                            on:click={() => handleDeleteTask(task)}
+                            title="Delete"
+                          >
+                            X
+                          </button>
+                        </div>
+                      {/if}
+                    </div>
+                  {/each}
+                  {#if tasksByStatus[status].length === 0 && !(quickAddVersion === 'backlog' && quickAddStatus === status && !showVersionLanes)}
+                    <div class="empty-column" on:click={() => startQuickAdd('backlog', status)} role="button" tabindex="0" on:keydown={(e) => e.key === 'Enter' && startQuickAdd('backlog', status)}>Click to add task</div>
+                  {/if}
+                </div>
+              </div>
+            {/each}
+          </div>
+        {/if}
+      {:else}
+        <div class="list-view">
+          <table class="task-table">
+            <thead>
+              <tr>
+                <th>Title</th>
+                <th>Description</th>
+                <th>Version</th>
+                <th>Status</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {#each tasks as task (task.id)}
+                <tr>
+                  <td>{task.title}</td>
+                  <td class="description-cell">{task.description || '-'}</td>
+                  <td>
+                    <select
+                      class="version-select"
+                      value={task.sprint || 'backlog'}
+                      on:change={(e) => handleVersionChange(task, e.target.value)}
+                    >
+                      {#each versions as v}
+                        <option value={v}>{getVersionLabel(v)}</option>
+                      {/each}
+                    </select>
+                  </td>
+                  <td>
+                    <select
+                      class="status-select"
+                      value={task.status}
+                      on:change={(e) => handleStatusChange(task, e.target.value)}
+                    >
+                      {#each STATUSES as s}
+                        <option value={s}>{STATUS_LABELS[s]}</option>
+                      {/each}
+                    </select>
+                  </td>
+                  <td>
+                    <button
+                      class="edit-btn"
+                      on:click={() => editingTask = { ...task }}
+                    >
+                      Edit
+                    </button>
+                    <button
+                      class="delete-btn"
+                      on:click={() => handleDeleteTask(task)}
+                    >
+                      X
+                    </button>
+                  </td>
+                </tr>
+              {/each}
+              {#if tasks.length === 0}
+                <tr>
+                  <td colspan="5" class="empty-table">No tasks yet. Click "Add Task" to create one.</td>
+                </tr>
+              {/if}
+            </tbody>
+          </table>
+        </div>
+      {/if}
+    </div>
+  </div>
+{:else}
+  <!-- Modal mode: with backdrop -->
+  <div class="task-manager-backdrop" on:click={onClose} role="dialog">
+    <div class="task-manager-panel" on:click|stopPropagation role="document">
+      <div class="panel-header">
+        <h3>Tasks</h3>
+        <div class="header-actions">
+          <label class="version-toggle">
+            <input type="checkbox" bind:checked={showVersionLanes} />
+            <span>Version Lanes</span>
+          </label>
+          <div class="view-toggle">
+            <button
+              class="view-btn"
+              class:active={viewMode === 'kanban'}
+              on:click={() => viewMode = 'kanban'}
+            >
+              Kanban
+            </button>
+            <button
+              class="view-btn"
+              class:active={viewMode === 'list'}
+              on:click={() => viewMode = 'list'}
+            >
+              List
+            </button>
+          </div>
+          <button class="add-btn" on:click={() => showAddModal = true}>+ Add Task</button>
+          <button class="close-btn" on:click={onClose}>X</button>
+        </div>
+      </div>
+
+      <div class="panel-content">
+        {#if loading}
+          <div class="loading">Loading...</div>
+        {:else if viewMode === 'kanban'}
+          {#if showVersionLanes}
+            <!-- Version Swim Lanes View -->
+            <div class="swim-lanes">
+              {#each swimLaneData as lane (lane.version)}
+                {#if lane.tasks.length > 0 || lane.isDefault || lane.isCustom}
+                  <div class="swim-lane">
+                    <div class="swim-lane-header">
+                      <span class="swim-lane-title">{lane.label}</span>
+                      <span class="swim-lane-count">{lane.tasks.length} tasks</span>
+                    </div>
+                    <div class="kanban-board">
+                      {#each STATUSES as status}
+                        {@const columnTasks = lane.byStatus[status]}
+                        <div
+                          class="kanban-column"
+                          class:drag-over={dragOverColumn === status && dragOverVersion === lane.version}
+                          on:dragover={(e) => handleDragOver(e, status, lane.version)}
+                          on:dragleave={handleDragLeave}
+                          on:drop={(e) => handleDrop(e, status, lane.version)}
+                          role="list"
+                        >
+                          <div class="column-header">
+                            <span class="column-title">{STATUS_LABELS[status]}</span>
+                            <span class="column-count">{columnTasks.length}</span>
+                          </div>
+                          <div class="column-tasks">
+                            {#each columnTasks as task (task.id)}
+                              <div
+                                class="task-card"
+                                class:dragging={draggedTask?.id === task.id}
+                                draggable="true"
+                                on:dragstart={(e) => handleDragStart(e, task)}
+                                on:dragend={handleDragEnd}
+                                role="listitem"
+                              >
+                                {#if editingTask?.id === task.id}
+                                  <input
+                                    class="edit-title"
+                                    bind:value={editingTask.title}
+                                    placeholder="Task title"
+                                  />
+                                  <textarea
+                                    class="edit-description"
+                                    bind:value={editingTask.description}
+                                    placeholder="Description (optional)"
+                                    rows="2"
+                                  ></textarea>
+                                  <select class="version-select" bind:value={editingTask.sprint}>
+                                    {#each versions as v}
+                                      <option value={v}>{getVersionLabel(v)}</option>
+                                    {/each}
+                                  </select>
+                                  <div class="edit-actions">
+                                    <button class="save-btn" on:click={handleSaveEdit}>Save</button>
+                                    <button class="cancel-btn" on:click={() => editingTask = null}>Cancel</button>
+                                  </div>
+                                {:else}
+                                  <div class="task-title">{task.title}</div>
+                                  {#if task.description}
+                                    <div class="task-description">{task.description}</div>
+                                  {/if}
+                                  <div class="task-actions">
+                                    <button
+                                      class="edit-btn"
+                                      on:click={() => editingTask = { ...task }}
+                                      title="Edit"
+                                    >
+                                      Edit
+                                    </button>
+                                    <button
+                                      class="delete-btn"
+                                      on:click={() => handleDeleteTask(task)}
+                                      title="Delete"
+                                    >
+                                      X
+                                    </button>
+                                  </div>
+                                {/if}
+                              </div>
+                            {/each}
+                            {#if columnTasks.length === 0}
+                              <div class="empty-column">Drop here</div>
+                            {/if}
+                          </div>
+                        </div>
+                      {/each}
+                    </div>
+                  </div>
+                {/if}
+              {/each}
+            </div>
+          {:else}
+            <!-- Simple Kanban View (no version lanes) -->
+            <div class="kanban-board full-height">
+              {#each STATUSES as status}
+                <div
+                  class="kanban-column"
+                  class:drag-over={dragOverColumn === status && !dragOverVersion}
+                  on:dragover={(e) => handleDragOver(e, status)}
+                  on:dragleave={handleDragLeave}
+                  on:drop={(e) => handleDrop(e, status)}
+                  role="list"
+                >
+                  <div class="column-header">
+                    <span class="column-title">{STATUS_LABELS[status]}</span>
+                    <span class="column-count">{tasksByStatus[status].length}</span>
+                  </div>
+                  <div class="column-tasks">
+                    {#each tasksByStatus[status] as task (task.id)}
+                      <div
+                        class="task-card"
+                        class:dragging={draggedTask?.id === task.id}
+                        draggable="true"
+                        on:dragstart={(e) => handleDragStart(e, task)}
+                        on:dragend={handleDragEnd}
+                        role="listitem"
+                      >
+                        {#if editingTask?.id === task.id}
+                          <input
+                            class="edit-title"
+                            bind:value={editingTask.title}
+                            placeholder="Task title"
+                          />
+                          <textarea
+                            class="edit-description"
+                            bind:value={editingTask.description}
+                            placeholder="Description (optional)"
+                            rows="2"
+                          ></textarea>
+                          <select class="version-select" bind:value={editingTask.sprint}>
+                            {#each versions as v}
+                              <option value={v}>{getVersionLabel(v)}</option>
+                            {/each}
+                          </select>
+                          <div class="edit-actions">
+                            <button class="save-btn" on:click={handleSaveEdit}>Save</button>
+                            <button class="cancel-btn" on:click={() => editingTask = null}>Cancel</button>
+                          </div>
+                        {:else}
+                          <div class="task-title">{task.title}</div>
+                          {#if task.description}
+                            <div class="task-description">{task.description}</div>
+                          {/if}
+                          {#if task.sprint && task.sprint !== 'backlog'}
+                            <div class="task-version-badge">{getVersionLabel(task.sprint)}</div>
+                          {/if}
+                          <div class="task-actions">
+                            <select
+                              class="status-select"
+                              value={task.status}
+                              on:change={(e) => handleStatusChange(task, e.target.value)}
+                            >
+                              {#each STATUSES as s}
+                                <option value={s}>{STATUS_LABELS[s]}</option>
+                              {/each}
+                            </select>
+                            <button
+                              class="edit-btn"
+                              on:click={() => editingTask = { ...task }}
+                              title="Edit"
+                            >
+                              Edit
+                            </button>
+                            <button
+                              class="delete-btn"
+                              on:click={() => handleDeleteTask(task)}
+                              title="Delete"
+                            >
+                              X
+                            </button>
+                          </div>
+                        {/if}
+                      </div>
+                    {/each}
+                    {#if tasksByStatus[status].length === 0}
+                      <div class="empty-column">Drop here</div>
+                    {/if}
+                  </div>
+                </div>
+              {/each}
+            </div>
+          {/if}
+        {:else}
+          <div class="list-view">
+            <table class="task-table">
+              <thead>
+                <tr>
+                  <th>Title</th>
+                  <th>Description</th>
+                  <th>Version</th>
+                  <th>Status</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {#each tasks as task (task.id)}
+                  <tr>
+                    <td>{task.title}</td>
+                    <td class="description-cell">{task.description || '-'}</td>
+                    <td>
+                      <select
+                        class="version-select"
+                        value={task.sprint || 'backlog'}
+                        on:change={(e) => handleVersionChange(task, e.target.value)}
+                      >
+                        {#each versions as v}
+                          <option value={v}>{getVersionLabel(v)}</option>
+                        {/each}
+                      </select>
+                    </td>
+                    <td>
+                      <select
+                        class="status-select"
+                        value={task.status}
+                        on:change={(e) => handleStatusChange(task, e.target.value)}
+                      >
+                        {#each STATUSES as s}
+                          <option value={s}>{STATUS_LABELS[s]}</option>
+                        {/each}
+                      </select>
+                    </td>
+                    <td>
+                      <button
+                        class="edit-btn"
+                        on:click={() => editingTask = { ...task }}
+                      >
+                        Edit
+                      </button>
+                      <button
+                        class="delete-btn"
+                        on:click={() => handleDeleteTask(task)}
+                      >
+                        X
+                      </button>
+                    </td>
+                  </tr>
+                {/each}
+                {#if tasks.length === 0}
+                  <tr>
+                    <td colspan="5" class="empty-table">No tasks yet. Click "Add Task" to create one.</td>
+                  </tr>
+                {/if}
+              </tbody>
+            </table>
+          </div>
+        {/if}
+      </div>
+    </div>
+  </div>
+{/if}
+
+<!-- Add Task Modal -->
+{#if showAddModal}
+  <div class="modal-backdrop" on:click={() => showAddModal = false} role="dialog">
+    <div class="modal" on:click|stopPropagation role="document">
+      <div class="modal-header">
+        <h4>Add Task</h4>
+        <button class="close-btn" on:click={() => showAddModal = false}>X</button>
+      </div>
+      <div class="modal-body">
+        <input
+          class="input-field"
+          bind:value={newTaskTitle}
+          placeholder="Task title"
+          on:keydown={(e) => e.key === 'Enter' && handleAddTask()}
+        />
+        <textarea
+          class="textarea-field"
+          bind:value={newTaskDescription}
+          placeholder="Description (optional)"
+          rows="3"
+        ></textarea>
+        <select class="select-field" bind:value={newTaskVersion}>
+          {#each versions as v}
+            <option value={v}>{getVersionLabel(v)}</option>
+          {/each}
+        </select>
+      </div>
+      <div class="modal-footer">
+        <button class="action-btn primary" on:click={handleAddTask}>Add Task</button>
+        <button class="action-btn" on:click={() => showAddModal = false}>Cancel</button>
+      </div>
+    </div>
+  </div>
+{/if}
+
+<!-- Edit Task Modal (for list view) -->
+{#if editingTask && viewMode === 'list'}
+  <div class="modal-backdrop" on:click={() => editingTask = null} role="dialog">
+    <div class="modal" on:click|stopPropagation role="document">
+      <div class="modal-header">
+        <h4>Edit Task</h4>
+        <button class="close-btn" on:click={() => editingTask = null}>X</button>
+      </div>
+      <div class="modal-body">
+        <input
+          class="input-field"
+          bind:value={editingTask.title}
+          placeholder="Task title"
+        />
+        <textarea
+          class="textarea-field"
+          bind:value={editingTask.description}
+          placeholder="Description (optional)"
+          rows="3"
+        ></textarea>
+        <select class="select-field" bind:value={editingTask.sprint}>
+          {#each versions as v}
+            <option value={v}>{getVersionLabel(v)}</option>
+          {/each}
+        </select>
+      </div>
+      <div class="modal-footer">
+        <button class="action-btn primary" on:click={handleSaveEdit}>Save</button>
+        <button class="action-btn" on:click={() => editingTask = null}>Cancel</button>
+      </div>
+    </div>
+  </div>
+{/if}
+
+<!-- Delete Version Confirmation Modal -->
+{#if deletingVersion}
+  <div class="modal-backdrop" on:click={cancelDeleteVersion} role="dialog">
+    <div class="modal delete-version-modal" on:click|stopPropagation role="document">
+      <div class="modal-header">
+        <h4>Delete Version</h4>
+        <button class="close-btn" on:click={cancelDeleteVersion}>X</button>
+      </div>
+      <div class="modal-body">
+        <p class="delete-warning">
+          Are you sure you want to delete <strong>{getVersionLabel(deletingVersion)}</strong>?
+        </p>
+        {#if tasks.filter(t => (t.sprint || 'backlog') === deletingVersion).length > 0}
+          <p class="reassign-info">
+            {tasks.filter(t => (t.sprint || 'backlog') === deletingVersion).length} task{tasks.filter(t => (t.sprint || 'backlog') === deletingVersion).length > 1 ? 's' : ''} will be moved to:
+          </p>
+          <select class="select-field" bind:value={deleteTargetVersion}>
+            {#each versions.filter(v => v !== deletingVersion) as v}
+              <option value={v}>{getVersionLabel(v)}</option>
+            {/each}
+          </select>
+        {:else}
+          <p class="no-tasks-info">This version has no tasks.</p>
+        {/if}
+      </div>
+      <div class="modal-footer">
+        <button class="action-btn danger" on:click={confirmDeleteVersion} disabled={isDeleting}>
+          {#if isDeleting}
+            <span class="spinner"></span> Deleting...
+          {:else}
+            Delete Version
+          {/if}
+        </button>
+        <button class="action-btn" on:click={cancelDeleteVersion} disabled={isDeleting}>Cancel</button>
+      </div>
+    </div>
+  </div>
+{/if}
+
+<style>
+  /* Inline mode styles */
+  .task-manager-inline {
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    background: var(--bg-secondary);
+  }
+
+  .task-manager-inline .panel-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px 24px;
+    background: var(--bg-primary);
+    border-bottom: 1px solid var(--border-secondary);
+  }
+
+  .task-manager-inline .panel-content {
+    flex: 1;
+    overflow: auto;
+    padding: 20px 24px;
+  }
+
+  .header-left-section {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+  }
+
+  /* Modal mode styles */
+  .task-manager-backdrop {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.7);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+    backdrop-filter: blur(2px);
+  }
+
+  .task-manager-panel {
+    background: var(--bg-primary);
+    border: 1px solid var(--border-primary);
+    border-radius: 2px;
+    width: 95%;
+    max-width: 1400px;
+    height: 85vh;
+    display: flex;
+    flex-direction: column;
+    box-shadow: var(--shadow-large);
+  }
+
+  .task-manager-panel .panel-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 16px 20px;
+    border-bottom: 1px solid var(--border-secondary);
+  }
+
+  .task-manager-panel .panel-header h3 {
+    margin: 0;
+    font-size: 14px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: var(--text-primary);
+  }
+
+  .task-manager-panel .panel-content {
+    flex: 1;
+    overflow: auto;
+    padding: 20px;
+  }
+
+  .header-actions {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+  }
+
+  .version-toggle {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 10px;
+    color: var(--text-secondary);
+    cursor: pointer;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+
+  .version-toggle input {
+    cursor: pointer;
+  }
+
+  .view-toggle {
+    display: flex;
+    gap: 0;
+    border: 1px solid var(--border-primary);
+    border-radius: 1px;
+    overflow: hidden;
+  }
+
+  .view-btn {
+    padding: 6px 12px;
+    background: var(--bg-primary);
+    border: none;
+    border-right: 1px solid var(--border-primary);
+    color: var(--text-secondary);
+    font-size: 9px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+
+  .view-btn:last-child {
+    border-right: none;
+  }
+
+  .view-btn:hover {
+    background: var(--bg-hover);
+    color: var(--text-primary);
+  }
+
+  .view-btn.active {
+    background: var(--accent-primary);
+    color: var(--bg-primary);
+  }
+
+  .add-btn {
+    padding: 6px 12px;
+    background: var(--accent-primary);
+    color: var(--bg-primary);
+    border: none;
+    border-radius: 1px;
+    font-size: 9px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+
+  .add-btn:hover {
+    opacity: 0.9;
+  }
+
+  .close-btn {
+    padding: 6px 10px;
+    background: transparent;
+    border: 1px solid var(--border-primary);
+    color: var(--text-secondary);
+    border-radius: 1px;
+    font-size: 10px;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+
+  .close-btn:hover {
+    background: var(--bg-hover);
+    color: var(--text-primary);
+  }
+
+  .loading {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 200px;
+    color: var(--text-secondary);
+  }
+
+  /* Swim Lanes */
+  .swim-lanes {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+  }
+
+  .swim-lane {
+    border: 1px solid var(--border-secondary);
+    border-radius: 4px;
+    background: var(--bg-secondary);
+  }
+
+  .swim-lane-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 16px;
+    border-bottom: 1px solid var(--border-secondary);
+    background: var(--bg-primary);
+  }
+
+  .swim-lane-title {
+    font-size: 12px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    color: var(--accent-primary);
+  }
+
+  .swim-lane-count {
+    font-size: 10px;
+    color: var(--text-tertiary);
+  }
+
+  /* Kanban View */
+  .kanban-board {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 12px;
+    padding: 12px;
+  }
+
+  .kanban-board.full-height {
+    height: 100%;
+    padding: 0;
+  }
+
+  .kanban-column {
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-secondary);
+    border-radius: 4px;
+    display: flex;
+    flex-direction: column;
+    min-height: 150px;
+    transition: border-color 0.2s, background 0.2s;
+  }
+
+  .kanban-column.drag-over {
+    border-color: var(--accent-primary);
+    background: rgba(255, 255, 255, 0.02);
+  }
+
+  .full-height .kanban-column {
+    min-height: 300px;
+  }
+
+  .column-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 14px;
+    border-bottom: 1px solid var(--border-secondary);
+  }
+
+  .column-title {
+    font-size: 10px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    color: var(--text-primary);
+  }
+
+  .column-count {
+    font-size: 9px;
+    color: var(--text-tertiary);
+    background: var(--bg-primary);
+    padding: 2px 6px;
+    border-radius: 10px;
+  }
+
+  .column-tasks {
+    flex: 1;
+    padding: 10px;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .task-card {
+    background: var(--bg-primary);
+    border: 1px solid var(--border-primary);
+    border-radius: 4px;
+    padding: 10px;
+    cursor: grab;
+    transition: all 0.2s;
+  }
+
+  .task-card:hover {
+    border-color: var(--border-hover);
+  }
+
+  .task-card.dragging {
+    opacity: 0.5;
+    cursor: grabbing;
+  }
+
+  .task-card:active {
+    cursor: grabbing;
+  }
+
+  .task-title {
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--text-primary);
+    margin-bottom: 4px;
+  }
+
+  .task-description {
+    font-size: 10px;
+    color: var(--text-secondary);
+    margin-bottom: 6px;
+    line-height: 1.4;
+  }
+
+  .task-version-badge {
+    display: inline-block;
+    font-size: 9px;
+    color: var(--accent-primary);
+    background: rgba(255, 255, 255, 0.05);
+    padding: 2px 6px;
+    border-radius: 2px;
+    margin-bottom: 6px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+
+  .task-actions {
+    display: flex;
+    gap: 6px;
+    align-items: center;
+    opacity: 0;
+    transition: opacity 0.2s;
+  }
+
+  .task-card:hover .task-actions {
+    opacity: 1;
+  }
+
+  .status-select, .version-select {
+    flex: 1;
+    padding: 4px 6px;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-primary);
+    border-radius: 2px;
+    color: var(--text-primary);
+    font-size: 9px;
+    cursor: pointer;
+  }
+
+  .edit-btn, .delete-btn {
+    padding: 4px 8px;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-primary);
+    border-radius: 2px;
+    color: var(--text-secondary);
+    font-size: 9px;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+
+  .edit-btn:hover {
+    background: var(--bg-hover);
+    color: var(--text-primary);
+  }
+
+  .delete-btn:hover {
+    background: #ef4444;
+    border-color: #ef4444;
+    color: white;
+  }
+
+  .empty-column {
+    text-align: center;
+    color: var(--text-tertiary);
+    font-size: 11px;
+    padding: 16px;
+    border: 2px dashed var(--border-secondary);
+    border-radius: 4px;
+  }
+
+  /* Edit in place */
+  .edit-title {
+    width: 100%;
+    padding: 6px 8px;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-primary);
+    border-radius: 2px;
+    color: var(--text-primary);
+    font-size: 12px;
+    margin-bottom: 6px;
+  }
+
+  .edit-description {
+    width: 100%;
+    padding: 6px 8px;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-primary);
+    border-radius: 2px;
+    color: var(--text-primary);
+    font-size: 10px;
+    resize: vertical;
+    margin-bottom: 6px;
+  }
+
+  .edit-actions {
+    display: flex;
+    gap: 6px;
+  }
+
+  .save-btn, .cancel-btn {
+    padding: 4px 10px;
+    border-radius: 2px;
+    font-size: 9px;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+
+  .save-btn {
+    background: var(--accent-primary);
+    color: var(--bg-primary);
+    border: none;
+  }
+
+  .save-btn:hover {
+    opacity: 0.9;
+  }
+
+  .cancel-btn {
+    background: var(--bg-secondary);
+    color: var(--text-secondary);
+    border: 1px solid var(--border-primary);
+  }
+
+  .cancel-btn:hover {
+    background: var(--bg-hover);
+  }
+
+  /* List View */
+  .list-view {
+    overflow-x: auto;
+  }
+
+  .task-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 11px;
+  }
+
+  .task-table th,
+  .task-table td {
+    padding: 10px 14px;
+    text-align: left;
+    border-bottom: 1px solid var(--border-secondary);
+  }
+
+  .task-table th {
+    font-size: 9px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    color: var(--text-tertiary);
+    background: var(--bg-secondary);
+  }
+
+  .task-table td {
+    color: var(--text-primary);
+  }
+
+  .description-cell {
+    color: var(--text-secondary);
+    max-width: 250px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .empty-table {
+    text-align: center;
+    color: var(--text-tertiary);
+    padding: 40px !important;
+  }
+
+  /* Modal */
+  .modal-backdrop {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.7);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1100;
+  }
+
+  .modal {
+    background: var(--bg-primary);
+    border: 1px solid var(--border-primary);
+    border-radius: 4px;
+    width: 90%;
+    max-width: 500px;
+    box-shadow: var(--shadow-large);
+  }
+
+  .modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 16px 20px;
+    border-bottom: 1px solid var(--border-secondary);
+  }
+
+  .modal-header h4 {
+    margin: 0;
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text-primary);
+  }
+
+  .modal-body {
+    padding: 20px;
+  }
+
+  .input-field {
+    width: 100%;
+    padding: 10px 12px;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-primary);
+    border-radius: 2px;
+    color: var(--text-primary);
+    font-size: 13px;
+    margin-bottom: 12px;
+  }
+
+  .input-field:focus,
+  .textarea-field:focus,
+  .select-field:focus {
+    outline: none;
+    border-color: var(--accent-primary);
+  }
+
+  .textarea-field {
+    width: 100%;
+    padding: 10px 12px;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-primary);
+    border-radius: 2px;
+    color: var(--text-primary);
+    font-size: 13px;
+    resize: vertical;
+    margin-bottom: 12px;
+  }
+
+  .select-field {
+    width: 100%;
+    padding: 10px 12px;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-primary);
+    border-radius: 2px;
+    color: var(--text-primary);
+    font-size: 13px;
+    cursor: pointer;
+  }
+
+  .modal-footer {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+    padding: 16px 20px;
+    border-top: 1px solid var(--border-secondary);
+  }
+
+  .action-btn {
+    padding: 8px 16px;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-primary);
+    border-radius: 2px;
+    color: var(--text-secondary);
+    font-size: 11px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+
+  .action-btn:hover {
+    background: var(--bg-hover);
+    color: var(--text-primary);
+  }
+
+  .action-btn.primary {
+    background: var(--accent-primary);
+    color: var(--bg-primary);
+    border: none;
+  }
+
+  .action-btn.primary:hover {
+    opacity: 0.9;
+  }
+
+  .action-btn.danger {
+    background: #ef4444;
+    color: white;
+    border: none;
+  }
+
+  .action-btn.danger:hover {
+    background: #dc2626;
+  }
+
+  /* Versions Menu */
+  .versions-menu-container {
+    position: relative;
+  }
+
+  .versions-menu-btn {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 12px;
+    background: var(--bg-primary);
+    border: 1px solid var(--border-primary);
+    color: var(--text-secondary);
+    border-radius: 1px;
+    font-size: 9px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+
+  .versions-menu-btn:hover {
+    background: var(--bg-hover);
+    border-color: var(--border-hover);
+    color: var(--text-primary);
+  }
+
+  .chevron {
+    font-size: 8px;
+    opacity: 0.7;
+  }
+
+  .versions-dropdown {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    margin-top: 4px;
+    min-width: 280px;
+    background: var(--bg-primary);
+    border: 1px solid var(--border-primary);
+    border-radius: 4px;
+    box-shadow: var(--shadow-large);
+    z-index: 100;
+    overflow: hidden;
+  }
+
+  .versions-list {
+    max-height: 300px;
+    overflow-y: auto;
+  }
+
+  .version-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 12px;
+    border-bottom: 1px solid var(--border-secondary);
+    cursor: grab;
+    transition: background 0.2s;
+  }
+
+  .version-item:last-child {
+    border-bottom: none;
+  }
+
+  .version-item:hover {
+    background: var(--bg-hover);
+  }
+
+  .version-item.drag-over {
+    background: var(--bg-hover);
+    border-top: 2px solid var(--accent-primary);
+  }
+
+  .version-item.is-backlog {
+    cursor: default;
+    background: var(--bg-secondary);
+  }
+
+  .version-name {
+    flex: 1;
+    font-size: 12px;
+    color: var(--text-primary);
+  }
+
+  .version-task-count {
+    font-size: 10px;
+    color: var(--text-tertiary);
+    padding: 2px 6px;
+    background: var(--bg-secondary);
+    border-radius: 10px;
+  }
+
+  .version-actions {
+    display: flex;
+    gap: 2px;
+    opacity: 0;
+    transition: opacity 0.2s;
+  }
+
+  .version-item:hover .version-actions {
+    opacity: 1;
+  }
+
+  .version-action-btn {
+    width: 24px;
+    height: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: transparent;
+    border: 1px solid transparent;
+    color: var(--text-tertiary);
+    border-radius: 2px;
+    font-size: 12px;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+
+  .version-action-btn:hover:not(:disabled) {
+    background: var(--bg-secondary);
+    border-color: var(--border-primary);
+    color: var(--text-primary);
+  }
+
+  .version-action-btn:disabled {
+    opacity: 0.3;
+    cursor: not-allowed;
+  }
+
+  .version-action-btn.delete:hover:not(:disabled) {
+    background: #ef4444;
+    border-color: #ef4444;
+    color: white;
+  }
+
+  .version-edit-input {
+    flex: 1;
+    padding: 4px 8px;
+    background: var(--bg-secondary);
+    border: 1px solid var(--accent-primary);
+    border-radius: 2px;
+    color: var(--text-primary);
+    font-size: 12px;
+  }
+
+  .version-edit-input:focus {
+    outline: none;
+  }
+
+  .versions-add-section {
+    padding: 10px 12px;
+    border-top: 1px solid var(--border-secondary);
+    background: var(--bg-secondary);
+  }
+
+  .add-version-in-menu {
+    width: 100%;
+    padding: 8px 12px;
+    background: transparent;
+    border: 1px dashed var(--border-primary);
+    color: var(--text-tertiary);
+    border-radius: 2px;
+    font-size: 10px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+
+  .add-version-in-menu:hover {
+    border-color: var(--border-hover);
+    color: var(--text-primary);
+    background: var(--bg-hover);
+  }
+
+  .new-version-row {
+    display: flex;
+    gap: 6px;
+    align-items: center;
+  }
+
+  .new-version-input-field {
+    flex: 1;
+    padding: 6px 8px;
+    background: var(--bg-primary);
+    border: 1px solid var(--border-primary);
+    border-radius: 2px;
+    color: var(--text-primary);
+    font-size: 11px;
+  }
+
+  .new-version-input-field:focus {
+    outline: none;
+    border-color: var(--accent-primary);
+  }
+
+  /* Delete Version Modal */
+  .delete-version-modal {
+    max-width: 400px;
+  }
+
+  .delete-warning {
+    margin: 0 0 16px 0;
+    font-size: 13px;
+    color: var(--text-primary);
+  }
+
+  .reassign-info {
+    margin: 0 0 8px 0;
+    font-size: 12px;
+    color: var(--text-secondary);
+  }
+
+  .no-tasks-info {
+    margin: 0;
+    font-size: 12px;
+    color: var(--text-tertiary);
+  }
+
+  .small-btn {
+    padding: 4px 8px;
+    background: var(--accent-primary);
+    color: var(--bg-primary);
+    border: none;
+    border-radius: 2px;
+    font-size: 9px;
+    font-weight: 600;
+    text-transform: uppercase;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+
+  .small-btn:hover {
+    opacity: 0.9;
+  }
+
+  .small-btn.cancel {
+    background: var(--bg-secondary);
+    color: var(--text-secondary);
+    border: 1px solid var(--border-primary);
+  }
+
+  .small-btn.cancel:hover {
+    background: var(--bg-hover);
+    color: var(--text-primary);
+  }
+
+  /* Quick Add */
+  .column-header-right {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .quick-add-btn {
+    width: 20px;
+    height: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    background: transparent;
+    border: 1px solid var(--border-secondary);
+    color: var(--text-tertiary);
+    border-radius: 2px;
+    font-size: 14px;
+    font-weight: 400;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+
+  .quick-add-btn:hover {
+    background: var(--accent-primary);
+    border-color: var(--accent-primary);
+    color: var(--bg-primary);
+  }
+
+  .quick-add-card {
+    background: var(--bg-primary);
+    border: 1px solid var(--accent-primary);
+    border-radius: 4px;
+    padding: 8px;
+  }
+
+  .quick-add-input {
+    width: 100%;
+    padding: 6px 8px;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-primary);
+    border-radius: 2px;
+    color: var(--text-primary);
+    font-size: 11px;
+  }
+
+  .quick-add-input:focus {
+    outline: none;
+    border-color: var(--accent-primary);
+  }
+
+  .empty-column {
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+
+  .empty-column:hover {
+    border-color: var(--accent-primary);
+    color: var(--text-secondary);
+  }
+
+  @media (max-width: 768px) {
+    .kanban-board {
+      grid-template-columns: 1fr;
+    }
+  }
+
+  .spinner {
+    display: inline-block;
+    width: 12px;
+    height: 12px;
+    border: 2px solid currentColor;
+    border-right-color: transparent;
+    border-radius: 50%;
+    animation: spin 0.75s linear infinite;
+    vertical-align: middle;
+    margin-right: 4px;
+  }
+
+  @keyframes spin {
+    to {
+      transform: rotate(360deg);
+    }
+  }
+</style>
