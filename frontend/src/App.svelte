@@ -2,11 +2,13 @@
   import Router from 'svelte-spa-router';
   import LandingPage from './lib/components/LandingPage.svelte';
   import MainApp from './lib/components/MainApp.svelte';
+  import TasksPage from './lib/components/TasksPage.svelte';
   import { push } from 'svelte-spa-router';
 
   const routes = {
     '/': MainApp,
     '/home': LandingPage,
+    '/tasks': TasksPage,
   };
 
   function handleGetStarted() {
@@ -14,7 +16,7 @@
   }
 </script>
 
-<Router {routes} useHash={false} />
+<Router {routes} />
 
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');

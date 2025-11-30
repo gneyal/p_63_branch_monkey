@@ -1,4 +1,6 @@
 <script>
+  import { push } from 'svelte-spa-router';
+
   export let onGoToTop = () => {};
   export let onGoToBottom = () => {};
   export let onShowRemote = () => {};
@@ -34,6 +36,10 @@
   function handleShowArchitecture() {
     onShowArchitecture();
   }
+
+  function handleShowTasks() {
+    push('/tasks');
+  }
 </script>
 
 <div class="global-actions">
@@ -63,6 +69,10 @@
 
   <button class="action-item" on:click={handleShowContext} title="View context library">
     <span>Context</span>
+  </button>
+
+  <button class="action-item" on:click={handleShowTasks} title="View tasks">
+    <span>Tasks</span>
   </button>
 </div>
 

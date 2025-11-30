@@ -31,6 +31,9 @@ REPO_PATH: Optional[Path] = None
 # Prompts database path
 PROMPTS_DB = Path.home() / ".branch_monkey" / "prompts.db"
 
+# Tasks database path
+TASKS_DB = Path.home() / ".branch_monkey" / "tasks.db"
+
 
 def init_prompts_db():
     """Initialize the prompts SQLite database."""
@@ -44,6 +47,46 @@ def init_prompts_db():
             prompt TEXT NOT NULL,
             timestamp TEXT NOT NULL,
             repo_path TEXT NOT NULL
+        )
+    ''')
+    conn.commit()
+    conn.close()
+
+
+def init_tasks_db():
+    """Initialize the tasks SQLite database."""
+    TASKS_DB.parent.mkdir(parents=True, exist_ok=True)
+
+    conn = sqlite3.connect(TASKS_DB)
+    conn.execute('''
+        CREATE TABLE IF NOT EXISTS tasks (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            title TEXT NOT NULL,
+            description TEXT DEFAULT '',
+            status TEXT NOT NULL DEFAULT 'todo',
+            priority INTEGER DEFAULT 0,
+            sprint TEXT DEFAULT 'backlog',
+            repo_path TEXT NOT NULL,
+            created_at TEXT NOT NULL,
+            updated_at TEXT NOT NULL
+        )
+    ''')
+    # Add sprint column if it doesn't exist (migration)
+    try:
+        conn.execute('ALTER TABLE tasks ADD COLUMN sprint TEXT DEFAULT "backlog"')
+    except sqlite3.OperationalError:
+        pass  # Column already exists
+
+    # Create versions table
+    conn.execute('''
+        CREATE TABLE IF NOT EXISTS versions (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            key TEXT NOT NULL,
+            label TEXT NOT NULL,
+            sort_order INTEGER DEFAULT 0,
+            repo_path TEXT NOT NULL,
+            created_at TEXT NOT NULL,
+            UNIQUE(key, repo_path)
         )
     ''')
     conn.commit()
@@ -85,6 +128,41 @@ class NoteRequest(BaseModel):
 
 class PromptRequest(BaseModel):
     prompt: str
+
+
+class TaskRequest(BaseModel):
+    title: str
+    description: Optional[str] = ""
+    status: Optional[str] = "todo"
+    priority: Optional[int] = 0
+    sprint: Optional[str] = "backlog"
+
+
+class TaskUpdateRequest(BaseModel):
+    title: Optional[str] = None
+    description: Optional[str] = None
+    status: Optional[str] = None
+    priority: Optional[int] = None
+    sprint: Optional[str] = None
+
+
+class VersionRequest(BaseModel):
+    key: str
+    label: str
+    sort_order: Optional[int] = 0
+
+
+class VersionUpdateRequest(BaseModel):
+    label: Optional[str] = None
+    sort_order: Optional[int] = None
+
+
+class VersionDeleteRequest(BaseModel):
+    target_version: str = "backlog"
+
+
+class VersionsReorderRequest(BaseModel):
+    order: list[str]
 
 
 # HTML Frontend
@@ -2291,6 +2369,312 @@ def get_latest_context(context_type: str):
         return {"success": True, "context_type": context_type, "entry": entry}
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# === Tasks API ===
+
+@app.get("/api/tasks")
+def get_tasks():
+    """Get all tasks for the current repository."""
+    repo_path = REPO_PATH if REPO_PATH else Path.cwd()
+
+    try:
+        init_tasks_db()
+        conn = sqlite3.connect(TASKS_DB)
+        conn.row_factory = sqlite3.Row
+        cursor = conn.cursor()
+        cursor.execute(
+            "SELECT * FROM tasks WHERE repo_path = ? ORDER BY priority DESC, created_at DESC",
+            (str(repo_path.resolve()),)
+        )
+        rows = cursor.fetchall()
+        conn.close()
+
+        tasks = [dict(row) for row in rows]
+        return {"success": True, "tasks": tasks}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/api/tasks")
+def create_task(request: TaskRequest):
+    """Create a new task."""
+    repo_path = REPO_PATH if REPO_PATH else Path.cwd()
+
+    try:
+        init_tasks_db()
+        conn = sqlite3.connect(TASKS_DB)
+        cursor = conn.cursor()
+        now = datetime.now().isoformat()
+
+        cursor.execute(
+            """
+            INSERT INTO tasks (title, description, status, priority, sprint, repo_path, created_at, updated_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (request.title, request.description, request.status, request.priority, request.sprint, str(repo_path.resolve()), now, now)
+        )
+        task_id = cursor.lastrowid
+        conn.commit()
+        conn.close()
+
+        return {
+            "success": True,
+            "task": {
+                "id": task_id,
+                "title": request.title,
+                "description": request.description,
+                "status": request.status,
+                "priority": request.priority,
+                "sprint": request.sprint,
+                "created_at": now,
+                "updated_at": now
+            }
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.put("/api/tasks/{task_id}")
+def update_task(task_id: int, request: TaskUpdateRequest):
+    """Update a task."""
+    repo_path = REPO_PATH if REPO_PATH else Path.cwd()
+
+    try:
+        init_tasks_db()
+        conn = sqlite3.connect(TASKS_DB)
+        conn.row_factory = sqlite3.Row
+        cursor = conn.cursor()
+
+        # Get current task
+        cursor.execute("SELECT * FROM tasks WHERE id = ? AND repo_path = ?", (task_id, str(repo_path.resolve())))
+        row = cursor.fetchone()
+
+        if not row:
+            conn.close()
+            raise HTTPException(status_code=404, detail=f"Task {task_id} not found")
+
+        task = dict(row)
+
+        # Update fields
+        if request.title is not None:
+            task["title"] = request.title
+        if request.description is not None:
+            task["description"] = request.description
+        if request.status is not None:
+            task["status"] = request.status
+        if request.priority is not None:
+            task["priority"] = request.priority
+        if request.sprint is not None:
+            task["sprint"] = request.sprint
+
+        task["updated_at"] = datetime.now().isoformat()
+
+        cursor.execute(
+            """
+            UPDATE tasks SET title = ?, description = ?, status = ?, priority = ?, sprint = ?, updated_at = ?
+            WHERE id = ? AND repo_path = ?
+            """,
+            (task["title"], task["description"], task["status"], task["priority"], task.get("sprint", "backlog"), task["updated_at"], task_id, str(repo_path.resolve()))
+        )
+        conn.commit()
+        conn.close()
+
+        return {"success": True, "task": task}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.delete("/api/tasks/{task_id}")
+def delete_task(task_id: int):
+    """Delete a task."""
+    repo_path = REPO_PATH if REPO_PATH else Path.cwd()
+
+    try:
+        init_tasks_db()
+        conn = sqlite3.connect(TASKS_DB)
+        cursor = conn.cursor()
+        cursor.execute("DELETE FROM tasks WHERE id = ? AND repo_path = ?", (task_id, str(repo_path.resolve())))
+        deleted = cursor.rowcount > 0
+        conn.commit()
+        conn.close()
+
+        if not deleted:
+            raise HTTPException(status_code=404, detail=f"Task {task_id} not found")
+
+        return {"success": True, "deleted": task_id}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# === Versions API ===
+
+@app.get("/api/versions")
+def get_versions():
+    """Get all versions for the current repository."""
+    repo_path = REPO_PATH if REPO_PATH else Path.cwd()
+
+    try:
+        init_tasks_db()
+        conn = sqlite3.connect(TASKS_DB)
+        conn.row_factory = sqlite3.Row
+        cursor = conn.cursor()
+        cursor.execute(
+            "SELECT * FROM versions WHERE repo_path = ? ORDER BY sort_order ASC",
+            (str(repo_path.resolve()),)
+        )
+        rows = cursor.fetchall()
+        conn.close()
+
+        versions = [dict(row) for row in rows]
+        return {"success": True, "versions": versions}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/api/versions")
+def create_version(request: VersionRequest):
+    """Create a new version."""
+    repo_path = REPO_PATH if REPO_PATH else Path.cwd()
+
+    try:
+        init_tasks_db()
+        conn = sqlite3.connect(TASKS_DB)
+        cursor = conn.cursor()
+        now = datetime.now().isoformat()
+
+        cursor.execute(
+            """
+            INSERT INTO versions (key, label, sort_order, repo_path, created_at)
+            VALUES (?, ?, ?, ?, ?)
+            """,
+            (request.key, request.label, request.sort_order, str(repo_path.resolve()), now)
+        )
+        version_id = cursor.lastrowid
+        conn.commit()
+        conn.close()
+
+        return {
+            "success": True,
+            "version": {
+                "id": version_id,
+                "key": request.key,
+                "label": request.label,
+                "sort_order": request.sort_order,
+                "created_at": now
+            }
+        }
+    except sqlite3.IntegrityError:
+        raise HTTPException(status_code=400, detail=f"Version '{request.key}' already exists")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.put("/api/versions/{version_key}")
+def update_version(version_key: str, request: VersionUpdateRequest):
+    """Update a version."""
+    repo_path = REPO_PATH if REPO_PATH else Path.cwd()
+
+    try:
+        init_tasks_db()
+        conn = sqlite3.connect(TASKS_DB)
+        conn.row_factory = sqlite3.Row
+        cursor = conn.cursor()
+
+        # Get current version
+        cursor.execute("SELECT * FROM versions WHERE key = ? AND repo_path = ?", (version_key, str(repo_path.resolve())))
+        row = cursor.fetchone()
+
+        if not row:
+            conn.close()
+            raise HTTPException(status_code=404, detail=f"Version '{version_key}' not found")
+
+        version = dict(row)
+
+        # Update fields
+        if request.label is not None:
+            version["label"] = request.label
+        if request.sort_order is not None:
+            version["sort_order"] = request.sort_order
+
+        cursor.execute(
+            """
+            UPDATE versions SET label = ?, sort_order = ?
+            WHERE key = ? AND repo_path = ?
+            """,
+            (version["label"], version["sort_order"], version_key, str(repo_path.resolve()))
+        )
+        conn.commit()
+        conn.close()
+
+        return {"success": True, "version": version}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.delete("/api/versions/{version_key}")
+def delete_version(version_key: str, target_version: str = "backlog"):
+    """Delete a version and move its tasks to target_version."""
+    repo_path = REPO_PATH if REPO_PATH else Path.cwd()
+
+    if version_key == "backlog":
+        raise HTTPException(status_code=400, detail="Cannot delete the Backlog version")
+
+    try:
+        init_tasks_db()
+        conn = sqlite3.connect(TASKS_DB)
+        cursor = conn.cursor()
+
+        # Move all tasks from this version to target version
+        cursor.execute(
+            "UPDATE tasks SET sprint = ? WHERE sprint = ? AND repo_path = ?",
+            (target_version, version_key, str(repo_path.resolve()))
+        )
+        tasks_moved = cursor.rowcount
+
+        # Delete the version
+        cursor.execute("DELETE FROM versions WHERE key = ? AND repo_path = ?", (version_key, str(repo_path.resolve())))
+        deleted = cursor.rowcount > 0
+
+        conn.commit()
+        conn.close()
+
+        return {"success": True, "deleted": version_key, "tasks_moved": tasks_moved}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/api/versions/reorder")
+def reorder_versions(request: VersionsReorderRequest):
+    """Reorder versions by updating their sort_order."""
+    repo_path = REPO_PATH if REPO_PATH else Path.cwd()
+
+    try:
+        init_tasks_db()
+        conn = sqlite3.connect(TASKS_DB)
+        cursor = conn.cursor()
+
+        # Update sort_order for each version
+        for idx, key in enumerate(request.order):
+            cursor.execute(
+                "UPDATE versions SET sort_order = ? WHERE key = ? AND repo_path = ?",
+                (idx, key, str(repo_path.resolve()))
+            )
+
+        conn.commit()
+        conn.close()
+
+        return {"success": True, "order": request.order}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 

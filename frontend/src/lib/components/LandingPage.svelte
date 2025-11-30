@@ -24,7 +24,7 @@
     {
       icon: '',
       title: 'Context Library',
-      description: 'Store and retrieve project context. Keep your codebase summaries, architecture docs, and prompts organized and accessible.'
+      description: 'AI assistants forget everything between sessions. Branch Monkey remembers for them. Store your project knowledge once, use it with any AI - switch between Claude, GPT, or Gemini without losing context.'
     }
   ];
 </script>
@@ -46,27 +46,14 @@
   </div>
 
   <div class="features">
-    <h2 class="features-title">Features</h2>
-    <div class="features-grid">
-      {#each features as feature}
-        <div class="feature-card">
-          <div class="feature-icon">{feature.icon}</div>
-          <h3 class="feature-title">{feature.title}</h3>
+    {#each features as feature, i}
+      <div class="feature-section" class:reverse={i % 2 === 1}>
+        <div class="feature-content">
+          <h2 class="feature-title">{feature.title}</h2>
           <p class="feature-description">{feature.description}</p>
         </div>
-      {/each}
-    </div>
-  </div>
-
-  <div class="tech-section">
-    <h2 class="tech-title">Built With</h2>
-    <div class="tech-stack">
-      <span class="tech-badge">Svelte</span>
-      <span class="tech-badge">SvelteFlow</span>
-      <span class="tech-badge">FastAPI</span>
-      <span class="tech-badge">Python</span>
-      <span class="tech-badge">Git</span>
-    </div>
+      </div>
+    {/each}
   </div>
 
   <footer class="footer">
@@ -128,85 +115,36 @@
   }
 
   .features {
-    padding: 60px 20px;
-    max-width: 1000px;
+    max-width: 600px;
     margin: 0 auto;
+    padding: 0 20px 60px;
   }
 
-  .features-title {
+  .feature-section {
+    padding: 48px 0;
+    border-bottom: 1px solid var(--border-secondary);
+  }
+
+  .feature-section:last-child {
+    border-bottom: none;
+  }
+
+  .feature-content {
     text-align: center;
-    font-size: 28px;
-    font-weight: 600;
-    margin: 0 0 40px 0;
-    color: var(--text-primary);
-  }
-
-  .features-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-    gap: 24px;
-  }
-
-  .feature-card {
-    background: var(--bg-primary);
-    border: 1px solid var(--border-secondary);
-    border-radius: 8px;
-    padding: 24px;
-    transition: all 0.2s ease;
-  }
-
-  .feature-card:hover {
-    border-color: var(--border-hover);
-    box-shadow: var(--shadow-medium);
-  }
-
-  .feature-icon {
-    font-size: 32px;
-    margin-bottom: 12px;
   }
 
   .feature-title {
-    font-size: 16px;
+    font-size: 24px;
     font-weight: 600;
-    margin: 0 0 8px 0;
+    margin: 0 0 16px 0;
     color: var(--text-primary);
   }
 
   .feature-description {
-    font-size: 13px;
+    font-size: 16px;
     color: var(--text-secondary);
     margin: 0;
-    line-height: 1.5;
-  }
-
-  .tech-section {
-    padding: 40px 20px;
-    text-align: center;
-    border-top: 1px solid var(--border-secondary);
-  }
-
-  .tech-title {
-    font-size: 18px;
-    font-weight: 500;
-    margin: 0 0 20px 0;
-    color: var(--text-secondary);
-  }
-
-  .tech-stack {
-    display: flex;
-    gap: 12px;
-    justify-content: center;
-    flex-wrap: wrap;
-  }
-
-  .tech-badge {
-    background: var(--bg-primary);
-    border: 1px solid var(--border-secondary);
-    padding: 8px 16px;
-    border-radius: 4px;
-    font-size: 12px;
-    font-weight: 500;
-    color: var(--text-secondary);
+    line-height: 1.7;
   }
 
   .footer {
@@ -232,10 +170,6 @@
 
     .subtitle {
       font-size: 16px;
-    }
-
-    .features-grid {
-      grid-template-columns: 1fr;
     }
   }
 </style>

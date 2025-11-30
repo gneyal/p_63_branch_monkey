@@ -471,3 +471,159 @@ export async function fetchLatestContext(contextType) {
   }
   return response.json();
 }
+
+// === Tasks API ===
+
+/**
+ * Fetch all tasks for the current repository
+ * @returns {Promise<Object>} Tasks data
+ */
+export async function fetchTasks() {
+  const response = await fetch(`${API_BASE}/tasks`);
+  if (!response.ok) {
+    throw new Error(`Failed to fetch tasks: ${response.statusText}`);
+  }
+  return response.json();
+}
+
+/**
+ * Create a new task
+ * @param {Object} task - Task data
+ * @returns {Promise<Object>} Created task
+ */
+export async function createTask(task) {
+  const response = await fetch(`${API_BASE}/tasks`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(task),
+  });
+  if (!response.ok) {
+    throw new Error(`Failed to create task: ${response.statusText}`);
+  }
+  return response.json();
+}
+
+/**
+ * Update a task
+ * @param {number} taskId - Task ID
+ * @param {Object} updates - Task updates
+ * @returns {Promise<Object>} Updated task
+ */
+export async function updateTask(taskId, updates) {
+  const response = await fetch(`${API_BASE}/tasks/${taskId}`, {
+    method: 'PUT',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(updates),
+  });
+  if (!response.ok) {
+    throw new Error(`Failed to update task: ${response.statusText}`);
+  }
+  return response.json();
+}
+
+/**
+ * Delete a task
+ * @param {number} taskId - Task ID
+ * @returns {Promise<Object>} Delete result
+ */
+export async function deleteTask(taskId) {
+  const response = await fetch(`${API_BASE}/tasks/${taskId}`, {
+    method: 'DELETE',
+  });
+  if (!response.ok) {
+    throw new Error(`Failed to delete task: ${response.statusText}`);
+  }
+  return response.json();
+}
+
+// === Versions API ===
+
+/**
+ * Fetch all versions for the current repository
+ * @returns {Promise<Object>} Versions data
+ */
+export async function fetchVersions() {
+  const response = await fetch(`${API_BASE}/versions`);
+  if (!response.ok) {
+    throw new Error(`Failed to fetch versions: ${response.statusText}`);
+  }
+  return response.json();
+}
+
+/**
+ * Create a new version
+ * @param {Object} version - Version data (key, label, sort_order)
+ * @returns {Promise<Object>} Created version
+ */
+export async function createVersion(version) {
+  const response = await fetch(`${API_BASE}/versions`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(version),
+  });
+  if (!response.ok) {
+    throw new Error(`Failed to create version: ${response.statusText}`);
+  }
+  return response.json();
+}
+
+/**
+ * Update a version
+ * @param {string} versionKey - Version key
+ * @param {Object} updates - Version updates (label, sort_order)
+ * @returns {Promise<Object>} Updated version
+ */
+export async function updateVersion(versionKey, updates) {
+  const response = await fetch(`${API_BASE}/versions/${versionKey}`, {
+    method: 'PUT',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(updates),
+  });
+  if (!response.ok) {
+    throw new Error(`Failed to update version: ${response.statusText}`);
+  }
+  return response.json();
+}
+
+/**
+ * Delete a version and move its tasks to target_version
+ * @param {string} versionKey - Version key to delete
+ * @param {string} targetVersion - Version to move tasks to
+ * @returns {Promise<Object>} Delete result
+ */
+export async function deleteVersion(versionKey, targetVersion = 'backlog') {
+  const response = await fetch(`${API_BASE}/versions/${versionKey}?target_version=${targetVersion}`, {
+    method: 'DELETE',
+  });
+  if (!response.ok) {
+    throw new Error(`Failed to delete version: ${response.statusText}`);
+  }
+  return response.json();
+}
+
+/**
+ * Reorder versions
+ * @param {Array<string>} order - Array of version keys in desired order
+ * @returns {Promise<Object>} Reorder result
+ */
+export async function reorderVersions(order) {
+  const response = await fetch(`${API_BASE}/versions/reorder`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ order }),
+  });
+  if (!response.ok) {
+    throw new Error(`Failed to reorder versions: ${response.statusText}`);
+  }
+  return response.json();
+}
