@@ -540,6 +540,25 @@ export async function deleteTask(taskId) {
   return response.json();
 }
 
+/**
+ * Reorder tasks
+ * @param {Array<number>} taskIds - Array of task IDs in desired order
+ * @returns {Promise<Object>} Reorder result
+ */
+export async function reorderTasks(taskIds) {
+  const response = await fetch(`${API_BASE}/tasks/reorder`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ task_ids: taskIds }),
+  });
+  if (!response.ok) {
+    throw new Error(`Failed to reorder tasks: ${response.statusText}`);
+  }
+  return response.json();
+}
+
 // === Versions API ===
 
 /**

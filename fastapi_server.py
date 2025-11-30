@@ -31,8 +31,36 @@ REPO_PATH: Optional[Path] = None
 # Prompts database path
 PROMPTS_DB = Path.home() / ".branch_monkey" / "prompts.db"
 
-# Tasks database path
-TASKS_DB = Path.home() / ".branch_monkey" / "tasks.db"
+# Tasks JSON file name (stored in repo's .branch_monkey folder)
+TASKS_JSON_FILENAME = "tasks.json"
+
+
+def get_tasks_json_path() -> Path:
+    """Get the path to the tasks JSON file for the current repo."""
+    repo_path = REPO_PATH if REPO_PATH else Path.cwd()
+    return repo_path / ".branch_monkey" / TASKS_JSON_FILENAME
+
+
+def read_tasks_json() -> dict:
+    """Read tasks and versions from the JSON file."""
+    json_path = get_tasks_json_path()
+    if json_path.exists():
+        try:
+            import json
+            with open(json_path, 'r') as f:
+                return json.load(f)
+        except (json.JSONDecodeError, IOError):
+            pass
+    return {"tasks": [], "versions": [], "next_task_id": 1, "next_version_id": 1}
+
+
+def write_tasks_json(data: dict) -> None:
+    """Write tasks and versions to the JSON file."""
+    import json
+    json_path = get_tasks_json_path()
+    json_path.parent.mkdir(parents=True, exist_ok=True)
+    with open(json_path, 'w') as f:
+        json.dump(data, f, indent=2)
 
 
 def init_prompts_db():
@@ -53,44 +81,6 @@ def init_prompts_db():
     conn.close()
 
 
-def init_tasks_db():
-    """Initialize the tasks SQLite database."""
-    TASKS_DB.parent.mkdir(parents=True, exist_ok=True)
-
-    conn = sqlite3.connect(TASKS_DB)
-    conn.execute('''
-        CREATE TABLE IF NOT EXISTS tasks (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            title TEXT NOT NULL,
-            description TEXT DEFAULT '',
-            status TEXT NOT NULL DEFAULT 'todo',
-            priority INTEGER DEFAULT 0,
-            sprint TEXT DEFAULT 'backlog',
-            repo_path TEXT NOT NULL,
-            created_at TEXT NOT NULL,
-            updated_at TEXT NOT NULL
-        )
-    ''')
-    # Add sprint column if it doesn't exist (migration)
-    try:
-        conn.execute('ALTER TABLE tasks ADD COLUMN sprint TEXT DEFAULT "backlog"')
-    except sqlite3.OperationalError:
-        pass  # Column already exists
-
-    # Create versions table
-    conn.execute('''
-        CREATE TABLE IF NOT EXISTS versions (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            key TEXT NOT NULL,
-            label TEXT NOT NULL,
-            sort_order INTEGER DEFAULT 0,
-            repo_path TEXT NOT NULL,
-            created_at TEXT NOT NULL,
-            UNIQUE(key, repo_path)
-        )
-    ''')
-    conn.commit()
-    conn.close()
 
 
 def get_monkey():
@@ -136,6 +126,7 @@ class TaskRequest(BaseModel):
     status: Optional[str] = "todo"
     priority: Optional[int] = 0
     sprint: Optional[str] = "backlog"
+    sort_order: Optional[int] = None
 
 
 class TaskUpdateRequest(BaseModel):
@@ -144,6 +135,11 @@ class TaskUpdateRequest(BaseModel):
     status: Optional[str] = None
     priority: Optional[int] = None
     sprint: Optional[str] = None
+    sort_order: Optional[int] = None
+
+
+class TasksReorderRequest(BaseModel):
+    task_ids: list[int]  # List of task IDs in the new order
 
 
 class VersionRequest(BaseModel):
@@ -2378,21 +2374,10 @@ def get_latest_context(context_type: str):
 @app.get("/api/tasks")
 def get_tasks():
     """Get all tasks for the current repository."""
-    repo_path = REPO_PATH if REPO_PATH else Path.cwd()
-
     try:
-        init_tasks_db()
-        conn = sqlite3.connect(TASKS_DB)
-        conn.row_factory = sqlite3.Row
-        cursor = conn.cursor()
-        cursor.execute(
-            "SELECT * FROM tasks WHERE repo_path = ? ORDER BY priority DESC, created_at DESC",
-            (str(repo_path.resolve()),)
-        )
-        rows = cursor.fetchall()
-        conn.close()
-
-        tasks = [dict(row) for row in rows]
+        data = read_tasks_json()
+        # Sort by sort_order (if set), then by created_at
+        tasks = sorted(data.get("tasks", []), key=lambda t: (t.get("sort_order") if t.get("sort_order") is not None else 999999, t.get("created_at", "")))
         return {"success": True, "tasks": tasks}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
@@ -2401,38 +2386,34 @@ def get_tasks():
 @app.post("/api/tasks")
 def create_task(request: TaskRequest):
     """Create a new task."""
-    repo_path = REPO_PATH if REPO_PATH else Path.cwd()
-
     try:
-        init_tasks_db()
-        conn = sqlite3.connect(TASKS_DB)
-        cursor = conn.cursor()
+        data = read_tasks_json()
         now = datetime.now().isoformat()
 
-        cursor.execute(
-            """
-            INSERT INTO tasks (title, description, status, priority, sprint, repo_path, created_at, updated_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-            """,
-            (request.title, request.description, request.status, request.priority, request.sprint, str(repo_path.resolve()), now, now)
-        )
-        task_id = cursor.lastrowid
-        conn.commit()
-        conn.close()
+        task_id = data.get("next_task_id", 1)
+        data["next_task_id"] = task_id + 1
 
-        return {
-            "success": True,
-            "task": {
-                "id": task_id,
-                "title": request.title,
-                "description": request.description,
-                "status": request.status,
-                "priority": request.priority,
-                "sprint": request.sprint,
-                "created_at": now,
-                "updated_at": now
-            }
+        # Calculate sort_order: put new task at end of its sprint
+        existing_tasks = data.get("tasks", [])
+        sprint_tasks = [t for t in existing_tasks if t.get("sprint") == (request.sprint or "backlog")]
+        max_sort = max([t.get("sort_order", 0) for t in sprint_tasks], default=-1)
+
+        task = {
+            "id": task_id,
+            "title": request.title,
+            "description": request.description or "",
+            "status": request.status or "todo",
+            "priority": request.priority or 0,
+            "sprint": request.sprint or "backlog",
+            "sort_order": request.sort_order if request.sort_order is not None else max_sort + 1,
+            "created_at": now,
+            "updated_at": now
         }
+
+        data.setdefault("tasks", []).append(task)
+        write_tasks_json(data)
+
+        return {"success": True, "task": task}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -2440,23 +2421,21 @@ def create_task(request: TaskRequest):
 @app.put("/api/tasks/{task_id}")
 def update_task(task_id: int, request: TaskUpdateRequest):
     """Update a task."""
-    repo_path = REPO_PATH if REPO_PATH else Path.cwd()
-
     try:
-        init_tasks_db()
-        conn = sqlite3.connect(TASKS_DB)
-        conn.row_factory = sqlite3.Row
-        cursor = conn.cursor()
+        data = read_tasks_json()
+        tasks = data.get("tasks", [])
 
-        # Get current task
-        cursor.execute("SELECT * FROM tasks WHERE id = ? AND repo_path = ?", (task_id, str(repo_path.resolve())))
-        row = cursor.fetchone()
+        # Find the task
+        task_idx = None
+        for idx, t in enumerate(tasks):
+            if t.get("id") == task_id:
+                task_idx = idx
+                break
 
-        if not row:
-            conn.close()
+        if task_idx is None:
             raise HTTPException(status_code=404, detail=f"Task {task_id} not found")
 
-        task = dict(row)
+        task = tasks[task_idx]
 
         # Update fields
         if request.title is not None:
@@ -2469,18 +2448,14 @@ def update_task(task_id: int, request: TaskUpdateRequest):
             task["priority"] = request.priority
         if request.sprint is not None:
             task["sprint"] = request.sprint
+        if request.sort_order is not None:
+            task["sort_order"] = request.sort_order
 
         task["updated_at"] = datetime.now().isoformat()
 
-        cursor.execute(
-            """
-            UPDATE tasks SET title = ?, description = ?, status = ?, priority = ?, sprint = ?, updated_at = ?
-            WHERE id = ? AND repo_path = ?
-            """,
-            (task["title"], task["description"], task["status"], task["priority"], task.get("sprint", "backlog"), task["updated_at"], task_id, str(repo_path.resolve()))
-        )
-        conn.commit()
-        conn.close()
+        tasks[task_idx] = task
+        data["tasks"] = tasks
+        write_tasks_json(data)
 
         return {"success": True, "task": task}
     except HTTPException:
@@ -2492,23 +2467,45 @@ def update_task(task_id: int, request: TaskUpdateRequest):
 @app.delete("/api/tasks/{task_id}")
 def delete_task(task_id: int):
     """Delete a task."""
-    repo_path = REPO_PATH if REPO_PATH else Path.cwd()
-
     try:
-        init_tasks_db()
-        conn = sqlite3.connect(TASKS_DB)
-        cursor = conn.cursor()
-        cursor.execute("DELETE FROM tasks WHERE id = ? AND repo_path = ?", (task_id, str(repo_path.resolve())))
-        deleted = cursor.rowcount > 0
-        conn.commit()
-        conn.close()
+        data = read_tasks_json()
+        tasks = data.get("tasks", [])
 
-        if not deleted:
+        original_len = len(tasks)
+        tasks = [t for t in tasks if t.get("id") != task_id]
+
+        if len(tasks) == original_len:
             raise HTTPException(status_code=404, detail=f"Task {task_id} not found")
+
+        data["tasks"] = tasks
+        write_tasks_json(data)
 
         return {"success": True, "deleted": task_id}
     except HTTPException:
         raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/api/tasks/reorder")
+def reorder_tasks(request: TasksReorderRequest):
+    """Reorder tasks by updating their sort_order."""
+    try:
+        data = read_tasks_json()
+        tasks = data.get("tasks", [])
+
+        # Create a map of task_id to task
+        task_map = {t.get("id"): t for t in tasks}
+
+        # Update sort_order for each task in the list
+        for idx, task_id in enumerate(request.task_ids):
+            if task_id in task_map:
+                task_map[task_id]["sort_order"] = idx
+
+        data["tasks"] = list(task_map.values())
+        write_tasks_json(data)
+
+        return {"success": True, "order": request.task_ids}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -2518,21 +2515,9 @@ def delete_task(task_id: int):
 @app.get("/api/versions")
 def get_versions():
     """Get all versions for the current repository."""
-    repo_path = REPO_PATH if REPO_PATH else Path.cwd()
-
     try:
-        init_tasks_db()
-        conn = sqlite3.connect(TASKS_DB)
-        conn.row_factory = sqlite3.Row
-        cursor = conn.cursor()
-        cursor.execute(
-            "SELECT * FROM versions WHERE repo_path = ? ORDER BY sort_order ASC",
-            (str(repo_path.resolve()),)
-        )
-        rows = cursor.fetchall()
-        conn.close()
-
-        versions = [dict(row) for row in rows]
+        data = read_tasks_json()
+        versions = sorted(data.get("versions", []), key=lambda v: v.get("sort_order", 0))
         return {"success": True, "versions": versions}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
@@ -2541,37 +2526,32 @@ def get_versions():
 @app.post("/api/versions")
 def create_version(request: VersionRequest):
     """Create a new version."""
-    repo_path = REPO_PATH if REPO_PATH else Path.cwd()
-
     try:
-        init_tasks_db()
-        conn = sqlite3.connect(TASKS_DB)
-        cursor = conn.cursor()
+        data = read_tasks_json()
+        versions = data.get("versions", [])
+
+        # Check if key already exists
+        if any(v.get("key") == request.key for v in versions):
+            raise HTTPException(status_code=400, detail=f"Version '{request.key}' already exists")
+
         now = datetime.now().isoformat()
+        version_id = data.get("next_version_id", 1)
+        data["next_version_id"] = version_id + 1
 
-        cursor.execute(
-            """
-            INSERT INTO versions (key, label, sort_order, repo_path, created_at)
-            VALUES (?, ?, ?, ?, ?)
-            """,
-            (request.key, request.label, request.sort_order, str(repo_path.resolve()), now)
-        )
-        version_id = cursor.lastrowid
-        conn.commit()
-        conn.close()
-
-        return {
-            "success": True,
-            "version": {
-                "id": version_id,
-                "key": request.key,
-                "label": request.label,
-                "sort_order": request.sort_order,
-                "created_at": now
-            }
+        version = {
+            "id": version_id,
+            "key": request.key,
+            "label": request.label,
+            "sort_order": request.sort_order or 0,
+            "created_at": now
         }
-    except sqlite3.IntegrityError:
-        raise HTTPException(status_code=400, detail=f"Version '{request.key}' already exists")
+
+        data.setdefault("versions", []).append(version)
+        write_tasks_json(data)
+
+        return {"success": True, "version": version}
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -2579,23 +2559,21 @@ def create_version(request: VersionRequest):
 @app.put("/api/versions/{version_key}")
 def update_version(version_key: str, request: VersionUpdateRequest):
     """Update a version."""
-    repo_path = REPO_PATH if REPO_PATH else Path.cwd()
-
     try:
-        init_tasks_db()
-        conn = sqlite3.connect(TASKS_DB)
-        conn.row_factory = sqlite3.Row
-        cursor = conn.cursor()
+        data = read_tasks_json()
+        versions = data.get("versions", [])
 
-        # Get current version
-        cursor.execute("SELECT * FROM versions WHERE key = ? AND repo_path = ?", (version_key, str(repo_path.resolve())))
-        row = cursor.fetchone()
+        # Find the version
+        version_idx = None
+        for idx, v in enumerate(versions):
+            if v.get("key") == version_key:
+                version_idx = idx
+                break
 
-        if not row:
-            conn.close()
+        if version_idx is None:
             raise HTTPException(status_code=404, detail=f"Version '{version_key}' not found")
 
-        version = dict(row)
+        version = versions[version_idx]
 
         # Update fields
         if request.label is not None:
@@ -2603,15 +2581,9 @@ def update_version(version_key: str, request: VersionUpdateRequest):
         if request.sort_order is not None:
             version["sort_order"] = request.sort_order
 
-        cursor.execute(
-            """
-            UPDATE versions SET label = ?, sort_order = ?
-            WHERE key = ? AND repo_path = ?
-            """,
-            (version["label"], version["sort_order"], version_key, str(repo_path.resolve()))
-        )
-        conn.commit()
-        conn.close()
+        versions[version_idx] = version
+        data["versions"] = versions
+        write_tasks_json(data)
 
         return {"success": True, "version": version}
     except HTTPException:
@@ -2623,29 +2595,28 @@ def update_version(version_key: str, request: VersionUpdateRequest):
 @app.delete("/api/versions/{version_key}")
 def delete_version(version_key: str, target_version: str = "backlog"):
     """Delete a version and move its tasks to target_version."""
-    repo_path = REPO_PATH if REPO_PATH else Path.cwd()
-
     if version_key == "backlog":
         raise HTTPException(status_code=400, detail="Cannot delete the Backlog version")
 
     try:
-        init_tasks_db()
-        conn = sqlite3.connect(TASKS_DB)
-        cursor = conn.cursor()
+        data = read_tasks_json()
+        versions = data.get("versions", [])
+        tasks = data.get("tasks", [])
 
         # Move all tasks from this version to target version
-        cursor.execute(
-            "UPDATE tasks SET sprint = ? WHERE sprint = ? AND repo_path = ?",
-            (target_version, version_key, str(repo_path.resolve()))
-        )
-        tasks_moved = cursor.rowcount
+        tasks_moved = 0
+        for task in tasks:
+            if task.get("sprint") == version_key:
+                task["sprint"] = target_version
+                tasks_moved += 1
 
         # Delete the version
-        cursor.execute("DELETE FROM versions WHERE key = ? AND repo_path = ?", (version_key, str(repo_path.resolve())))
-        deleted = cursor.rowcount > 0
+        original_len = len(versions)
+        versions = [v for v in versions if v.get("key") != version_key]
 
-        conn.commit()
-        conn.close()
+        data["versions"] = versions
+        data["tasks"] = tasks
+        write_tasks_json(data)
 
         return {"success": True, "deleted": version_key, "tasks_moved": tasks_moved}
     except HTTPException:
@@ -2657,22 +2628,19 @@ def delete_version(version_key: str, target_version: str = "backlog"):
 @app.post("/api/versions/reorder")
 def reorder_versions(request: VersionsReorderRequest):
     """Reorder versions by updating their sort_order."""
-    repo_path = REPO_PATH if REPO_PATH else Path.cwd()
-
     try:
-        init_tasks_db()
-        conn = sqlite3.connect(TASKS_DB)
-        cursor = conn.cursor()
+        data = read_tasks_json()
+        versions = data.get("versions", [])
 
         # Update sort_order for each version
         for idx, key in enumerate(request.order):
-            cursor.execute(
-                "UPDATE versions SET sort_order = ? WHERE key = ? AND repo_path = ?",
-                (idx, key, str(repo_path.resolve()))
-            )
+            for version in versions:
+                if version.get("key") == key:
+                    version["sort_order"] = idx
+                    break
 
-        conn.commit()
-        conn.close()
+        data["versions"] = versions
+        write_tasks_json(data)
 
         return {"success": True, "order": request.order}
     except Exception as e:

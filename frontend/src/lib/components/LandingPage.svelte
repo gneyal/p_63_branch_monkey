@@ -5,59 +5,96 @@
     push('/');
   }
 
-  const features = [
+  const pillars = [
     {
-      icon: '',
-      title: 'Visual Commit Tree',
-      description: 'See your Git history as an interactive flow diagram. Navigate branches, view commit details, and understand your project evolution.'
+      title: 'UI',
+      description: 'Visual interfaces for when you need to see the big picture'
     },
     {
-      icon: '',
-      title: 'Safe Experiments',
-      description: 'Create experimental branches without fear. Branch Monkey tracks your experiments and makes it easy to compare and merge changes.'
+      title: 'Agent',
+      description: 'AI-powered workflows that understand your codebase'
     },
     {
-      icon: '',
-      title: 'Architecture Docs',
-      description: 'Generate structured architecture documentation with AI. Visualize endpoints, entities, database tables, and UI components as a flow diagram.'
+      title: 'CLI',
+      description: 'Command-line tools for when speed is everything'
+    }
+  ];
+
+  const principles = [
+    {
+      title: 'Own Your Memory',
+      description: 'LLMs forget between sessions. We remember. Your project knowledge persists, grows, and travels with you.'
     },
     {
-      icon: '',
-      title: 'Context Library',
-      description: 'AI assistants forget everything between sessions. Branch Monkey remembers for them. Store your project knowledge once, use it with any AI - switch between Claude, GPT, or Gemini without losing context.'
+      title: 'Own Your Context',
+      description: 'Stop re-explaining your architecture. Build context once, use it everywhere - with any AI, any tool, any workflow.'
+    },
+    {
+      title: 'Provider Agnostic',
+      description: 'Claude today, GPT tomorrow, something new next week. Your context works with all of them. Never locked in.'
     }
   ];
 </script>
 
 <div class="landing-page">
-  <div class="hero">
-    <div class="logo">
-      <svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 16 16">
-        <path fill="currentColor" d="M9.5 3.25a2.25 2.25 0 1 1 3 2.122V6A2.5 2.5 0 0 1 10 8.5H6a1 1 0 0 0-1 1v1.128a2.251 2.251 0 1 1-1.5 0V5.372a2.25 2.25 0 1 1 1.5 0v1.836A2.5 2.5 0 0 1 6 7h4a1 1 0 0 0 1-1v-.628A2.25 2.25 0 0 1 9.5 3.25m-6 0a.75.75 0 1 0 1.5 0a.75.75 0 0 0-1.5 0m8.25-.75a.75.75 0 1 0 0 1.5a.75.75 0 0 0 0-1.5M4.25 12a.75.75 0 1 0 0 1.5a.75.75 0 0 0 0-1.5"/>
-      </svg>
-    </div>
-    <h1 class="title">Branch Monkey</h1>
-    <p class="subtitle">
-      Visualize your Git history. Experiment with confidence. Document your architecture.
+  <header class="header">
+    <div class="logo-mark">branch/monkey</div>
+  </header>
+
+  <section class="hero">
+    <h1 class="headline">
+      A framework for<br/>
+      <span class="highlight">today</span>
+    </h1>
+    <p class="tagline">
+      Move fast across projects. Work with any AI.<br/>
+      Own your context. Own your memory.
     </p>
     <button class="cta-button" on:click={onGetStarted}>
-      Open App
+      Get Started
     </button>
-  </div>
+  </section>
 
-  <div class="features">
-    {#each features as feature, i}
-      <div class="feature-section" class:reverse={i % 2 === 1}>
-        <div class="feature-content">
-          <h2 class="feature-title">{feature.title}</h2>
-          <p class="feature-description">{feature.description}</p>
+  <section class="pillars">
+    <div class="pillars-grid">
+      {#each pillars as pillar}
+        <div class="pillar">
+          <h3 class="pillar-title">{pillar.title}</h3>
+          <p class="pillar-description">{pillar.description}</p>
+        </div>
+      {/each}
+    </div>
+  </section>
+
+  <section class="manifesto">
+    <div class="manifesto-content">
+      <p class="manifesto-text">
+        LLMs are advancing constantly. Providers come and go.
+        <strong>Your knowledge shouldn't be locked inside someone else's system.</strong>
+      </p>
+    </div>
+  </section>
+
+  <section class="principles">
+    {#each principles as principle, i}
+      <div class="principle">
+        <span class="principle-number">{String(i + 1).padStart(2, '0')}</span>
+        <div class="principle-content">
+          <h3 class="principle-title">{principle.title}</h3>
+          <p class="principle-description">{principle.description}</p>
         </div>
       </div>
     {/each}
-  </div>
+  </section>
+
+  <section class="cta-section">
+    <button class="cta-button" on:click={onGetStarted}>
+      Open App
+    </button>
+  </section>
 
   <footer class="footer">
-    <p>Branch Monkey - Git visualization and experimentation tool</p>
+    <p>branch/monkey</p>
   </footer>
 </div>
 
@@ -68,30 +105,44 @@
     color: var(--text-primary);
   }
 
+  .header {
+    padding: 24px 40px;
+  }
+
+  .logo-mark {
+    font-size: 14px;
+    font-weight: 600;
+    letter-spacing: 1px;
+    text-transform: lowercase;
+    color: var(--text-primary);
+    font-family: 'Courier New', monospace;
+  }
+
+  /* Hero */
   .hero {
     text-align: center;
-    padding: 80px 20px 60px;
-    max-width: 700px;
+    padding: 120px 20px 80px;
+    max-width: 800px;
     margin: 0 auto;
   }
 
-  .logo {
-    color: var(--text-primary);
-    margin-bottom: 24px;
-  }
-
-  .title {
-    font-size: 48px;
+  .headline {
+    font-size: 72px;
     font-weight: 700;
     color: var(--text-primary);
-    margin: 0 0 16px 0;
-    line-height: 1.2;
+    margin: 0 0 24px 0;
+    line-height: 1.05;
+    letter-spacing: -2px;
   }
 
-  .subtitle {
-    font-size: 18px;
+  .highlight {
+    color: var(--text-tertiary);
+  }
+
+  .tagline {
+    font-size: 20px;
     color: var(--text-secondary);
-    margin: 0 0 32px 0;
+    margin: 0 0 48px 0;
     line-height: 1.6;
   }
 
@@ -99,56 +150,145 @@
     background: var(--text-primary);
     color: var(--bg-primary);
     border: none;
-    padding: 14px 32px;
-    font-size: 14px;
+    padding: 16px 40px;
+    font-size: 13px;
     font-weight: 600;
-    border-radius: 4px;
+    border-radius: 2px;
     cursor: pointer;
     transition: all 0.2s ease;
     text-transform: uppercase;
-    letter-spacing: 0.5px;
+    letter-spacing: 1px;
   }
 
   .cta-button:hover {
-    opacity: 0.9;
-    transform: translateY(-2px);
+    opacity: 0.85;
+    transform: translateY(-1px);
   }
 
-  .features {
-    max-width: 600px;
+  /* Pillars */
+  .pillars {
+    padding: 60px 40px;
+    max-width: 1000px;
     margin: 0 auto;
-    padding: 0 20px 60px;
   }
 
-  .feature-section {
-    padding: 48px 0;
-    border-bottom: 1px solid var(--border-secondary);
+  .pillars-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 1px;
+    background: var(--border-secondary);
+    border: 1px solid var(--border-secondary);
   }
 
-  .feature-section:last-child {
-    border-bottom: none;
-  }
-
-  .feature-content {
+  .pillar {
+    background: var(--bg-secondary);
+    padding: 40px 32px;
     text-align: center;
   }
 
-  .feature-title {
-    font-size: 24px;
-    font-weight: 600;
-    margin: 0 0 16px 0;
+  .pillar-title {
+    font-size: 14px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    margin: 0 0 12px 0;
     color: var(--text-primary);
   }
 
-  .feature-description {
+  .pillar-description {
+    font-size: 14px;
+    color: var(--text-tertiary);
+    margin: 0;
+    line-height: 1.6;
+  }
+
+  /* Manifesto */
+  .manifesto {
+    padding: 80px 40px;
+    background: var(--bg-primary);
+    border-top: 1px solid var(--border-secondary);
+    border-bottom: 1px solid var(--border-secondary);
+  }
+
+  .manifesto-content {
+    max-width: 700px;
+    margin: 0 auto;
+    text-align: center;
+  }
+
+  .manifesto-text {
+    font-size: 24px;
+    line-height: 1.6;
+    color: var(--text-secondary);
+    margin: 0;
+  }
+
+  .manifesto-text strong {
+    color: var(--text-primary);
+  }
+
+  /* Principles */
+  .principles {
+    max-width: 700px;
+    margin: 0 auto;
+    padding: 80px 40px;
+  }
+
+  .principle {
+    display: flex;
+    gap: 32px;
+    padding: 40px 0;
+    border-bottom: 1px solid var(--border-secondary);
+  }
+
+  .principle:last-child {
+    border-bottom: none;
+  }
+
+  .principle-number {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text-tertiary);
+    font-family: 'Courier New', monospace;
+    flex-shrink: 0;
+    padding-top: 4px;
+  }
+
+  .principle-content {
+    flex: 1;
+  }
+
+  .principle-title {
+    font-size: 20px;
+    font-weight: 600;
+    margin: 0 0 12px 0;
+    color: var(--text-primary);
+  }
+
+  .principle-description {
     font-size: 16px;
     color: var(--text-secondary);
     margin: 0;
     line-height: 1.7;
   }
 
+  /* CTA Section */
+  .cta-section {
+    text-align: center;
+    padding: 80px 40px;
+    background: var(--bg-primary);
+    border-top: 1px solid var(--border-secondary);
+  }
+
+  .cta-text {
+    font-size: 18px;
+    color: var(--text-secondary);
+    margin: 0 0 24px 0;
+  }
+
+  /* Footer */
   .footer {
-    padding: 40px 20px;
+    padding: 40px;
     text-align: center;
     border-top: 1px solid var(--border-secondary);
   }
@@ -157,19 +297,35 @@
     margin: 0;
     font-size: 12px;
     color: var(--text-tertiary);
+    font-family: 'Courier New', monospace;
+    letter-spacing: 1px;
   }
 
   @media (max-width: 768px) {
     .hero {
-      padding: 60px 20px 40px;
+      padding: 80px 20px 60px;
     }
 
-    .title {
-      font-size: 36px;
+    .headline {
+      font-size: 48px;
+      letter-spacing: -1px;
     }
 
-    .subtitle {
-      font-size: 16px;
+    .tagline {
+      font-size: 18px;
+    }
+
+    .pillars-grid {
+      grid-template-columns: 1fr;
+    }
+
+    .principle {
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .principle-number {
+      padding-top: 0;
     }
   }
 </style>

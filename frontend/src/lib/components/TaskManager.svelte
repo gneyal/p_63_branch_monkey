@@ -1,6 +1,6 @@
 <script>
   import { onMount, tick } from 'svelte';
-  import { fetchTasks, createTask, updateTask, deleteTask, fetchVersions, createVersion, updateVersion, deleteVersion as deleteVersionApi, reorderVersions } from '../services/api.js';
+  import { fetchTasks, createTask, updateTask, deleteTask, fetchVersions, createVersion, updateVersion, deleteVersion as deleteVersionApi, reorderVersions, reorderTasks } from '../services/api.js';
   import { showToast } from '../stores/store.js';
 
   export let onClose = () => {};
@@ -39,6 +39,9 @@
   let quickAddInput = null;
   let isQuickAdding = false; // Prevent double submission
 
+  // Task detail view state
+  let viewingTask = null;
+
   // Versions menu state
   let showVersionsMenu = false;
   let showNewVersionInput = false;
@@ -58,6 +61,7 @@
   let draggedTask = null;
   let dragOverColumn = null;
   let dragOverVersion = null;
+  let dragOverTaskId = null; // For reordering within column
 
   // Reactive: filter tasks by status
   $: todoTasks = tasks.filter(t => t.status === 'todo');
@@ -569,6 +573,7 @@
     draggedTask = null;
     dragOverColumn = null;
     dragOverVersion = null;
+    dragOverTaskId = null;
   }
 
   function handleDragOver(e, status, version = null) {
@@ -583,12 +588,40 @@
     dragOverVersion = null;
   }
 
+  function handleTaskDragOver(e, task) {
+    e.preventDefault();
+    e.stopPropagation();
+    if (draggedTask && draggedTask.id !== task.id) {
+      dragOverTaskId = task.id;
+    }
+  }
+
+  function handleTaskDragLeave(e) {
+    // Only clear if we're leaving the task card entirely
+    const relatedTarget = e.relatedTarget;
+    if (!relatedTarget || !e.currentTarget.contains(relatedTarget)) {
+      dragOverTaskId = null;
+    }
+  }
+
   async function handleDrop(e, status, version = null) {
     e.preventDefault();
+    const targetTaskId = dragOverTaskId;
     dragOverColumn = null;
     dragOverVersion = null;
+    dragOverTaskId = null;
 
     if (!draggedTask) return;
+
+    const taskVersion = version !== null ? version : (draggedTask.sprint || 'backlog');
+    const sameColumn = draggedTask.status === status && (draggedTask.sprint || 'backlog') === taskVersion;
+
+    // If dropping on a task in the same column, reorder
+    if (sameColumn && targetTaskId && targetTaskId !== draggedTask.id) {
+      await handleTaskReorder(draggedTask, targetTaskId, status, taskVersion);
+      draggedTask = null;
+      return;
+    }
 
     const updates = {};
     if (draggedTask.status !== status) {
@@ -619,6 +652,44 @@
     draggedTask = null;
   }
 
+  async function handleTaskReorder(movedTask, targetTaskId, status, version) {
+    // Get tasks in this column, sorted by current sort_order
+    const columnTasks = tasks
+      .filter(t => t.status === status && (t.sprint || 'backlog') === version)
+      .sort((a, b) => (a.sort_order ?? 999999) - (b.sort_order ?? 999999));
+
+    // Find indices
+    const movedIdx = columnTasks.findIndex(t => t.id === movedTask.id);
+    const targetIdx = columnTasks.findIndex(t => t.id === targetTaskId);
+
+    if (movedIdx === -1 || targetIdx === -1) return;
+
+    // Remove moved task and insert before target
+    const newOrder = [...columnTasks];
+    newOrder.splice(movedIdx, 1);
+    const insertIdx = targetIdx > movedIdx ? targetIdx - 1 : targetIdx;
+    newOrder.splice(insertIdx, 0, movedTask);
+
+    // Get new task IDs order for this column
+    const taskIds = newOrder.map(t => t.id);
+
+    // Optimistic update - update sort_order for all tasks in this column
+    tasks = tasks.map(t => {
+      const idx = taskIds.indexOf(t.id);
+      if (idx !== -1) {
+        return { ...t, sort_order: idx };
+      }
+      return t;
+    });
+
+    try {
+      await reorderTasks(taskIds);
+    } catch (err) {
+      showToast(`Failed to reorder tasks: ${err.message}`, 'error');
+      await loadTasks(); // Reload to restore correct order
+    }
+  }
+
   function handleKeydown(e) {
     if (e.key === 'Escape') {
       if (deletingVersion) {
@@ -629,6 +700,9 @@
         editingVersion = null;
       } else if (showAddModal) {
         showAddModal = false;
+      } else if (viewingTask) {
+        viewingTask = null;
+        editingTask = null;
       } else if (editingTask) {
         editingTask = null;
       } else if (!inline) {
@@ -805,54 +879,31 @@
                             <div
                               class="task-card"
                               class:dragging={draggedTask?.id === task.id}
+                              class:drag-over-task={dragOverTaskId === task.id}
                               draggable="true"
                               on:dragstart={(e) => handleDragStart(e, task)}
                               on:dragend={handleDragEnd}
+                              on:dragover={(e) => handleTaskDragOver(e, task)}
+                              on:dragleave={handleTaskDragLeave}
+                              on:click={() => viewingTask = { ...task }}
                               role="listitem"
                             >
-                              {#if editingTask?.id === task.id}
-                                <input
-                                  class="edit-title"
-                                  bind:value={editingTask.title}
-                                  placeholder="Task title"
-                                />
-                                <textarea
-                                  class="edit-description"
-                                  bind:value={editingTask.description}
-                                  placeholder="Description (optional)"
-                                  rows="2"
-                                ></textarea>
-                                <select class="version-select" bind:value={editingTask.sprint}>
-                                  {#each versions as v}
-                                    <option value={v}>{getVersionLabel(v)}</option>
-                                  {/each}
-                                </select>
-                                <div class="edit-actions">
-                                  <button class="save-btn" on:click={handleSaveEdit}>Save</button>
-                                  <button class="cancel-btn" on:click={() => editingTask = null}>Cancel</button>
-                                </div>
-                              {:else}
-                                <div class="task-title">{task.title}</div>
-                                {#if task.description}
-                                  <div class="task-description">{task.description}</div>
-                                {/if}
-                                <div class="task-actions">
-                                  <button
-                                    class="edit-btn"
-                                    on:click={() => editingTask = { ...task }}
-                                    title="Edit"
-                                  >
-                                    Edit
-                                  </button>
-                                  <button
-                                    class="delete-btn"
-                                    on:click={() => handleDeleteTask(task)}
-                                    title="Delete"
-                                  >
-                                    X
-                                  </button>
-                                </div>
+                              <div class="task-title">{task.title}</div>
+                              {#if task.description}
+                                <div class="task-description">{task.description}</div>
                               {/if}
+                              <div class="task-actions">
+                                <button
+                                  class="edit-btn"
+                                  on:click|stopPropagation={() => { viewingTask = { ...task }; editingTask = { ...task }; }}
+                                  title="Edit"
+                                >✎</button>
+                                <button
+                                  class="delete-btn"
+                                  on:click|stopPropagation={() => handleDeleteTask(task)}
+                                  title="Delete"
+                                >×</button>
+                              </div>
                             </div>
                           {/each}
                           {#if columnTasks.length === 0 && !(quickAddVersion === lane.version && quickAddStatus === status)}
@@ -909,66 +960,34 @@
                     <div
                       class="task-card"
                       class:dragging={draggedTask?.id === task.id}
+                      class:drag-over-task={dragOverTaskId === task.id}
                       draggable="true"
                       on:dragstart={(e) => handleDragStart(e, task)}
                       on:dragend={handleDragEnd}
+                      on:dragover={(e) => handleTaskDragOver(e, task)}
+                      on:dragleave={handleTaskDragLeave}
+                      on:click={() => viewingTask = { ...task }}
                       role="listitem"
                     >
-                      {#if editingTask?.id === task.id}
-                        <input
-                          class="edit-title"
-                          bind:value={editingTask.title}
-                          placeholder="Task title"
-                        />
-                        <textarea
-                          class="edit-description"
-                          bind:value={editingTask.description}
-                          placeholder="Description (optional)"
-                          rows="2"
-                        ></textarea>
-                        <select class="version-select" bind:value={editingTask.sprint}>
-                          {#each versions as v}
-                            <option value={v}>{getVersionLabel(v)}</option>
-                          {/each}
-                        </select>
-                        <div class="edit-actions">
-                          <button class="save-btn" on:click={handleSaveEdit}>Save</button>
-                          <button class="cancel-btn" on:click={() => editingTask = null}>Cancel</button>
-                        </div>
-                      {:else}
-                        <div class="task-title">{task.title}</div>
-                        {#if task.description}
-                          <div class="task-description">{task.description}</div>
-                        {/if}
-                        {#if task.sprint && task.sprint !== 'backlog'}
-                          <div class="task-version-badge">{getVersionLabel(task.sprint)}</div>
-                        {/if}
-                        <div class="task-actions">
-                          <select
-                            class="status-select"
-                            value={task.status}
-                            on:change={(e) => handleStatusChange(task, e.target.value)}
-                          >
-                            {#each STATUSES as s}
-                              <option value={s}>{STATUS_LABELS[s]}</option>
-                            {/each}
-                          </select>
-                          <button
-                            class="edit-btn"
-                            on:click={() => editingTask = { ...task }}
-                            title="Edit"
-                          >
-                            Edit
-                          </button>
-                          <button
-                            class="delete-btn"
-                            on:click={() => handleDeleteTask(task)}
-                            title="Delete"
-                          >
-                            X
-                          </button>
-                        </div>
+                      <div class="task-title">{task.title}</div>
+                      {#if task.description}
+                        <div class="task-description">{task.description}</div>
                       {/if}
+                      {#if task.sprint && task.sprint !== 'backlog'}
+                        <div class="task-version-badge">{getVersionLabel(task.sprint)}</div>
+                      {/if}
+                      <div class="task-actions">
+                        <button
+                          class="edit-btn"
+                          on:click|stopPropagation={() => { viewingTask = { ...task }; editingTask = { ...task }; }}
+                          title="Edit"
+                        >✎</button>
+                        <button
+                          class="delete-btn"
+                          on:click|stopPropagation={() => handleDeleteTask(task)}
+                          title="Delete"
+                        >×</button>
+                      </div>
                     </div>
                   {/each}
                   {#if tasksByStatus[status].length === 0 && !(quickAddVersion === 'backlog' && quickAddStatus === status && !showVersionLanes)}
@@ -1111,54 +1130,31 @@
                               <div
                                 class="task-card"
                                 class:dragging={draggedTask?.id === task.id}
+                                class:drag-over-task={dragOverTaskId === task.id}
                                 draggable="true"
                                 on:dragstart={(e) => handleDragStart(e, task)}
                                 on:dragend={handleDragEnd}
+                                on:dragover={(e) => handleTaskDragOver(e, task)}
+                                on:dragleave={handleTaskDragLeave}
+                                on:click={() => viewingTask = { ...task }}
                                 role="listitem"
                               >
-                                {#if editingTask?.id === task.id}
-                                  <input
-                                    class="edit-title"
-                                    bind:value={editingTask.title}
-                                    placeholder="Task title"
-                                  />
-                                  <textarea
-                                    class="edit-description"
-                                    bind:value={editingTask.description}
-                                    placeholder="Description (optional)"
-                                    rows="2"
-                                  ></textarea>
-                                  <select class="version-select" bind:value={editingTask.sprint}>
-                                    {#each versions as v}
-                                      <option value={v}>{getVersionLabel(v)}</option>
-                                    {/each}
-                                  </select>
-                                  <div class="edit-actions">
-                                    <button class="save-btn" on:click={handleSaveEdit}>Save</button>
-                                    <button class="cancel-btn" on:click={() => editingTask = null}>Cancel</button>
-                                  </div>
-                                {:else}
-                                  <div class="task-title">{task.title}</div>
-                                  {#if task.description}
-                                    <div class="task-description">{task.description}</div>
-                                  {/if}
-                                  <div class="task-actions">
-                                    <button
-                                      class="edit-btn"
-                                      on:click={() => editingTask = { ...task }}
-                                      title="Edit"
-                                    >
-                                      Edit
-                                    </button>
-                                    <button
-                                      class="delete-btn"
-                                      on:click={() => handleDeleteTask(task)}
-                                      title="Delete"
-                                    >
-                                      X
-                                    </button>
-                                  </div>
+                                <div class="task-title">{task.title}</div>
+                                {#if task.description}
+                                  <div class="task-description">{task.description}</div>
                                 {/if}
+                                <div class="task-actions">
+                                  <button
+                                    class="edit-btn"
+                                    on:click|stopPropagation={() => { viewingTask = { ...task }; editingTask = { ...task }; }}
+                                    title="Edit"
+                                  >✎</button>
+                                  <button
+                                    class="delete-btn"
+                                    on:click|stopPropagation={() => handleDeleteTask(task)}
+                                    title="Delete"
+                                  >×</button>
+                                </div>
                               </div>
                             {/each}
                             {#if columnTasks.length === 0}
@@ -1193,66 +1189,34 @@
                       <div
                         class="task-card"
                         class:dragging={draggedTask?.id === task.id}
+                        class:drag-over-task={dragOverTaskId === task.id}
                         draggable="true"
                         on:dragstart={(e) => handleDragStart(e, task)}
                         on:dragend={handleDragEnd}
+                        on:dragover={(e) => handleTaskDragOver(e, task)}
+                        on:dragleave={handleTaskDragLeave}
+                        on:click={() => viewingTask = { ...task }}
                         role="listitem"
                       >
-                        {#if editingTask?.id === task.id}
-                          <input
-                            class="edit-title"
-                            bind:value={editingTask.title}
-                            placeholder="Task title"
-                          />
-                          <textarea
-                            class="edit-description"
-                            bind:value={editingTask.description}
-                            placeholder="Description (optional)"
-                            rows="2"
-                          ></textarea>
-                          <select class="version-select" bind:value={editingTask.sprint}>
-                            {#each versions as v}
-                              <option value={v}>{getVersionLabel(v)}</option>
-                            {/each}
-                          </select>
-                          <div class="edit-actions">
-                            <button class="save-btn" on:click={handleSaveEdit}>Save</button>
-                            <button class="cancel-btn" on:click={() => editingTask = null}>Cancel</button>
-                          </div>
-                        {:else}
-                          <div class="task-title">{task.title}</div>
-                          {#if task.description}
-                            <div class="task-description">{task.description}</div>
-                          {/if}
-                          {#if task.sprint && task.sprint !== 'backlog'}
-                            <div class="task-version-badge">{getVersionLabel(task.sprint)}</div>
-                          {/if}
-                          <div class="task-actions">
-                            <select
-                              class="status-select"
-                              value={task.status}
-                              on:change={(e) => handleStatusChange(task, e.target.value)}
-                            >
-                              {#each STATUSES as s}
-                                <option value={s}>{STATUS_LABELS[s]}</option>
-                              {/each}
-                            </select>
-                            <button
-                              class="edit-btn"
-                              on:click={() => editingTask = { ...task }}
-                              title="Edit"
-                            >
-                              Edit
-                            </button>
-                            <button
-                              class="delete-btn"
-                              on:click={() => handleDeleteTask(task)}
-                              title="Delete"
-                            >
-                              X
-                            </button>
-                          </div>
+                        <div class="task-title">{task.title}</div>
+                        {#if task.description}
+                          <div class="task-description">{task.description}</div>
                         {/if}
+                        {#if task.sprint && task.sprint !== 'backlog'}
+                          <div class="task-version-badge">{getVersionLabel(task.sprint)}</div>
+                        {/if}
+                        <div class="task-actions">
+                          <button
+                            class="edit-btn"
+                            on:click|stopPropagation={() => { viewingTask = { ...task }; editingTask = { ...task }; }}
+                            title="Edit"
+                          >✎</button>
+                          <button
+                            class="delete-btn"
+                            on:click|stopPropagation={() => handleDeleteTask(task)}
+                            title="Delete"
+                          >×</button>
+                        </div>
                       </div>
                     {/each}
                     {#if tasksByStatus[status].length === 0}
@@ -1435,6 +1399,75 @@
           {/if}
         </button>
         <button class="action-btn" on:click={cancelDeleteVersion} disabled={isDeleting}>Cancel</button>
+      </div>
+    </div>
+  </div>
+{/if}
+
+<!-- Task Detail Modal -->
+{#if viewingTask}
+  <div class="modal-backdrop task-detail-backdrop" on:click={() => { viewingTask = null; editingTask = null; }} role="dialog">
+    <div class="task-detail-modal" on:click|stopPropagation role="document">
+      <div class="task-detail-header">
+        <div class="task-detail-meta">
+          <span class="task-detail-status status-{viewingTask.status}">{STATUS_LABELS[viewingTask.status]}</span>
+          <span class="task-detail-version">{getVersionLabel(viewingTask.sprint || 'backlog')}</span>
+        </div>
+        <button class="close-btn" on:click={() => { viewingTask = null; editingTask = null; }}>×</button>
+      </div>
+
+      <div class="task-detail-body">
+        {#if editingTask}
+          <input
+            class="task-detail-title-input"
+            bind:value={editingTask.title}
+            placeholder="Task title"
+          />
+          <textarea
+            class="task-detail-description-input"
+            bind:value={editingTask.description}
+            placeholder="Add a description..."
+            rows="6"
+          ></textarea>
+
+          <div class="task-detail-fields">
+            <div class="task-detail-field">
+              <label>Status</label>
+              <select bind:value={editingTask.status}>
+                {#each STATUSES as s}
+                  <option value={s}>{STATUS_LABELS[s]}</option>
+                {/each}
+              </select>
+            </div>
+            <div class="task-detail-field">
+              <label>Version</label>
+              <select bind:value={editingTask.sprint}>
+                {#each versions as v}
+                  <option value={v}>{getVersionLabel(v)}</option>
+                {/each}
+              </select>
+            </div>
+          </div>
+        {:else}
+          <h2 class="task-detail-title">{viewingTask.title}</h2>
+          <div class="task-detail-description">
+            {#if viewingTask.description}
+              {viewingTask.description}
+            {:else}
+              <span class="no-description">No description</span>
+            {/if}
+          </div>
+        {/if}
+      </div>
+
+      <div class="task-detail-footer">
+        {#if editingTask}
+          <button class="action-btn primary" on:click={async () => { await handleSaveEdit(); viewingTask = tasks.find(t => t.id === editingTask?.id) || null; editingTask = null; }}>Save</button>
+          <button class="action-btn" on:click={() => editingTask = null}>Cancel</button>
+        {:else}
+          <button class="action-btn" on:click={() => editingTask = { ...viewingTask }}>Edit</button>
+          <button class="action-btn danger" on:click={() => { handleDeleteTask(viewingTask); viewingTask = null; }}>Delete</button>
+        {/if}
       </div>
     </div>
   </div>
@@ -1674,6 +1707,8 @@
     display: flex;
     flex-direction: column;
     min-height: 150px;
+    min-width: 0;
+    overflow: hidden;
     transition: border-color 0.2s, background 0.2s;
   }
 
@@ -1714,9 +1749,11 @@
     flex: 1;
     padding: 10px;
     overflow-y: auto;
+    overflow-x: hidden;
     display: flex;
     flex-direction: column;
     gap: 8px;
+    min-width: 0;
   }
 
   .task-card {
@@ -1726,6 +1763,11 @@
     padding: 10px;
     cursor: grab;
     transition: all 0.2s;
+    position: relative;
+    max-height: 80px;
+    overflow: hidden;
+    width: 100%;
+    box-sizing: border-box;
   }
 
   .task-card:hover {
@@ -1737,6 +1779,11 @@
     cursor: grabbing;
   }
 
+  .task-card.drag-over-task {
+    border-top: 2px solid var(--accent-primary);
+    margin-top: -2px;
+  }
+
   .task-card:active {
     cursor: grabbing;
   }
@@ -1746,13 +1793,21 @@
     font-weight: 500;
     color: var(--text-primary);
     margin-bottom: 4px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    padding-right: 40px;
   }
 
   .task-description {
     font-size: 10px;
     color: var(--text-secondary);
-    margin-bottom: 6px;
     line-height: 1.4;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
   }
 
   .task-version-badge {
@@ -1762,17 +1817,19 @@
     background: rgba(255, 255, 255, 0.05);
     padding: 2px 6px;
     border-radius: 2px;
-    margin-bottom: 6px;
     text-transform: uppercase;
     letter-spacing: 0.5px;
   }
 
   .task-actions {
+    position: absolute;
+    top: 8px;
+    right: 6px;
     display: flex;
-    gap: 6px;
+    gap: 2px;
     align-items: center;
     opacity: 0;
-    transition: opacity 0.2s;
+    transition: opacity 0.15s;
   }
 
   .task-card:hover .task-actions {
@@ -1791,18 +1848,24 @@
   }
 
   .edit-btn, .delete-btn {
-    padding: 4px 8px;
+    width: 22px;
+    height: 22px;
+    padding: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
     background: var(--bg-secondary);
     border: 1px solid var(--border-primary);
-    border-radius: 2px;
-    color: var(--text-secondary);
-    font-size: 9px;
+    border-radius: 3px;
+    color: var(--text-tertiary);
+    font-size: 10px;
     cursor: pointer;
-    transition: all 0.2s;
+    transition: all 0.15s;
   }
 
   .edit-btn:hover {
     background: var(--bg-hover);
+    border-color: var(--border-hover);
     color: var(--text-primary);
   }
 
@@ -2385,5 +2448,177 @@
     to {
       transform: rotate(360deg);
     }
+  }
+
+  /* Task Detail Modal */
+  .task-detail-backdrop {
+    backdrop-filter: blur(4px);
+  }
+
+  .task-detail-modal {
+    background: var(--bg-primary);
+    border: 1px solid var(--border-primary);
+    border-radius: 8px;
+    width: 90%;
+    max-width: 600px;
+    max-height: 80vh;
+    display: flex;
+    flex-direction: column;
+    box-shadow: var(--shadow-large);
+    overflow: hidden;
+  }
+
+  .task-detail-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 16px 20px;
+    border-bottom: 1px solid var(--border-secondary);
+    background: var(--bg-secondary);
+  }
+
+  .task-detail-meta {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+  }
+
+  .task-detail-status {
+    font-size: 10px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    padding: 4px 10px;
+    border-radius: 3px;
+  }
+
+  .task-detail-status.status-todo {
+    background: rgba(59, 130, 246, 0.15);
+    color: #60a5fa;
+  }
+
+  .task-detail-status.status-in_progress {
+    background: rgba(245, 158, 11, 0.15);
+    color: #fbbf24;
+  }
+
+  .task-detail-status.status-done {
+    background: rgba(34, 197, 94, 0.15);
+    color: #4ade80;
+  }
+
+  .task-detail-version {
+    font-size: 10px;
+    color: var(--text-tertiary);
+    padding: 4px 10px;
+    background: var(--bg-primary);
+    border: 1px solid var(--border-secondary);
+    border-radius: 3px;
+  }
+
+  .task-detail-body {
+    flex: 1;
+    padding: 24px;
+    overflow-y: auto;
+  }
+
+  .task-detail-title {
+    font-size: 20px;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin: 0 0 16px 0;
+    line-height: 1.4;
+  }
+
+  .task-detail-description {
+    font-size: 14px;
+    color: var(--text-secondary);
+    line-height: 1.6;
+    white-space: pre-wrap;
+  }
+
+  .task-detail-description .no-description {
+    font-style: italic;
+    color: var(--text-tertiary);
+  }
+
+  .task-detail-title-input {
+    width: 100%;
+    padding: 12px 14px;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-primary);
+    border-radius: 4px;
+    color: var(--text-primary);
+    font-size: 18px;
+    font-weight: 600;
+    margin-bottom: 16px;
+  }
+
+  .task-detail-title-input:focus {
+    outline: none;
+    border-color: var(--accent-primary);
+  }
+
+  .task-detail-description-input {
+    width: 100%;
+    padding: 12px 14px;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-primary);
+    border-radius: 4px;
+    color: var(--text-primary);
+    font-size: 14px;
+    line-height: 1.5;
+    resize: vertical;
+    min-height: 120px;
+    margin-bottom: 20px;
+  }
+
+  .task-detail-description-input:focus {
+    outline: none;
+    border-color: var(--accent-primary);
+  }
+
+  .task-detail-fields {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+  }
+
+  .task-detail-field {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .task-detail-field label {
+    font-size: 10px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--text-tertiary);
+  }
+
+  .task-detail-field select {
+    padding: 10px 12px;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-primary);
+    border-radius: 4px;
+    color: var(--text-primary);
+    font-size: 13px;
+    cursor: pointer;
+  }
+
+  .task-detail-field select:focus {
+    outline: none;
+    border-color: var(--accent-primary);
+  }
+
+  .task-detail-footer {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+    padding: 16px 24px;
+    border-top: 1px solid var(--border-secondary);
+    background: var(--bg-secondary);
   }
 </style>
