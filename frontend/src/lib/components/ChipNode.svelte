@@ -6,47 +6,48 @@
   $: layerType = data.layerType || 'default';
   $: config = getLayerConfig(layerType);
 
+  // Classic vim colors
   function getLayerConfig(type) {
     switch (type) {
       case 'page':
         return {
-          color: '#00bcd4',
-          bgColor: 'rgba(0, 188, 212, 0.1)',
+          color: '#56b6c2',  // vim cyan
+          bgColor: 'rgba(86, 182, 194, 0.1)',
           label: 'PAGE',
           icon: '◻'
         };
       case 'component':
         return {
-          color: '#9c27b0',
-          bgColor: 'rgba(156, 39, 176, 0.1)',
+          color: '#c678dd',  // vim magenta
+          bgColor: 'rgba(198, 120, 221, 0.1)',
           label: 'COMPONENT',
           icon: '▣'
         };
       case 'endpoint':
         return {
-          color: '#2196f3',
-          bgColor: 'rgba(33, 150, 243, 0.1)',
+          color: '#61afef',  // vim blue
+          bgColor: 'rgba(97, 175, 239, 0.1)',
           label: 'API',
           icon: '⟷'
         };
       case 'entity':
         return {
-          color: '#4caf50',
-          bgColor: 'rgba(76, 175, 80, 0.1)',
+          color: '#98c379',  // vim green
+          bgColor: 'rgba(152, 195, 121, 0.1)',
           label: 'ENTITY',
           icon: '◆'
         };
       case 'table':
         return {
-          color: '#ff9800',
-          bgColor: 'rgba(255, 152, 0, 0.1)',
+          color: '#e5c07b',  // vim yellow
+          bgColor: 'rgba(229, 192, 123, 0.1)',
           label: 'TABLE',
           icon: '▤'
         };
       default:
         return {
-          color: '#757575',
-          bgColor: 'rgba(117, 117, 117, 0.1)',
+          color: '#abb2bf',  // vim foreground
+          bgColor: 'rgba(171, 178, 191, 0.1)',
           label: 'NODE',
           icon: '○'
         };
@@ -55,13 +56,13 @@
 
   function getMethodBadge(method) {
     const colors = {
-      GET: '#4caf50',
-      POST: '#2196f3',
-      PUT: '#ff9800',
-      PATCH: '#9c27b0',
-      DELETE: '#f44336'
+      GET: '#98c379',     // vim green
+      POST: '#61afef',    // vim blue
+      PUT: '#e5c07b',     // vim yellow
+      PATCH: '#c678dd',   // vim magenta
+      DELETE: '#e06c75'   // vim red
     };
-    return colors[method] || '#757575';
+    return colors[method] || '#abb2bf';
   }
 </script>
 
@@ -115,7 +116,7 @@
 
   .node-badge {
     background: var(--layer-color);
-    color: white;
+    color: #282c34;  /* vim dark background for contrast */
     font-size: 9px;
     font-weight: 700;
     letter-spacing: 1px;
@@ -134,7 +135,7 @@
     font-weight: 700;
     padding: 2px 6px;
     border-radius: 2px;
-    color: white;
+    color: #282c34;  /* vim dark background for contrast */
     margin-bottom: 6px;
   }
 

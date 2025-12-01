@@ -34,7 +34,7 @@
   let currentPrompt = '';
   let saveContent = '';
   let saving = false;
-  let viewMode = 'list'; // 'list' or 'flow'
+  let viewMode = 'flow'; // 'list', 'flow', or 'raw'
 
   const nodes = writable([]);
   const edges = writable([]);
@@ -63,6 +63,11 @@
       loadingHistory = true;
       const data = await fetchContextHistory('architecture');
       history = data.history || [];
+      // Auto-select the last (oldest) entry in history
+      if (history.length > 0 && !selectedEntry) {
+        const lastEntry = history[history.length - 1];
+        handleEntryClick(lastEntry);
+      }
     } catch (err) {
       showToast(`Failed to load history: ${err.message}`, 'error');
       history = [];
@@ -282,7 +287,7 @@
       }
     }
 
-    // Create edges between layers (connecting related items)
+    // Create edges between layers (connecting related items) - vim colors
     // Pages -> Components (fan out)
     if (layers.pages.length > 0 && layers.components.length > 0) {
       layers.pages.forEach(pageId => {
@@ -292,7 +297,7 @@
             source: pageId,
             target: compId,
             type: 'smoothstep',
-            style: 'stroke: #9c27b0; stroke-width: 1.5px; opacity: 0.4;'
+            style: 'stroke: #c678dd; stroke-width: 1.5px; opacity: 0.4;'  // vim magenta
           });
         });
       });
@@ -308,7 +313,7 @@
             source: srcId,
             target: epId,
             type: 'smoothstep',
-            style: 'stroke: #2196f3; stroke-width: 1.5px; opacity: 0.4;'
+            style: 'stroke: #61afef; stroke-width: 1.5px; opacity: 0.4;'  // vim blue
           });
         });
       });
@@ -323,7 +328,7 @@
             source: epId,
             target: entityId,
             type: 'smoothstep',
-            style: 'stroke: #4caf50; stroke-width: 1.5px; opacity: 0.4;'
+            style: 'stroke: #98c379; stroke-width: 1.5px; opacity: 0.4;'  // vim green
           });
         });
       });
@@ -340,7 +345,7 @@
           target: tableId,
           type: 'smoothstep',
           animated: true,
-          style: 'stroke: #ff9800; stroke-width: 2px;'
+          style: 'stroke: #e5c07b; stroke-width: 2px;'  // vim yellow
         });
       });
     }
@@ -1917,33 +1922,33 @@
   /* View Mode Toggle */
   .view-mode-toggle {
     display: flex;
-    gap: 4px;
+    gap: 16px;
     padding: 12px 16px;
     border-bottom: 1px solid var(--border-secondary);
     background: var(--bg-primary);
   }
 
   .view-mode-btn {
-    padding: 8px 16px;
-    background: var(--bg-secondary);
-    border: 1px solid var(--border-secondary);
-    color: var(--text-secondary);
-    font-size: 12px;
+    padding: 6px 0;
+    background: transparent;
+    border: none;
+    border-bottom: 2px solid transparent;
+    color: var(--text-tertiary);
+    font-size: 10px;
     font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
     cursor: pointer;
-    border-radius: 4px;
-    transition: all 0.15s;
+    transition: all 0.2s;
   }
 
   .view-mode-btn:hover {
-    background: var(--bg-hover);
-    border-color: var(--border-hover);
+    color: var(--text-secondary);
   }
 
   .view-mode-btn.active {
-    background: var(--accent-primary);
-    border-color: var(--accent-primary);
-    color: white;
+    color: var(--text-primary);
+    border-bottom-color: var(--text-primary);
   }
 
   /* Flow View */
@@ -2317,18 +2322,18 @@
   }
 
   .tech-tag.lang {
-    border-color: #9c27b0;
-    color: #ce93d8;
+    border-color: #c678dd;
+    color: #c678dd;  /* vim magenta */
   }
 
   .tech-tag.framework {
-    border-color: #2196f3;
-    color: #90caf9;
+    border-color: #61afef;
+    color: #61afef;  /* vim blue */
   }
 
   .tech-tag.database {
-    border-color: #ff9800;
-    color: #ffcc80;
+    border-color: #e5c07b;
+    color: #e5c07b;  /* vim yellow */
   }
 
   /* Raw View */
