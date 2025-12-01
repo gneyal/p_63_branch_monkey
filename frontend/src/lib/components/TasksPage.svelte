@@ -6,8 +6,7 @@
   import { fetchRepoInfo } from '../services/api.js';
   import Toast from './Toast.svelte';
   import TaskManager from './TaskManager.svelte';
-  import RecentRepos from './RecentRepos.svelte';
-  import RepoSelector from './RepoSelector.svelte';
+  import Topbar from './Topbar.svelte';
   import GlobalActions from './GlobalActions.svelte';
 
   onMount(async () => {
@@ -21,10 +20,6 @@
       }
     }
   });
-
-  function goBack() {
-    push('/');
-  }
 
   // Handlers for GlobalActions - navigate back to main view for most actions
   function handleGoToTop() {
@@ -57,43 +52,7 @@
 </script>
 
 <main class="tasks-page">
-  <header class="app-header">
-    <div class="header-left">
-      <div class="title-container">
-        <h1 class="app-title" on:click={goBack} style="cursor: pointer;">branch/monkey</h1>
-      </div>
-      <RecentRepos />
-    </div>
-
-    <div class="header-center">
-      <RepoSelector />
-    </div>
-
-    <div class="header-right">
-      <div class="view-toggle">
-        <button
-          class="view-btn"
-          on:click={goBack}
-          title="Back to commits"
-        >
-          Commits
-        </button>
-        <button
-          class="view-btn active"
-          title="Tasks view"
-        >
-          Tasks
-        </button>
-        <button
-          class="view-btn"
-          on:click={() => push('/architecture')}
-          title="Architecture view"
-        >
-          Arch
-        </button>
-      </div>
-    </div>
-  </header>
+  <Topbar activeView="tasks" />
 
   <div class="page-content">
     <TaskManager inline={true} />
@@ -150,90 +109,6 @@
     flex-direction: column;
     overflow: hidden;
     background: var(--bg-secondary);
-  }
-
-  .app-header {
-    display: grid;
-    grid-template-columns: 1fr auto 1fr;
-    gap: 24px;
-    align-items: center;
-    padding: 12px 24px;
-    background: var(--bg-secondary);
-    border-bottom: 1px solid var(--border-primary);
-    box-shadow: var(--shadow-small);
-  }
-
-  .header-left {
-    display: flex;
-    gap: 16px;
-    align-items: center;
-    justify-content: flex-start;
-  }
-
-  .title-container {
-    position: relative;
-  }
-
-  .app-title {
-    font-size: 14px;
-    font-weight: 600;
-    color: var(--text-primary);
-    letter-spacing: 1px;
-    text-transform: lowercase;
-    margin: 0;
-    font-family: 'Courier New', monospace;
-  }
-
-  .app-title:hover {
-    color: var(--accent-primary);
-  }
-
-  .header-center {
-    display: flex;
-    justify-content: center;
-  }
-
-  .header-right {
-    display: flex;
-    gap: 12px;
-    align-items: center;
-    justify-content: flex-end;
-  }
-
-  .view-toggle {
-    display: flex;
-    gap: 0;
-    border: 1px solid var(--border-primary);
-    border-radius: 1px;
-    overflow: hidden;
-  }
-
-  .view-btn {
-    padding: 6px 12px;
-    background: var(--bg-primary);
-    border: none;
-    border-right: 1px solid var(--border-primary);
-    color: var(--text-secondary);
-    font-size: 9px;
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.8px;
-    cursor: pointer;
-    transition: all 0.2s;
-  }
-
-  .view-btn:last-child {
-    border-right: none;
-  }
-
-  .view-btn:hover {
-    background: var(--bg-hover);
-    color: var(--text-primary);
-  }
-
-  .view-btn.active {
-    background: var(--accent-primary);
-    color: var(--bg-primary);
   }
 
   .page-content {

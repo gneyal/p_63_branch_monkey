@@ -80,12 +80,17 @@
 
   // Get unique versions from tasks and custom versions, respecting order
   $: allVersions = [...new Set([...versionOrder, ...customVersions, ...tasks.map(t => t.sprint || 'backlog')])].filter(v => !hiddenDefaultVersions.includes(v));
+  // Sort versions with backlog always at the end
   $: versions = allVersions.sort((a, b) => {
+    // Backlog always last
+    if (a === 'backlog') return 1;
+    if (b === 'backlog') return -1;
+
     const aIdx = versionOrder.indexOf(a);
     const bIdx = versionOrder.indexOf(b);
     if (aIdx === -1 && bIdx === -1) return 0;
     if (aIdx === -1) return 1;
-    if (bIdx === -1) return 1;
+    if (bIdx === -1) return -1;
     return aIdx - bIdx;
   });
 
@@ -531,6 +536,20 @@
     }
   }
 
+  async function handleCopyTask(task) {
+    const json = JSON.stringify({
+      title: task.title,
+      description: task.description || ''
+    }, null, 2);
+
+    try {
+      await navigator.clipboard.writeText(json);
+      showToast('Copied to clipboard', 'success');
+    } catch (err) {
+      showToast('Failed to copy to clipboard', 'error');
+    }
+  }
+
   async function handleSaveEdit() {
     if (!editingTask || !editingTask.title.trim()) {
       showToast('Please enter a task title', 'error');
@@ -885,7 +904,7 @@
                               on:dragend={handleDragEnd}
                               on:dragover={(e) => handleTaskDragOver(e, task)}
                               on:dragleave={handleTaskDragLeave}
-                              on:click={() => viewingTask = { ...task }}
+                              on:click={() => { viewingTask = { ...task }; editingTask = { ...task }; }}
                               role="listitem"
                             >
                               <div class="task-title">{task.title}</div>
@@ -894,10 +913,10 @@
                               {/if}
                               <div class="task-actions">
                                 <button
-                                  class="edit-btn"
-                                  on:click|stopPropagation={() => { viewingTask = { ...task }; editingTask = { ...task }; }}
-                                  title="Edit"
-                                >✎</button>
+                                  class="copy-btn"
+                                  on:click|stopPropagation={() => handleCopyTask(task)}
+                                  title="Copy"
+                                >⧉</button>
                                 <button
                                   class="delete-btn"
                                   on:click|stopPropagation={() => handleDeleteTask(task)}
@@ -966,7 +985,7 @@
                       on:dragend={handleDragEnd}
                       on:dragover={(e) => handleTaskDragOver(e, task)}
                       on:dragleave={handleTaskDragLeave}
-                      on:click={() => viewingTask = { ...task }}
+                      on:click={() => { viewingTask = { ...task }; editingTask = { ...task }; }}
                       role="listitem"
                     >
                       <div class="task-title">{task.title}</div>
@@ -978,10 +997,10 @@
                       {/if}
                       <div class="task-actions">
                         <button
-                          class="edit-btn"
-                          on:click|stopPropagation={() => { viewingTask = { ...task }; editingTask = { ...task }; }}
-                          title="Edit"
-                        >✎</button>
+                          class="copy-btn"
+                          on:click|stopPropagation={() => handleCopyTask(task)}
+                          title="Copy"
+                        >⧉</button>
                         <button
                           class="delete-btn"
                           on:click|stopPropagation={() => handleDeleteTask(task)}
@@ -1136,7 +1155,7 @@
                                 on:dragend={handleDragEnd}
                                 on:dragover={(e) => handleTaskDragOver(e, task)}
                                 on:dragleave={handleTaskDragLeave}
-                                on:click={() => viewingTask = { ...task }}
+                                on:click={() => { viewingTask = { ...task }; editingTask = { ...task }; }}
                                 role="listitem"
                               >
                                 <div class="task-title">{task.title}</div>
@@ -1145,10 +1164,10 @@
                                 {/if}
                                 <div class="task-actions">
                                   <button
-                                    class="edit-btn"
-                                    on:click|stopPropagation={() => { viewingTask = { ...task }; editingTask = { ...task }; }}
-                                    title="Edit"
-                                  >✎</button>
+                                    class="copy-btn"
+                                    on:click|stopPropagation={() => handleCopyTask(task)}
+                                    title="Copy"
+                                  >⧉</button>
                                   <button
                                     class="delete-btn"
                                     on:click|stopPropagation={() => handleDeleteTask(task)}
@@ -1195,7 +1214,7 @@
                         on:dragend={handleDragEnd}
                         on:dragover={(e) => handleTaskDragOver(e, task)}
                         on:dragleave={handleTaskDragLeave}
-                        on:click={() => viewingTask = { ...task }}
+                        on:click={() => { viewingTask = { ...task }; editingTask = { ...task }; }}
                         role="listitem"
                       >
                         <div class="task-title">{task.title}</div>
@@ -1207,10 +1226,10 @@
                         {/if}
                         <div class="task-actions">
                           <button
-                            class="edit-btn"
-                            on:click|stopPropagation={() => { viewingTask = { ...task }; editingTask = { ...task }; }}
-                            title="Edit"
-                          >✎</button>
+                            class="copy-btn"
+                            on:click|stopPropagation={() => handleCopyTask(task)}
+                            title="Copy"
+                          >⧉</button>
                           <button
                             class="delete-btn"
                             on:click|stopPropagation={() => handleDeleteTask(task)}
@@ -1847,7 +1866,7 @@
     cursor: pointer;
   }
 
-  .edit-btn, .delete-btn {
+  .edit-btn, .delete-btn, .copy-btn {
     width: 22px;
     height: 22px;
     padding: 0;
@@ -1863,7 +1882,7 @@
     transition: all 0.15s;
   }
 
-  .edit-btn:hover {
+  .edit-btn:hover, .copy-btn:hover {
     background: var(--bg-hover);
     border-color: var(--border-hover);
     color: var(--text-primary);

@@ -8,8 +8,7 @@
   import Modal from './Modal.svelte';
   import CommitTree from './CommitTree.svelte';
   import BuildingsView from './BuildingsView.svelte';
-  import RepoSelector from './RepoSelector.svelte';
-  import RecentRepos from './RecentRepos.svelte';
+  import Topbar from './Topbar.svelte';
   import GlobalActions from './GlobalActions.svelte';
   import BranchesList from './BranchesList.svelte';
   import RemoteStatus from './RemoteStatus.svelte';
@@ -22,66 +21,6 @@
   let showContextLibrary = false;
   let currentView = 'buildings'; // 'flow' or 'buildings'
   let commitTreeComponent;
-  let showMonkey = false;
-  let monkeyFrame = 0;
-
-  const monkeyFrames = [
-    // Frame 1: Monkey on left branch
-    `        ___
-     {. .}
-      >o<
-     /|||\\
-    // \\\\\\\\
-=========
-   ||
-   ||`,
-    // Frame 2: Monkey jumping
-    `
-    {. .}
-     >o<
-    /|||\\
-   // \\\\\\\\
-
-=========
-   ||
-   ||`,
-    // Frame 3: Monkey on right branch
-    `
-     {. .}
-      >o<
-     /|||\\
-    // \\\\\\\\
-       =========
-            ||
-            ||`,
-    // Frame 4: Jumping back
-    `
-    {. .}
-     >o<
-    /|||\\
-   // \\\\\\\\
-
-=========
-   ||
-   ||`,
-  ];
-
-  let animationInterval;
-
-  function startMonkeyAnimation() {
-    showMonkey = true;
-    monkeyFrame = 0;
-    animationInterval = setInterval(() => {
-      monkeyFrame = (monkeyFrame + 1) % monkeyFrames.length;
-    }, 600);
-  }
-
-  function stopMonkeyAnimation() {
-    showMonkey = false;
-    if (animationInterval) {
-      clearInterval(animationInterval);
-    }
-  }
 
   onMount(async () => {
     await loadRepoInfo();
@@ -222,66 +161,7 @@
 </script>
 
 <main class="app-main">
-  <header class="app-header">
-    <div class="header-left">
-      <div class="title-container">
-        <h1
-          class="app-title"
-          on:mouseenter={startMonkeyAnimation}
-          on:mouseleave={stopMonkeyAnimation}
-        >
-          branch/monkey
-        </h1>
-        {#if showMonkey}
-          <div class="ascii-monkey">
-            <pre>{monkeyFrames[monkeyFrame]}</pre>
-          </div>
-        {/if}
-      </div>
-      <RecentRepos />
-    </div>
-
-    <div class="header-center">
-      <RepoSelector />
-    </div>
-
-    <div class="header-right">
-      <div class="view-toggle">
-        <button
-          class="view-btn"
-          class:active={currentView === 'flow'}
-          on:click={() => currentView = 'flow'}
-          title="Flow view"
-        >
-          Flow
-        </button>
-        <button
-          class="view-btn"
-          class:active={currentView === 'buildings'}
-          on:click={() => currentView = 'buildings'}
-          title="Buildings view"
-        >
-          Buildings
-        </button>
-      </div>
-      <div class="page-toggle">
-        <button
-          class="view-btn"
-          on:click={() => push('/tasks')}
-          title="Tasks"
-        >
-          Tasks
-        </button>
-        <button
-          class="view-btn"
-          on:click={() => push('/architecture')}
-          title="Architecture"
-        >
-          Arch
-        </button>
-      </div>
-    </div>
-  </header>
+  <Topbar activeView="commits" />
 
   {#if error}
     <div class="error-banner">
@@ -319,6 +199,24 @@
     </div>
 
     <div class="footer-center">
+      <div class="view-toggle">
+        <button
+          class="view-btn"
+          class:active={currentView === 'flow'}
+          on:click={() => currentView = 'flow'}
+          title="Flow view"
+        >
+          Flow
+        </button>
+        <button
+          class="view-btn"
+          class:active={currentView === 'buildings'}
+          on:click={() => currentView = 'buildings'}
+          title="Buildings view"
+        >
+          Buildings
+        </button>
+      </div>
       <div class="commit-info" class:has-more={hasMore}>
         <span class="commit-count">{currentOffset} / {totalCommits} saves</span>
         {#if hasMore}
@@ -389,121 +287,6 @@
     flex-direction: column;
     overflow: hidden;
     background: var(--bg-secondary);
-  }
-
-  .app-header {
-    display: grid;
-    grid-template-columns: 1fr 2fr 1fr;
-    gap: 24px;
-    align-items: center;
-    padding: 12px 24px;
-    background: var(--bg-secondary);
-    border-bottom: 1px solid var(--border-primary);
-    box-shadow: var(--shadow-small);
-  }
-
-  @media (max-width: 1200px) {
-    .app-header {
-      grid-template-columns: auto 1fr auto;
-      gap: 16px;
-      padding: 12px 16px;
-    }
-
-    .app-title {
-      font-size: 10px;
-    }
-  }
-
-  @media (max-width: 768px) {
-    .app-header {
-      grid-template-columns: 1fr;
-      gap: 12px;
-      padding: 12px 16px;
-    }
-
-    .header-left,
-    .header-center,
-    .header-right {
-      justify-content: center;
-    }
-
-    .header-left {
-      order: 1;
-    }
-
-    .header-center {
-      order: 2;
-    }
-
-    .header-right {
-      order: 3;
-    }
-  }
-
-  .header-left {
-    display: flex;
-    gap: 16px;
-    align-items: center;
-  }
-
-  .title-container {
-    position: relative;
-  }
-
-  .app-title {
-    font-size: 11px;
-    font-weight: 600;
-    color: var(--text-primary);
-    letter-spacing: 1.5px;
-    white-space: nowrap;
-    margin: 0;
-    font-family: 'Courier New', 'Courier', 'Monaco', 'Menlo', monospace;
-    cursor: pointer;
-  }
-
-  .ascii-monkey {
-    position: absolute;
-    top: calc(100% + 8px);
-    left: 0;
-    background: var(--bg-primary);
-    border: 1px solid var(--border-primary);
-    border-radius: 2px;
-    padding: 16px;
-    box-shadow: var(--shadow-large);
-    z-index: 1000;
-    animation: monkeySlideIn 0.2s ease;
-    min-width: 220px;
-  }
-
-  @keyframes monkeySlideIn {
-    from {
-      opacity: 0;
-      transform: translateY(-10px);
-    }
-    to {
-      opacity: 1;
-      transform: translateY(0);
-    }
-  }
-
-  .ascii-monkey pre {
-    margin: 0;
-    font-family: 'Courier New', 'Courier', 'Monaco', 'Menlo', monospace;
-    font-size: 11px;
-    line-height: 1.3;
-    color: var(--text-primary);
-    white-space: pre;
-  }
-
-  .header-center {
-    display: flex;
-    justify-content: center;
-  }
-
-  .header-right {
-    display: flex;
-    justify-content: flex-end;
-    align-items: center;
   }
 
   .commit-info {
@@ -680,6 +463,8 @@
   .footer-center {
     display: flex;
     justify-content: center;
+    align-items: center;
+    gap: 16px;
   }
 
   .footer-right {
