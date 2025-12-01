@@ -21,31 +21,27 @@
   });
 
   function handleGoToTop() {
-    push('/');
+    push('/commits');
   }
 
   function handleGoToBottom() {
-    push('/');
+    push('/commits');
   }
 
   function handleShowRemote() {
-    push('/');
+    push('/commits');
   }
 
   function handleNameBranches() {
-    push('/');
+    push('/commits');
   }
 
   function handleShowPrompts() {
-    push('/');
+    push('/commits');
   }
 
   function handleShowContext() {
-    push('/');
-  }
-
-  function handleShowArchitecture() {
-    // Already on architecture page
+    push('/commits');
   }
 </script>
 
@@ -64,13 +60,11 @@
         onShowRemote={handleShowRemote}
         onNameBranches={handleNameBranches}
         onShowPrompts={handleShowPrompts}
-        onShowArchitecture={handleShowArchitecture}
         onShowContext={handleShowContext}
       />
     </div>
 
     <div class="footer-center">
-      <span class="page-indicator">Architecture</span>
     </div>
 
     <div class="footer-right">

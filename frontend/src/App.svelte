@@ -8,13 +8,14 @@
 
   const routes = {
     '/': MainApp,
+    '/commits': MainApp,
     '/home': LandingPage,
     '/tasks': TasksPage,
     '/architecture': ArchitecturePage,
   };
 
   function handleGetStarted() {
-    push('/');
+    push('/commits');
   }
 </script>
 

@@ -1,7 +1,6 @@
 <script>
   import { push } from 'svelte-spa-router';
   import RepoSelector from './RepoSelector.svelte';
-  import RecentRepos from './RecentRepos.svelte';
 
   export let activeView = 'commits'; // 'commits', 'tasks', 'arch'
 
@@ -62,7 +61,7 @@
   }
 
   function goToCommits() {
-    push('/');
+    push('/commits');
   }
 
   function goToTasks() {
@@ -91,7 +90,6 @@
         </div>
       {/if}
     </div>
-    <RecentRepos />
   </div>
 
   <div class="header-center">

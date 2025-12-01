@@ -23,31 +23,27 @@
 
   // Handlers for GlobalActions - navigate back to main view for most actions
   function handleGoToTop() {
-    push('/');
+    push('/commits');
   }
 
   function handleGoToBottom() {
-    push('/');
+    push('/commits');
   }
 
   function handleShowRemote() {
-    push('/');
+    push('/commits');
   }
 
   function handleNameBranches() {
-    push('/');
+    push('/commits');
   }
 
   function handleShowPrompts() {
-    push('/');
+    push('/commits');
   }
 
   function handleShowContext() {
-    push('/');
-  }
-
-  function handleShowArchitecture() {
-    push('/');
+    push('/commits');
   }
 </script>
 
@@ -66,13 +62,11 @@
         onShowRemote={handleShowRemote}
         onNameBranches={handleNameBranches}
         onShowPrompts={handleShowPrompts}
-        onShowArchitecture={handleShowArchitecture}
         onShowContext={handleShowContext}
       />
     </div>
 
     <div class="footer-center">
-      <span class="page-indicator">Tasks</span>
     </div>
 
     <div class="footer-right">

@@ -30,7 +30,7 @@
   let newTaskTitle = '';
   let newTaskDescription = '';
   let newTaskVersion = 'backlog';
-  let showVersionLanes = true;
+  let visibleVersions = new Set(); // Set of visible version keys (empty = all visible)
 
   // Quick add state
   let quickAddVersion = null;
@@ -108,6 +108,50 @@
       done: tasks.filter(t => (t.sprint || 'backlog') === version && t.status === 'done')
     }
   })));
+
+  // Filtered swim lane data based on visible versions
+  $: filteredSwimLaneData = visibleVersions.size === 0
+    ? swimLaneData
+    : swimLaneData.filter(lane => visibleVersions.has(lane.version));
+
+  // Check if all versions are visible
+  $: allVersionsVisible = visibleVersions.size === 0;
+
+  // Toggle version visibility
+  function toggleVersionVisibility(version) {
+    if (visibleVersions.size === 0) {
+      // Currently showing all - switch to showing only this version
+      visibleVersions = new Set([version]);
+    } else if (visibleVersions.has(version)) {
+      // Version is visible - hide it
+      visibleVersions.delete(version);
+      if (visibleVersions.size === 0) {
+        // If none left, show all
+        visibleVersions = new Set();
+      } else {
+        visibleVersions = new Set(visibleVersions);
+      }
+    } else {
+      // Version is hidden - show it
+      visibleVersions = new Set([...visibleVersions, version]);
+    }
+  }
+
+  // Toggle all versions visibility
+  function toggleAllVersions() {
+    if (visibleVersions.size === 0) {
+      // All visible - hide all (show none... actually keep at least one)
+      visibleVersions = new Set();
+    } else {
+      // Some hidden - show all
+      visibleVersions = new Set();
+    }
+  }
+
+  // Check if a version is visible
+  function isVersionVisible(version) {
+    return visibleVersions.size === 0 || visibleVersions.has(version);
+  }
 
   // Get version label (supports custom versions)
   function getVersionLabel(version) {
@@ -749,18 +793,23 @@
   <div class="task-manager-inline">
     <div class="panel-header">
       <div class="header-left-section">
-        <label class="version-toggle">
-          <input type="checkbox" bind:checked={showVersionLanes} />
-          <span>Version Lanes</span>
-        </label>
         <div class="versions-menu-container">
           <button class="versions-menu-btn" on:click={() => showVersionsMenu = !showVersionsMenu}>
-            Versions
+            {allVersionsVisible ? 'All Versions' : `${visibleVersions.size} Version${visibleVersions.size === 1 ? '' : 's'}`}
             <span class="chevron">{showVersionsMenu ? '▲' : '▼'}</span>
           </button>
           {#if showVersionsMenu}
             <div class="versions-dropdown" on:click|stopPropagation>
               <div class="versions-list">
+                <label class="version-item version-checkbox-item">
+                  <input
+                    type="checkbox"
+                    checked={allVersionsVisible}
+                    on:change={toggleAllVersions}
+                  />
+                  <span class="version-name">All Versions</span>
+                  <span class="version-task-count">{tasks.length}</span>
+                </label>
                 {#each versions as version, idx (version)}
                   <div
                     class="version-item"
@@ -776,6 +825,7 @@
                       <input
                         class="version-edit-input"
                         bind:value={editingVersionName}
+                        on:click|stopPropagation
                         on:keydown={(e) => {
                           if (e.key === 'Enter') handleRenameVersion();
                           if (e.key === 'Escape') { editingVersion = null; editingVersionName = ''; }
@@ -783,8 +833,15 @@
                         on:blur={handleRenameVersion}
                       />
                     {:else}
-                      <span class="version-name">{getVersionLabel(version)}</span>
-                      <span class="version-task-count">{tasks.filter(t => (t.sprint || 'backlog') === version).length}</span>
+                      <label class="version-checkbox-label">
+                        <input
+                          type="checkbox"
+                          checked={isVersionVisible(version)}
+                          on:change={() => toggleVersionVisibility(version)}
+                        />
+                        <span class="version-name">{getVersionLabel(version)}</span>
+                        <span class="version-task-count">{tasks.filter(t => (t.sprint || 'backlog') === version).length}</span>
+                      </label>
                       <div class="version-actions">
                         {#if version !== 'backlog'}
                           <button class="version-action-btn" on:click|stopPropagation={() => moveVersionUp(version)} title="Move up" disabled={idx === 0}>↑</button>
@@ -838,7 +895,6 @@
             List
           </button>
         </div>
-        <button class="add-btn" on:click={() => showAddModal = true}>+ Add Task</button>
       </div>
     </div>
 
@@ -846,10 +902,9 @@
       {#if loading}
         <div class="loading">Loading...</div>
       {:else if viewMode === 'kanban'}
-        {#if showVersionLanes}
-          <!-- Version Swim Lanes View -->
-          <div class="swim-lanes">
-            {#each swimLaneData as lane (lane.version)}
+        <!-- Version Swim Lanes View -->
+        <div class="swim-lanes">
+          {#each filteredSwimLaneData as lane (lane.version)}
               {#if lane.tasks.length > 0 || lane.isDefault || lane.isCustom}
                 <div class="swim-lane">
                   <div class="swim-lane-header">
@@ -936,87 +991,6 @@
               {/if}
             {/each}
           </div>
-        {:else}
-          <!-- Simple Kanban View (no version lanes) -->
-          <div class="kanban-board full-height">
-            {#each STATUSES as status}
-              <div
-                class="kanban-column"
-                class:drag-over={dragOverColumn === status && !dragOverVersion}
-                on:dragover={(e) => handleDragOver(e, status)}
-                on:dragleave={handleDragLeave}
-                on:drop={(e) => handleDrop(e, status)}
-                role="list"
-              >
-                <div class="column-header">
-                  <span class="column-title">{STATUS_LABELS[status]}</span>
-                  <div class="column-header-right">
-                    <span class="column-count">{tasksByStatus[status].length}</span>
-                    <button
-                      class="quick-add-btn"
-                      on:click={() => startQuickAdd('backlog', status)}
-                      title="Add task"
-                    >+</button>
-                  </div>
-                </div>
-                <div class="column-tasks">
-                  {#if quickAddVersion === 'backlog' && quickAddStatus === status && !showVersionLanes}
-                    <div class="quick-add-card">
-                      <input
-                        bind:this={quickAddInput}
-                        bind:value={quickAddTitle}
-                        class="quick-add-input"
-                        placeholder="Task title... (Enter to save)"
-                        on:keydown={(e) => {
-                          if (e.key === 'Enter') handleQuickAdd();
-                          if (e.key === 'Escape') cancelQuickAdd();
-                        }}
-                        on:blur={() => { if (!quickAddTitle.trim()) cancelQuickAdd(); }}
-                      />
-                    </div>
-                  {/if}
-                  {#each tasksByStatus[status] as task (task.id)}
-                    <div
-                      class="task-card"
-                      class:dragging={draggedTask?.id === task.id}
-                      class:drag-over-task={dragOverTaskId === task.id}
-                      draggable="true"
-                      on:dragstart={(e) => handleDragStart(e, task)}
-                      on:dragend={handleDragEnd}
-                      on:dragover={(e) => handleTaskDragOver(e, task)}
-                      on:dragleave={handleTaskDragLeave}
-                      on:click={() => { viewingTask = { ...task }; editingTask = { ...task }; }}
-                      role="listitem"
-                    >
-                      <div class="task-title">{task.title}</div>
-                      {#if task.description}
-                        <div class="task-description">{task.description}</div>
-                      {/if}
-                      {#if task.sprint && task.sprint !== 'backlog'}
-                        <div class="task-version-badge">{getVersionLabel(task.sprint)}</div>
-                      {/if}
-                      <div class="task-actions">
-                        <button
-                          class="copy-btn"
-                          on:click|stopPropagation={() => handleCopyTask(task)}
-                          title="Copy"
-                        >⧉</button>
-                        <button
-                          class="delete-btn"
-                          on:click|stopPropagation={() => handleDeleteTask(task)}
-                          title="Delete"
-                        >×</button>
-                      </div>
-                    </div>
-                  {/each}
-                  {#if tasksByStatus[status].length === 0 && !(quickAddVersion === 'backlog' && quickAddStatus === status && !showVersionLanes)}
-                    <div class="empty-column" on:click={() => startQuickAdd('backlog', status)} role="button" tabindex="0" on:keydown={(e) => e.key === 'Enter' && startQuickAdd('backlog', status)}>Click to add task</div>
-                  {/if}
-                </div>
-              </div>
-            {/each}
-          </div>
-        {/if}
       {:else}
         <div class="list-view">
           <table class="task-table">
@@ -1090,10 +1064,38 @@
       <div class="panel-header">
         <h3>Tasks</h3>
         <div class="header-actions">
-          <label class="version-toggle">
-            <input type="checkbox" bind:checked={showVersionLanes} />
-            <span>Version Lanes</span>
-          </label>
+          <div class="versions-menu-container">
+            <button class="versions-menu-btn" on:click={() => showVersionsMenu = !showVersionsMenu}>
+              {allVersionsVisible ? 'All Versions' : `${visibleVersions.size} Version${visibleVersions.size === 1 ? '' : 's'}`}
+              <span class="chevron">{showVersionsMenu ? '▲' : '▼'}</span>
+            </button>
+            {#if showVersionsMenu}
+              <div class="versions-dropdown" on:click|stopPropagation>
+                <div class="versions-list">
+                  <label class="version-item version-checkbox-item">
+                    <input
+                      type="checkbox"
+                      checked={allVersionsVisible}
+                      on:change={toggleAllVersions}
+                    />
+                    <span class="version-name">All Versions</span>
+                    <span class="version-task-count">{tasks.length}</span>
+                  </label>
+                  {#each versions as version (version)}
+                    <label class="version-item version-checkbox-item">
+                      <input
+                        type="checkbox"
+                        checked={isVersionVisible(version)}
+                        on:change={() => toggleVersionVisibility(version)}
+                      />
+                      <span class="version-name">{getVersionLabel(version)}</span>
+                      <span class="version-task-count">{tasks.filter(t => (t.sprint || 'backlog') === version).length}</span>
+                    </label>
+                  {/each}
+                </div>
+              </div>
+            {/if}
+          </div>
           <div class="view-toggle">
             <button
               class="view-btn"
@@ -1110,7 +1112,6 @@
               List
             </button>
           </div>
-          <button class="add-btn" on:click={() => showAddModal = true}>+ Add Task</button>
           <button class="close-btn" on:click={onClose}>X</button>
         </div>
       </div>
@@ -1119,10 +1120,9 @@
         {#if loading}
           <div class="loading">Loading...</div>
         {:else if viewMode === 'kanban'}
-          {#if showVersionLanes}
-            <!-- Version Swim Lanes View -->
-            <div class="swim-lanes">
-              {#each swimLaneData as lane (lane.version)}
+          <!-- Version Swim Lanes View -->
+          <div class="swim-lanes">
+            {#each filteredSwimLaneData as lane (lane.version)}
                 {#if lane.tasks.length > 0 || lane.isDefault || lane.isCustom}
                   <div class="swim-lane">
                     <div class="swim-lane-header">
@@ -1187,65 +1187,6 @@
                 {/if}
               {/each}
             </div>
-          {:else}
-            <!-- Simple Kanban View (no version lanes) -->
-            <div class="kanban-board full-height">
-              {#each STATUSES as status}
-                <div
-                  class="kanban-column"
-                  class:drag-over={dragOverColumn === status && !dragOverVersion}
-                  on:dragover={(e) => handleDragOver(e, status)}
-                  on:dragleave={handleDragLeave}
-                  on:drop={(e) => handleDrop(e, status)}
-                  role="list"
-                >
-                  <div class="column-header">
-                    <span class="column-title">{STATUS_LABELS[status]}</span>
-                    <span class="column-count">{tasksByStatus[status].length}</span>
-                  </div>
-                  <div class="column-tasks">
-                    {#each tasksByStatus[status] as task (task.id)}
-                      <div
-                        class="task-card"
-                        class:dragging={draggedTask?.id === task.id}
-                        class:drag-over-task={dragOverTaskId === task.id}
-                        draggable="true"
-                        on:dragstart={(e) => handleDragStart(e, task)}
-                        on:dragend={handleDragEnd}
-                        on:dragover={(e) => handleTaskDragOver(e, task)}
-                        on:dragleave={handleTaskDragLeave}
-                        on:click={() => { viewingTask = { ...task }; editingTask = { ...task }; }}
-                        role="listitem"
-                      >
-                        <div class="task-title">{task.title}</div>
-                        {#if task.description}
-                          <div class="task-description">{task.description}</div>
-                        {/if}
-                        {#if task.sprint && task.sprint !== 'backlog'}
-                          <div class="task-version-badge">{getVersionLabel(task.sprint)}</div>
-                        {/if}
-                        <div class="task-actions">
-                          <button
-                            class="copy-btn"
-                            on:click|stopPropagation={() => handleCopyTask(task)}
-                            title="Copy"
-                          >⧉</button>
-                          <button
-                            class="delete-btn"
-                            on:click|stopPropagation={() => handleDeleteTask(task)}
-                            title="Delete"
-                          >×</button>
-                        </div>
-                      </div>
-                    {/each}
-                    {#if tasksByStatus[status].length === 0}
-                      <div class="empty-column">Drop here</div>
-                    {/if}
-                  </div>
-                </div>
-              {/each}
-            </div>
-          {/if}
         {:else}
           <div class="list-view">
             <table class="task-table">
@@ -1595,38 +1536,30 @@
 
   .view-toggle {
     display: flex;
-    gap: 0;
-    border: 1px solid var(--border-primary);
-    border-radius: 1px;
-    overflow: hidden;
+    gap: 12px;
   }
 
   .view-btn {
-    padding: 6px 12px;
-    background: var(--bg-primary);
+    padding: 6px 0;
+    background: transparent;
     border: none;
-    border-right: 1px solid var(--border-primary);
-    color: var(--text-secondary);
-    font-size: 9px;
-    font-weight: 600;
+    border-bottom: 2px solid transparent;
+    color: var(--text-tertiary);
+    font-size: 10px;
+    font-weight: 500;
     text-transform: uppercase;
-    letter-spacing: 0.8px;
+    letter-spacing: 0.5px;
     cursor: pointer;
     transition: all 0.2s;
   }
 
-  .view-btn:last-child {
-    border-right: none;
-  }
-
   .view-btn:hover {
-    background: var(--bg-hover);
-    color: var(--text-primary);
+    color: var(--text-secondary);
   }
 
   .view-btn.active {
-    background: var(--accent-primary);
-    color: var(--bg-primary);
+    color: var(--text-primary);
+    border-bottom-color: var(--text-primary);
   }
 
   .add-btn {
@@ -2191,7 +2124,7 @@
     gap: 8px;
     padding: 10px 12px;
     border-bottom: 1px solid var(--border-secondary);
-    cursor: grab;
+    cursor: pointer;
     transition: background 0.2s;
   }
 
@@ -2211,6 +2144,57 @@
   .version-item.is-backlog {
     cursor: default;
     background: var(--bg-secondary);
+  }
+
+  .version-checkbox-item {
+    cursor: pointer;
+  }
+
+  .version-checkbox-item input[type="checkbox"],
+  .version-checkbox-label input[type="checkbox"] {
+    appearance: none;
+    -webkit-appearance: none;
+    width: 16px;
+    height: 16px;
+    margin-right: 10px;
+    border: 1.5px solid var(--border-primary);
+    border-radius: 3px;
+    background: var(--bg-secondary);
+    cursor: pointer;
+    position: relative;
+    transition: all 0.15s ease;
+    flex-shrink: 0;
+  }
+
+  .version-checkbox-item input[type="checkbox"]:hover,
+  .version-checkbox-label input[type="checkbox"]:hover {
+    border-color: var(--text-tertiary);
+  }
+
+  .version-checkbox-item input[type="checkbox"]:checked,
+  .version-checkbox-label input[type="checkbox"]:checked {
+    background: var(--accent-primary);
+    border-color: var(--accent-primary);
+  }
+
+  .version-checkbox-item input[type="checkbox"]:checked::after,
+  .version-checkbox-label input[type="checkbox"]:checked::after {
+    content: '';
+    position: absolute;
+    left: 4.5px;
+    top: 1.5px;
+    width: 4px;
+    height: 8px;
+    border: solid var(--bg-primary);
+    border-width: 0 2px 2px 0;
+    transform: rotate(45deg);
+  }
+
+  .version-checkbox-label {
+    display: flex;
+    align-items: center;
+    flex: 1;
+    cursor: pointer;
   }
 
   .version-name {

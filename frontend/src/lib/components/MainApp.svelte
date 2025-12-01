@@ -20,6 +20,7 @@
   let showPromptsLibrary = false;
   let showContextLibrary = false;
   let currentView = 'buildings'; // 'flow' or 'buildings'
+  let groupBy = 'day'; // 'day' or 'week' for buildings view
   let commitTreeComponent;
 
   onMount(async () => {
@@ -154,10 +155,6 @@
   function handleShowContext() {
     showContextLibrary = true;
   }
-
-  function handleShowArchitecture() {
-    push('/architecture');
-  }
 </script>
 
 <main class="app-main">
@@ -181,7 +178,7 @@
         onLoadMore={loadMore}
       />
     {:else}
-      <BuildingsView commits={$commitTree?.commits || []} onNodeClick={handleNodeClick} />
+      <BuildingsView commits={$commitTree?.commits || []} onNodeClick={handleNodeClick} {groupBy} />
     {/if}
   </div>
 
@@ -193,7 +190,6 @@
         onShowRemote={handleShowRemote}
         onNameBranches={handleNameBranches}
         onShowPrompts={handleShowPrompts}
-        onShowArchitecture={handleShowArchitecture}
         onShowContext={handleShowContext}
       />
     </div>
@@ -217,6 +213,26 @@
           Buildings
         </button>
       </div>
+      {#if currentView === 'buildings'}
+        <div class="view-toggle">
+          <button
+            class="view-btn"
+            class:active={groupBy === 'day'}
+            on:click={() => groupBy = 'day'}
+            title="Group by day"
+          >
+            Day
+          </button>
+          <button
+            class="view-btn"
+            class:active={groupBy === 'week'}
+            on:click={() => groupBy = 'week'}
+            title="Group by week"
+          >
+            Week
+          </button>
+        </div>
+      {/if}
       <div class="commit-info" class:has-more={hasMore}>
         <span class="commit-count">{currentOffset} / {totalCommits} saves</span>
         {#if hasMore}

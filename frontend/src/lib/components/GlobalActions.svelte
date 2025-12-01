@@ -1,13 +1,10 @@
 <script>
-  import { push } from 'svelte-spa-router';
-
   export let onGoToTop = () => {};
   export let onGoToBottom = () => {};
   export let onShowRemote = () => {};
   export let onNameBranches = () => {};
   export let onShowPrompts = () => {};
   export let onShowContext = () => {};
-  export let onShowArchitecture = () => {};
 
   function handleGoToTop() {
     onGoToTop();
@@ -32,14 +29,6 @@
   function handleShowContext() {
     onShowContext();
   }
-
-  function handleShowArchitecture() {
-    onShowArchitecture();
-  }
-
-  function handleShowTasks() {
-    push('/tasks');
-  }
 </script>
 
 <div class="global-actions">
@@ -63,16 +52,8 @@
     <span>Prompts</span>
   </button>
 
-  <button class="action-item" on:click={handleShowArchitecture} title="View architecture summary">
-    <span>Architecture</span>
-  </button>
-
   <button class="action-item" on:click={handleShowContext} title="View context library">
     <span>Context</span>
-  </button>
-
-  <button class="action-item" on:click={handleShowTasks} title="View tasks">
-    <span>Tasks</span>
   </button>
 </div>
 

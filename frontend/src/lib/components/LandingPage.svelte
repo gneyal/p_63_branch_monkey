@@ -2,7 +2,7 @@
   import { push } from 'svelte-spa-router';
 
   function onGetStarted() {
-    push('/');
+    push('/commits');
   }
 
   const pillars = [

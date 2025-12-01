@@ -6,8 +6,7 @@
 
   export let commits = [];
   export let onNodeClick = null;
-
-  let groupBy = 'day'; // 'day' or 'week'
+  export let groupBy = 'day'; // 'day' or 'week'
 
   const nodes = writable([]);
   const edges = writable([]);
@@ -126,25 +125,6 @@
 </script>
 
 <div class="buildings-view">
-  <div class="view-controls">
-    <div class="group-toggle">
-      <button
-        class="toggle-btn"
-        class:active={groupBy === 'day'}
-        on:click={() => groupBy = 'day'}
-      >
-        Day
-      </button>
-      <button
-        class="toggle-btn"
-        class:active={groupBy === 'week'}
-        on:click={() => groupBy = 'week'}
-      >
-        Week
-      </button>
-    </div>
-  </div>
-
   <div class="flow-container">
     {#if $nodes.length > 0}
       <SvelteFlow
@@ -179,46 +159,6 @@
     display: flex;
     flex-direction: column;
     background: var(--bg-secondary);
-  }
-
-  .view-controls {
-    padding: 16px;
-    background: var(--bg-primary);
-    border-bottom: 1px solid var(--border-primary);
-    display: flex;
-    justify-content: center;
-    z-index: 10;
-  }
-
-  .group-toggle {
-    display: flex;
-    gap: 4px;
-    border: 1px solid var(--border-primary);
-    border-radius: 1px;
-    overflow: hidden;
-  }
-
-  .toggle-btn {
-    padding: 6px 16px;
-    background: var(--bg-primary);
-    border: none;
-    color: var(--text-secondary);
-    font-size: 10px;
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.8px;
-    cursor: pointer;
-    transition: all 0.2s;
-  }
-
-  .toggle-btn:hover {
-    background: var(--bg-hover);
-    color: var(--text-primary);
-  }
-
-  .toggle-btn.active {
-    background: var(--accent-primary);
-    color: var(--bg-primary);
   }
 
   .flow-container {
