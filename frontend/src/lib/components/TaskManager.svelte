@@ -667,9 +667,49 @@
     }
   }
 
+  // Handle drop directly on a task card (for reordering)
+  async function handleTaskDrop(e, targetTask, status, version) {
+    e.preventDefault();
+    e.stopPropagation();
+
+    dragOverColumn = null;
+    dragOverVersion = null;
+    dragOverTaskId = null;
+
+    if (!draggedTask || draggedTask.id === targetTask.id) {
+      draggedTask = null;
+      return;
+    }
+
+    const taskVersion = version !== null ? version : (draggedTask.sprint || 'backlog');
+    const targetVersion = targetTask.sprint || 'backlog';
+    const sameColumn = draggedTask.status === status && (draggedTask.sprint || 'backlog') === taskVersion;
+
+    if (sameColumn) {
+      // Reorder within same column
+      await handleTaskReorder(draggedTask, targetTask.id, status, taskVersion);
+    } else {
+      // Move to different column and place before target
+      const updates = { status, sprint: version };
+      const oldTask = { ...draggedTask };
+
+      tasks = tasks.map(t => t.id === draggedTask.id ? { ...t, ...updates } : t);
+
+      try {
+        await updateTask(draggedTask.id, updates);
+        // After moving, reorder to place before target
+        await handleTaskReorder({ ...draggedTask, ...updates }, targetTask.id, status, version);
+      } catch (err) {
+        tasks = tasks.map(t => t.id === draggedTask.id ? oldTask : t);
+        showToast(`Failed to move task: ${err.message}`, 'error');
+      }
+    }
+
+    draggedTask = null;
+  }
+
   async function handleDrop(e, status, version = null) {
     e.preventDefault();
-    const targetTaskId = dragOverTaskId;
     dragOverColumn = null;
     dragOverVersion = null;
     dragOverTaskId = null;
@@ -679,9 +719,8 @@
     const taskVersion = version !== null ? version : (draggedTask.sprint || 'backlog');
     const sameColumn = draggedTask.status === status && (draggedTask.sprint || 'backlog') === taskVersion;
 
-    // If dropping on a task in the same column, reorder
-    if (sameColumn && targetTaskId && targetTaskId !== draggedTask.id) {
-      await handleTaskReorder(draggedTask, targetTaskId, status, taskVersion);
+    // If same column with no target task, do nothing (task stays in place)
+    if (sameColumn) {
       draggedTask = null;
       return;
     }
@@ -959,6 +998,7 @@
                               on:dragend={handleDragEnd}
                               on:dragover={(e) => handleTaskDragOver(e, task)}
                               on:dragleave={handleTaskDragLeave}
+                              on:drop={(e) => handleTaskDrop(e, task, status, lane.version)}
                               on:click={() => { viewingTask = { ...task }; editingTask = { ...task }; }}
                               role="listitem"
                             >
@@ -1155,6 +1195,7 @@
                                 on:dragend={handleDragEnd}
                                 on:dragover={(e) => handleTaskDragOver(e, task)}
                                 on:dragleave={handleTaskDragLeave}
+                                on:drop={(e) => handleTaskDrop(e, task, status, lane.version)}
                                 on:click={() => { viewingTask = { ...task }; editingTask = { ...task }; }}
                                 role="listitem"
                               >
