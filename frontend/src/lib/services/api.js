@@ -646,3 +646,93 @@ export async function reorderVersions(order) {
   }
   return response.json();
 }
+
+// === Prompt Logs API ===
+
+/**
+ * Fetch prompt logs for the current repository
+ * @param {Object} options - Query options
+ * @param {number} options.limit - Max results (default 100)
+ * @param {number} options.offset - Offset for pagination
+ * @param {string} options.session_id - Filter by session ID
+ * @param {string} options.provider - Filter by provider
+ * @param {string} options.status - Filter by status
+ * @returns {Promise<Object>} Prompt logs data
+ */
+export async function fetchPromptLogs(options = {}) {
+  const params = new URLSearchParams();
+  if (options.limit) params.append('limit', options.limit);
+  if (options.offset) params.append('offset', options.offset);
+  if (options.session_id) params.append('session_id', options.session_id);
+  if (options.provider) params.append('provider', options.provider);
+  if (options.status) params.append('status', options.status);
+
+  const queryString = params.toString();
+  const url = `${API_BASE}/prompt-logs${queryString ? '?' + queryString : ''}`;
+
+  const response = await fetch(url);
+  if (!response.ok) {
+    throw new Error(`Failed to fetch prompt logs: ${response.statusText}`);
+  }
+  return response.json();
+}
+
+/**
+ * Log a new prompt interaction
+ * @param {Object} promptData - Prompt data
+ * @returns {Promise<Object>} Created prompt log entry
+ */
+export async function logPrompt(promptData) {
+  const response = await fetch(`${API_BASE}/prompt-logs`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(promptData),
+  });
+  if (!response.ok) {
+    throw new Error(`Failed to log prompt: ${response.statusText}`);
+  }
+  return response.json();
+}
+
+/**
+ * Get aggregate statistics for prompt logs
+ * @returns {Promise<Object>} Stats data
+ */
+export async function fetchPromptStats() {
+  const response = await fetch(`${API_BASE}/prompt-logs/stats`);
+  if (!response.ok) {
+    throw new Error(`Failed to fetch prompt stats: ${response.statusText}`);
+  }
+  return response.json();
+}
+
+/**
+ * Delete a prompt log entry
+ * @param {number} promptId - Prompt log ID to delete
+ * @returns {Promise<Object>} Delete result
+ */
+export async function deletePromptLog(promptId) {
+  const response = await fetch(`${API_BASE}/prompt-logs/${promptId}`, {
+    method: 'DELETE',
+  });
+  if (!response.ok) {
+    throw new Error(`Failed to delete prompt log: ${response.statusText}`);
+  }
+  return response.json();
+}
+
+/**
+ * Clear all prompt logs for the current repository
+ * @returns {Promise<Object>} Clear result
+ */
+export async function clearPromptLogs() {
+  const response = await fetch(`${API_BASE}/prompt-logs`, {
+    method: 'DELETE',
+  });
+  if (!response.ok) {
+    throw new Error(`Failed to clear prompt logs: ${response.statusText}`);
+  }
+  return response.json();
+}

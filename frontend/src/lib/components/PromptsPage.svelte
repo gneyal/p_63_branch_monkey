@@ -2,87 +2,38 @@
   import { onMount } from 'svelte';
   import { push } from 'svelte-spa-router';
   import { repoInfo } from '../stores/store.js';
-  import { fetchRepoInfo } from '../services/api.js';
+  import { fetchRepoInfo, fetchPromptLogs, fetchPromptStats, deletePromptLog } from '../services/api.js';
   import Toast from './Toast.svelte';
   import Topbar from './Topbar.svelte';
   import GlobalActions from './GlobalActions.svelte';
   import ThemePicker from './ThemePicker.svelte';
 
-  // Placeholder for prompts data
   let prompts = [];
-  let loading = false;
+  let stats = null;
+  let loading = true;
+  let error = null;
   let sortColumn = 'timestamp';
   let sortDirection = 'desc';
   let searchQuery = '';
 
-  // Mock data for now - this will be replaced with API calls
-  const mockPrompts = [
-    {
-      id: 1,
-      timestamp: '2024-12-02T10:30:00Z',
-      provider: 'anthropic',
-      model: 'claude-3-opus',
-      inputTokens: 1250,
-      outputTokens: 850,
-      totalTokens: 2100,
-      cost: 0.0315,
-      duration: 3.2,
-      promptPreview: 'Explain the architecture of this codebase...',
-      status: 'success'
-    },
-    {
-      id: 2,
-      timestamp: '2024-12-02T10:25:00Z',
-      provider: 'anthropic',
-      model: 'claude-3-sonnet',
-      inputTokens: 800,
-      outputTokens: 1200,
-      totalTokens: 2000,
-      cost: 0.012,
-      duration: 2.1,
-      promptPreview: 'Write a function that handles user authentication...',
-      status: 'success'
-    },
-    {
-      id: 3,
-      timestamp: '2024-12-02T10:20:00Z',
-      provider: 'openai',
-      model: 'gpt-4-turbo',
-      inputTokens: 500,
-      outputTokens: 300,
-      totalTokens: 800,
-      cost: 0.024,
-      duration: 1.8,
-      promptPreview: 'Debug this error in the payment processing...',
-      status: 'success'
-    },
-    {
-      id: 4,
-      timestamp: '2024-12-02T10:15:00Z',
-      provider: 'anthropic',
-      model: 'claude-3-haiku',
-      inputTokens: 200,
-      outputTokens: 150,
-      totalTokens: 350,
-      cost: 0.0007,
-      duration: 0.5,
-      promptPreview: 'Format this JSON data...',
-      status: 'success'
-    },
-    {
-      id: 5,
-      timestamp: '2024-12-02T10:10:00Z',
-      provider: 'openai',
-      model: 'gpt-4',
-      inputTokens: 1500,
-      outputTokens: 2000,
-      totalTokens: 3500,
-      cost: 0.105,
-      duration: 8.5,
-      promptPreview: 'Refactor this entire module to use TypeScript...',
-      status: 'error'
+  async function loadPrompts() {
+    loading = true;
+    error = null;
+    try {
+      const [logsResult, statsResult] = await Promise.all([
+        fetchPromptLogs({ limit: 500 }),
+        fetchPromptStats()
+      ]);
+      prompts = logsResult.prompts || [];
+      stats = statsResult.stats || null;
+    } catch (err) {
+      console.error('Failed to load prompts:', err);
+      error = err.message;
+      prompts = [];
+    } finally {
+      loading = false;
     }
-  ];
+  }
 
   onMount(async () => {
     if (!$repoInfo || !$repoInfo.path) {
@@ -93,8 +44,7 @@
         console.error('Failed to load repo info:', err);
       }
     }
-    // Load mock data for now
-    prompts = mockPrompts;
+    await loadPrompts();
   });
 
   function handleGoToTop() {
@@ -177,8 +127,9 @@
     }
   });
 
-  $: totalCost = prompts.reduce((sum, p) => sum + p.cost, 0);
-  $: totalTokens = prompts.reduce((sum, p) => sum + p.totalTokens, 0);
+  $: totalCost = stats?.totalCost ?? prompts.reduce((sum, p) => sum + (p.cost || 0), 0);
+  $: totalTokens = stats?.totalTokens ?? prompts.reduce((sum, p) => sum + (p.totalTokens || 0), 0);
+  $: totalPrompts = stats?.totalPrompts ?? prompts.length;
 </script>
 
 <main class="prompts-page">
@@ -207,7 +158,7 @@
       <div class="stats-bar">
         <div class="stat">
           <span class="stat-label">Total Prompts</span>
-          <span class="stat-value">{prompts.length}</span>
+          <span class="stat-value">{totalPrompts}</span>
         </div>
         <div class="stat">
           <span class="stat-label">Total Tokens</span>
@@ -217,6 +168,18 @@
           <span class="stat-label">Total Cost</span>
           <span class="stat-value">{formatCost(totalCost)}</span>
         </div>
+        {#if stats?.avgDuration}
+          <div class="stat">
+            <span class="stat-label">Avg Duration</span>
+            <span class="stat-value">{formatDuration(stats.avgDuration)}</span>
+          </div>
+        {/if}
+        {#if stats?.errorCount > 0}
+          <div class="stat stat-error">
+            <span class="stat-label">Errors</span>
+            <span class="stat-value">{stats.errorCount}</span>
+          </div>
+        {/if}
       </div>
 
       <div class="prompts-content">
@@ -424,6 +387,10 @@
     font-size: 18px;
     font-weight: 600;
     color: var(--text-primary);
+  }
+
+  .stat-error .stat-value {
+    color: #ef4444;
   }
 
   .prompts-content {

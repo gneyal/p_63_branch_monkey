@@ -13,6 +13,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
 from branch_monkey.api import BranchMonkey
+from branch_monkey.core.prompts import PromptLogger
 
 app = FastAPI(title="Branch Monkey Web API")
 
@@ -159,6 +160,24 @@ class VersionDeleteRequest(BaseModel):
 
 class VersionsReorderRequest(BaseModel):
     order: list[str]
+
+
+class PromptLogRequest(BaseModel):
+    """Request model for logging a new prompt."""
+    provider: str
+    model: str
+    input_tokens: int = 0
+    output_tokens: int = 0
+    duration: float = 0.0
+    prompt_preview: str = ""
+    response_preview: str = ""
+    status: str = "success"
+    error_message: Optional[str] = None
+    session_id: Optional[str] = None
+    user: Optional[str] = None
+    tool_name: Optional[str] = None
+    cost: Optional[float] = None
+    metadata: Optional[dict] = None
 
 
 # HTML Frontend
@@ -2643,6 +2662,109 @@ def reorder_versions(request: VersionsReorderRequest):
         write_tasks_json(data)
 
         return {"success": True, "order": request.order}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# === Prompt Logs API ===
+
+@app.get("/api/prompt-logs")
+def get_prompt_logs(
+    limit: int = 100,
+    offset: int = 0,
+    session_id: Optional[str] = None,
+    provider: Optional[str] = None,
+    status: Optional[str] = None
+):
+    """Get prompt logs for the current repository."""
+    try:
+        repo_path = REPO_PATH if REPO_PATH else Path.cwd()
+        logger = PromptLogger(repo_path)
+        prompts = logger.get_prompts(
+            limit=limit,
+            offset=offset,
+            session_id=session_id,
+            provider=provider,
+            status=status
+        )
+        return {"success": True, "prompts": prompts, "count": len(prompts)}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/api/prompt-logs")
+def log_prompt(request: PromptLogRequest):
+    """Log a new prompt interaction."""
+    try:
+        repo_path = REPO_PATH if REPO_PATH else Path.cwd()
+        logger = PromptLogger(repo_path)
+        entry = logger.log_prompt(
+            provider=request.provider,
+            model=request.model,
+            input_tokens=request.input_tokens,
+            output_tokens=request.output_tokens,
+            duration=request.duration,
+            prompt_preview=request.prompt_preview,
+            response_preview=request.response_preview,
+            status=request.status,
+            error_message=request.error_message,
+            session_id=request.session_id,
+            user=request.user,
+            tool_name=request.tool_name,
+            cost=request.cost,
+            metadata=request.metadata
+        )
+        return {
+            "success": True,
+            "entry": {
+                "id": entry.id,
+                "timestamp": entry.timestamp,
+                "provider": entry.provider,
+                "model": entry.model,
+                "totalTokens": entry.total_tokens,
+                "cost": entry.cost
+            }
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/prompt-logs/stats")
+def get_prompt_stats():
+    """Get aggregate statistics for prompt logs."""
+    try:
+        repo_path = REPO_PATH if REPO_PATH else Path.cwd()
+        logger = PromptLogger(repo_path)
+        stats = logger.get_stats()
+        return {"success": True, "stats": stats}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.delete("/api/prompt-logs/{prompt_id}")
+def delete_prompt_log(prompt_id: int):
+    """Delete a prompt log entry."""
+    try:
+        repo_path = REPO_PATH if REPO_PATH else Path.cwd()
+        logger = PromptLogger(repo_path)
+        deleted = logger.delete_prompt(prompt_id)
+        if not deleted:
+            raise HTTPException(status_code=404, detail=f"Prompt log {prompt_id} not found")
+        return {"success": True, "deleted": prompt_id}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.delete("/api/prompt-logs")
+def clear_prompt_logs():
+    """Clear all prompt logs for the current repository."""
+    try:
+        repo_path = REPO_PATH if REPO_PATH else Path.cwd()
+        logger = PromptLogger(repo_path)
+        deleted_count = logger.clear_all()
+        return {"success": True, "deleted_count": deleted_count}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
