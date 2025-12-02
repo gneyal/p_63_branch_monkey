@@ -36,6 +36,9 @@
   let saving = false;
   let viewMode = 'flow'; // 'list', 'flow', or 'raw'
 
+  // Multi-select state
+  let selectedNodes = [];
+
   const nodes = writable([]);
   const edges = writable([]);
 
@@ -454,6 +457,26 @@
     };
     return icons[category] || '?';
   }
+
+  // Multi-select handlers
+  function handleSelectionChange(event) {
+    // Handle both prop callback and event handler formats
+    const selNodes = event?.detail?.nodes || event?.nodes || [];
+    selectedNodes = selNodes;
+    console.log('Selection changed:', selectedNodes.length, 'nodes');
+  }
+
+  function clearSelection() {
+    selectedNodes = [];
+    // Update the nodes store to clear selection
+    nodes.update(n => n.map(node => ({ ...node, selected: false })));
+  }
+
+  function handleCreateTest() {
+    const nodeNames = selectedNodes.map(n => n.data?.name || n.id).join(', ');
+    showToast(`Create test for: ${nodeNames}`, 'info');
+    // TODO: Implement actual test creation
+  }
 </script>
 
 <div class="architecture-inline">
@@ -559,6 +582,9 @@
                         minZoom={0.3}
                         maxZoom={1.5}
                         defaultViewport={{ x: 0, y: 0, zoom: 0.8 }}
+                        selectionOnDrag={true}
+                        panOnDrag={[1, 2]}
+                        on:selectionchange={handleSelectionChange}
                       >
                         <Background variant={BackgroundVariant.Dots} gap={20} />
                         <Controls />
@@ -568,6 +594,22 @@
                       <div class="empty-flow">
                         <p>No architecture data to visualize</p>
                         <p class="hint">Architecture needs UI components, endpoints, entities, or tables</p>
+                      </div>
+                    {/if}
+
+                    <!-- Selection actions bar -->
+                    {#if selectedNodes.length > 0}
+                      <div class="selection-bar">
+                        <span class="selection-count">{selectedNodes.length} selected</span>
+                        <button class="selection-action" on:click={handleCreateTest}>
+                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/>
+                          </svg>
+                          Create Test
+                        </button>
+                        <button class="selection-action secondary" on:click={clearSelection}>
+                          Clear
+                        </button>
                       </div>
                     {/if}
 
@@ -2213,6 +2255,7 @@
     flex-direction: column;
     overflow: hidden;
     background: var(--bg-secondary);
+    position: relative;
   }
 
   .svelteflow-view :global(.svelte-flow) {
@@ -2391,5 +2434,80 @@
 
   .architecture-inline .tab-header {
     border-bottom: 1px solid var(--border-primary);
+  }
+
+  /* Selection Bar */
+  .selection-bar {
+    position: absolute;
+    bottom: 16px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: var(--bg-primary);
+    border: 1px solid var(--border-primary);
+    padding: 8px 12px;
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    z-index: 100;
+    box-shadow: var(--shadow-large);
+  }
+
+  .selection-count {
+    font-size: 12px;
+    color: var(--text-secondary);
+    padding-right: 12px;
+    border-right: 1px solid var(--border-secondary);
+  }
+
+  .selection-action {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 12px;
+    background: var(--accent-primary);
+    border: none;
+    border-radius: 2px;
+    color: var(--bg-primary);
+    font-size: 12px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: opacity 0.15s;
+  }
+
+  .selection-action:hover {
+    opacity: 0.85;
+  }
+
+  .selection-action.secondary {
+    background: transparent;
+    color: var(--text-secondary);
+    border: 1px solid var(--border-primary);
+  }
+
+  .selection-action.secondary:hover {
+    background: var(--bg-hover);
+    color: var(--text-primary);
+  }
+
+  .selection-action svg {
+    flex-shrink: 0;
+  }
+
+  /* Make selection more visible */
+  .svelteflow-view :global(.svelte-flow__node.selected) {
+    box-shadow: 0 0 0 3px #61afef !important;
+    outline: 2px solid #61afef !important;
+    outline-offset: 2px !important;
+  }
+
+  .svelteflow-view :global(.svelte-flow__selection) {
+    background: rgba(97, 175, 239, 0.2) !important;
+    border: 2px dashed #61afef !important;
+  }
+
+  .svelteflow-view :global(.svelte-flow__nodesselection-rect) {
+    background: rgba(97, 175, 239, 0.1) !important;
+    border: 2px solid #61afef !important;
   }
 </style>

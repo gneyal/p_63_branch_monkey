@@ -1658,7 +1658,7 @@
     border-radius: 4px;
     display: flex;
     flex-direction: column;
-    min-height: 150px;
+    min-height: 200px;
     min-width: 0;
     overflow: hidden;
     transition: border-color 0.2s, background 0.2s;
@@ -1699,25 +1699,23 @@
 
   .column-tasks {
     flex: 1;
-    padding: 10px;
+    padding: 12px;
     overflow-y: auto;
     overflow-x: hidden;
     display: flex;
     flex-direction: column;
-    gap: 8px;
+    gap: 12px;
     min-width: 0;
   }
 
   .task-card {
     background: var(--bg-primary);
     border: 1px solid var(--border-primary);
-    border-radius: 4px;
-    padding: 10px;
+    border-radius: 6px;
+    padding: 14px 16px;
     cursor: grab;
     transition: all 0.2s;
     position: relative;
-    max-height: 80px;
-    overflow: hidden;
     width: 100%;
     box-sizing: border-box;
   }
@@ -1741,25 +1739,19 @@
   }
 
   .task-title {
-    font-size: 12px;
-    font-weight: 500;
+    font-size: 14px;
+    font-weight: 600;
     color: var(--text-primary);
-    margin-bottom: 4px;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
+    margin-bottom: 8px;
+    line-height: 1.4;
     padding-right: 40px;
   }
 
   .task-description {
-    font-size: 10px;
+    font-size: 13px;
     color: var(--text-secondary);
-    line-height: 1.4;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    display: -webkit-box;
-    -webkit-line-clamp: 2;
-    -webkit-box-orient: vertical;
+    line-height: 1.5;
+    white-space: pre-wrap;
   }
 
   .task-version-badge {

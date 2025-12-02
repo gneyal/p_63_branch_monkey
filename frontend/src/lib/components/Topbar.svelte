@@ -2,7 +2,7 @@
   import { push } from 'svelte-spa-router';
   import RepoSelector from './RepoSelector.svelte';
 
-  export let activeView = 'commits'; // 'commits', 'tasks', 'arch'
+  export let activeView = 'commits'; // 'commits', 'tasks', 'arch', 'tests'
 
   let showMonkey = false;
   let monkeyFrame = 0;
@@ -71,6 +71,10 @@
   function goToArch() {
     push('/architecture');
   }
+
+  function goToTests() {
+    push('/tests');
+  }
 </script>
 
 <header class="topbar">
@@ -121,6 +125,14 @@
         title="Architecture view"
       >
         Arch
+      </button>
+      <button
+        class="view-btn"
+        class:active={activeView === 'tests'}
+        on:click={goToTests}
+        title="Tests view"
+      >
+        Tests
       </button>
     </div>
   </div>

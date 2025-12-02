@@ -4,6 +4,7 @@
   import MainApp from './lib/components/MainApp.svelte';
   import TasksPage from './lib/components/TasksPage.svelte';
   import ArchitecturePage from './lib/components/ArchitecturePage.svelte';
+  import TestsPage from './lib/components/TestsPage.svelte';
   import { push } from 'svelte-spa-router';
 
   const routes = {
@@ -12,6 +13,7 @@
     '/home': LandingPage,
     '/tasks': TasksPage,
     '/architecture': ArchitecturePage,
+    '/tests': TestsPage,
   };
 
   function handleGetStarted() {
