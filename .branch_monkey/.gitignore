@@ -1,0 +1,3 @@
+# Keep context files local by default
+*
+!.gitignore

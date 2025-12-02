@@ -38,7 +38,21 @@ Add this to your project's .claude/settings.local.json file:
 }
 
 The "Stop" hook fires once when Claude finishes responding, giving you complete token counts and costs.
-Note: Replace /path/to/branch_monkey with your actual Branch Monkey installation path.`;
+
+Examples - replace the path based on where you cloned Branch Monkey:
+
+macOS:
+  "command": "python /Users/john/Code/branch_monkey/branch_monkey/hooks/claude_code_hook.py"
+  "command": "python /Users/sarah/projects/branch_monkey/branch_monkey/hooks/claude_code_hook.py"
+
+Linux:
+  "command": "python /home/alex/dev/branch_monkey/branch_monkey/hooks/claude_code_hook.py"
+
+Windows:
+  "command": "python C:/Users/mike/Code/branch_monkey/branch_monkey/hooks/claude_code_hook.py"
+
+With pip install -e (editable):
+  "command": "python -m branch_monkey.hooks.claude_code_hook"`;
 
   function copyAiPrompt(prompt, section) {
     navigator.clipboard.writeText(prompt).then(() => {

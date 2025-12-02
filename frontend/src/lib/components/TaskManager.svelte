@@ -1855,7 +1855,9 @@
     color: var(--text-primary);
     margin-bottom: 4px;
     line-height: 1.4;
-    padding-right: 36px;
+    padding-right: 28px;
+    word-wrap: break-word;
+    overflow-wrap: break-word;
   }
 
   .task-description {
@@ -1863,6 +1865,8 @@
     color: var(--text-tertiary);
     line-height: 1.4;
     white-space: pre-wrap;
+    word-wrap: break-word;
+    overflow-wrap: break-word;
   }
 
   .task-version-badge {
