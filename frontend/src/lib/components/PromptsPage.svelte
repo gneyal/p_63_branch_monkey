@@ -16,6 +16,122 @@
   let sortDirection = 'desc';
   let searchQuery = '';
 
+  // Pricing table state
+  let showPricing = false;
+  let pricingData = [];
+  let pricingLoading = false;
+  let pricingError = null;
+  let pricingSearch = '';
+  let pricingProvider = 'all';
+  let pricingSortColumn = 'input_cost';
+  let pricingSortDirection = 'asc';
+
+  const LITELLM_PRICING_URL = 'https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json';
+
+  async function loadPricing() {
+    if (pricingData.length > 0) return; // Already loaded
+    pricingLoading = true;
+    pricingError = null;
+    try {
+      const response = await fetch(LITELLM_PRICING_URL);
+      const data = await response.json();
+
+      // Transform to array, filter out sample_spec and non-chat models
+      pricingData = Object.entries(data)
+        .filter(([key, val]) => {
+          if (key === 'sample_spec') return false;
+          if (!val.input_cost_per_token && !val.input_cost_per_character) return false;
+          // Skip image-only models
+          if (val.mode === 'image_generation') return false;
+          return true;
+        })
+        .map(([model, info]) => {
+          // Extract provider from model name or litellm_provider
+          let provider = info.litellm_provider || 'unknown';
+          if (model.startsWith('gpt-') || model.startsWith('o1') || model.startsWith('o3') || model.startsWith('o4')) provider = 'openai';
+          else if (model.includes('claude')) provider = 'anthropic';
+          else if (model.includes('gemini')) provider = 'google';
+          else if (model.includes('mistral') || model.includes('mixtral')) provider = 'mistral';
+          else if (model.includes('llama')) provider = 'meta';
+          else if (model.includes('command')) provider = 'cohere';
+          else if (model.includes('deepseek')) provider = 'deepseek';
+
+          const inputCost = (info.input_cost_per_token || 0) * 1_000_000;
+          const outputCost = (info.output_cost_per_token || 0) * 1_000_000;
+
+          return {
+            model,
+            provider,
+            input_cost: inputCost,
+            output_cost: outputCost,
+            max_input: info.max_input_tokens || info.max_tokens || 0,
+            max_output: info.max_output_tokens || 0,
+            supports_vision: info.supports_vision || false,
+            supports_function_calling: info.supports_function_calling || false
+          };
+        })
+        .filter(m => m.input_cost > 0 || m.output_cost > 0);
+    } catch (err) {
+      console.error('Failed to load pricing:', err);
+      pricingError = err.message;
+    } finally {
+      pricingLoading = false;
+    }
+  }
+
+  function togglePricing() {
+    showPricing = !showPricing;
+    if (showPricing) {
+      loadPricing();
+    }
+  }
+
+  function sortPricingBy(column) {
+    if (pricingSortColumn === column) {
+      pricingSortDirection = pricingSortDirection === 'asc' ? 'desc' : 'asc';
+    } else {
+      pricingSortColumn = column;
+      pricingSortDirection = 'asc';
+    }
+  }
+
+  function formatPrice(price) {
+    if (price === 0) return '-';
+    if (price < 0.01) return `$${price.toFixed(4)}`;
+    if (price < 1) return `$${price.toFixed(3)}`;
+    return `$${price.toFixed(2)}`;
+  }
+
+  function formatContext(tokens) {
+    if (!tokens) return '-';
+    if (tokens >= 1_000_000) return `${(tokens / 1_000_000).toFixed(1)}M`;
+    if (tokens >= 1000) return `${Math.round(tokens / 1000)}k`;
+    return tokens.toString();
+  }
+
+  $: uniqueProviders = [...new Set(pricingData.map(m => m.provider))].sort();
+
+  $: filteredPricing = pricingData.filter(m => {
+    const matchesSearch = m.model.toLowerCase().includes(pricingSearch.toLowerCase()) ||
+                          m.provider.toLowerCase().includes(pricingSearch.toLowerCase());
+    const matchesProvider = pricingProvider === 'all' || m.provider === pricingProvider;
+    return matchesSearch && matchesProvider;
+  });
+
+  $: sortedPricing = [...filteredPricing].sort((a, b) => {
+    let aVal = a[pricingSortColumn];
+    let bVal = b[pricingSortColumn];
+    if (typeof aVal === 'string') {
+      aVal = aVal.toLowerCase();
+      bVal = bVal.toLowerCase();
+    }
+    if (pricingSortDirection === 'asc') {
+      return aVal > bVal ? 1 : -1;
+    } else {
+      return aVal < bVal ? 1 : -1;
+    }
+  });
+
   async function loadPrompts() {
     loading = true;
     error = null;
@@ -269,6 +385,107 @@
               {/each}
             </tbody>
           </table>
+        {/if}
+      </div>
+
+      <!-- LLM Pricing Table -->
+      <div class="pricing-section">
+        <button class="pricing-toggle" on:click={togglePricing}>
+          <span class="toggle-icon">{showPricing ? '▼' : '▶'}</span>
+          <span>LLM Pricing Reference</span>
+          <span class="pricing-source">via LiteLLM</span>
+        </button>
+
+        {#if showPricing}
+          <div class="pricing-content">
+            <div class="pricing-header">
+              <div class="pricing-filters">
+                <input
+                  type="text"
+                  placeholder="Search models..."
+                  bind:value={pricingSearch}
+                  class="pricing-search"
+                />
+                <select bind:value={pricingProvider} class="pricing-provider-select">
+                  <option value="all">All Providers</option>
+                  {#each uniqueProviders as provider}
+                    <option value={provider}>{provider}</option>
+                  {/each}
+                </select>
+              </div>
+              <span class="pricing-count">{filteredPricing.length} models</span>
+            </div>
+
+            {#if pricingLoading}
+              <div class="pricing-loading">Loading pricing data...</div>
+            {:else if pricingError}
+              <div class="pricing-error">Failed to load pricing: {pricingError}</div>
+            {:else}
+              <div class="pricing-table-wrapper">
+                <table class="pricing-table">
+                  <thead>
+                    <tr>
+                      <th class="sortable" class:sorted={pricingSortColumn === 'provider'} on:click={() => sortPricingBy('provider')}>
+                        Provider
+                        {#if pricingSortColumn === 'provider'}
+                          <span class="sort-indicator">{pricingSortDirection === 'asc' ? '↑' : '↓'}</span>
+                        {/if}
+                      </th>
+                      <th class="sortable" class:sorted={pricingSortColumn === 'model'} on:click={() => sortPricingBy('model')}>
+                        Model
+                        {#if pricingSortColumn === 'model'}
+                          <span class="sort-indicator">{pricingSortDirection === 'asc' ? '↑' : '↓'}</span>
+                        {/if}
+                      </th>
+                      <th class="sortable" class:sorted={pricingSortColumn === 'input_cost'} on:click={() => sortPricingBy('input_cost')}>
+                        Input/1M
+                        {#if pricingSortColumn === 'input_cost'}
+                          <span class="sort-indicator">{pricingSortDirection === 'asc' ? '↑' : '↓'}</span>
+                        {/if}
+                      </th>
+                      <th class="sortable" class:sorted={pricingSortColumn === 'output_cost'} on:click={() => sortPricingBy('output_cost')}>
+                        Output/1M
+                        {#if pricingSortColumn === 'output_cost'}
+                          <span class="sort-indicator">{pricingSortDirection === 'asc' ? '↑' : '↓'}</span>
+                        {/if}
+                      </th>
+                      <th class="sortable" class:sorted={pricingSortColumn === 'max_input'} on:click={() => sortPricingBy('max_input')}>
+                        Context
+                        {#if pricingSortColumn === 'max_input'}
+                          <span class="sort-indicator">{pricingSortDirection === 'asc' ? '↑' : '↓'}</span>
+                        {/if}
+                      </th>
+                      <th>Features</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {#each sortedPricing.slice(0, 100) as model (model.model)}
+                      <tr>
+                        <td>
+                          <span class="provider-badge provider-{model.provider}">{model.provider}</span>
+                        </td>
+                        <td class="model-name">{model.model}</td>
+                        <td class="price">{formatPrice(model.input_cost)}</td>
+                        <td class="price">{formatPrice(model.output_cost)}</td>
+                        <td class="context">{formatContext(model.max_input)}</td>
+                        <td class="features">
+                          {#if model.supports_vision}
+                            <span class="feature-tag" title="Vision">V</span>
+                          {/if}
+                          {#if model.supports_function_calling}
+                            <span class="feature-tag" title="Function Calling">F</span>
+                          {/if}
+                        </td>
+                      </tr>
+                    {/each}
+                  </tbody>
+                </table>
+              </div>
+              {#if sortedPricing.length > 100}
+                <div class="pricing-more">Showing 100 of {sortedPricing.length} models. Use search to filter.</div>
+              {/if}
+            {/if}
+          </div>
         {/if}
       </div>
     </div>
@@ -616,5 +833,199 @@
     .footer-right {
       justify-content: center;
     }
+  }
+
+  /* Pricing Section */
+  .pricing-section {
+    margin-top: 24px;
+  }
+
+  .pricing-toggle {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 12px 16px;
+    background: var(--bg-primary);
+    border: 1px solid var(--border-primary);
+    border-radius: 4px;
+    color: var(--text-primary);
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+
+  .pricing-toggle:hover {
+    background: var(--bg-hover);
+    border-color: var(--accent-primary);
+  }
+
+  .toggle-icon {
+    font-size: 10px;
+    color: var(--text-tertiary);
+  }
+
+  .pricing-source {
+    margin-left: auto;
+    font-size: 11px;
+    color: var(--text-tertiary);
+    font-weight: 400;
+  }
+
+  .pricing-content {
+    margin-top: 12px;
+    background: var(--bg-primary);
+    border: 1px solid var(--border-primary);
+    border-radius: 4px;
+    overflow: hidden;
+  }
+
+  .pricing-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--border-primary);
+    background: var(--bg-secondary);
+  }
+
+  .pricing-filters {
+    display: flex;
+    gap: 8px;
+  }
+
+  .pricing-search {
+    padding: 6px 10px;
+    background: var(--bg-primary);
+    border: 1px solid var(--border-primary);
+    border-radius: 3px;
+    color: var(--text-primary);
+    font-size: 12px;
+    width: 180px;
+  }
+
+  .pricing-search:focus {
+    outline: none;
+    border-color: var(--accent-primary);
+  }
+
+  .pricing-provider-select {
+    padding: 6px 10px;
+    background: var(--bg-primary);
+    border: 1px solid var(--border-primary);
+    border-radius: 3px;
+    color: var(--text-primary);
+    font-size: 12px;
+  }
+
+  .pricing-count {
+    font-size: 12px;
+    color: var(--text-tertiary);
+  }
+
+  .pricing-loading,
+  .pricing-error {
+    padding: 32px;
+    text-align: center;
+    color: var(--text-secondary);
+  }
+
+  .pricing-error {
+    color: #ef4444;
+  }
+
+  .pricing-table-wrapper {
+    max-height: 400px;
+    overflow: auto;
+  }
+
+  .pricing-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 12px;
+  }
+
+  .pricing-table th {
+    padding: 10px 12px;
+    text-align: left;
+    font-size: 10px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--text-tertiary);
+    background: var(--bg-secondary);
+    border-bottom: 1px solid var(--border-primary);
+    white-space: nowrap;
+    position: sticky;
+    top: 0;
+    z-index: 1;
+  }
+
+  .pricing-table td {
+    padding: 8px 12px;
+    border-bottom: 1px solid var(--border-secondary);
+    color: var(--text-primary);
+  }
+
+  .pricing-table tr:hover {
+    background: var(--bg-hover);
+  }
+
+  .pricing-table .model-name {
+    font-family: 'Courier New', monospace;
+    font-size: 11px;
+    max-width: 300px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .pricing-table .price {
+    font-family: 'Courier New', monospace;
+    text-align: right;
+    color: var(--accent-primary);
+  }
+
+  .pricing-table .context {
+    font-family: 'Courier New', monospace;
+    text-align: right;
+    color: var(--text-secondary);
+  }
+
+  .pricing-table .features {
+    display: flex;
+    gap: 4px;
+  }
+
+  .feature-tag {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 18px;
+    height: 18px;
+    border-radius: 3px;
+    font-size: 9px;
+    font-weight: 600;
+    background: var(--bg-secondary);
+    color: var(--text-secondary);
+    border: 1px solid var(--border-primary);
+  }
+
+  .provider-badge.provider-anthropic { background: rgba(204, 119, 34, 0.15); color: #cc7722; }
+  .provider-badge.provider-openai { background: rgba(16, 163, 127, 0.15); color: #10a37f; }
+  .provider-badge.provider-google { background: rgba(66, 133, 244, 0.15); color: #4285f4; }
+  .provider-badge.provider-mistral { background: rgba(255, 107, 53, 0.15); color: #ff6b35; }
+  .provider-badge.provider-meta { background: rgba(0, 122, 255, 0.15); color: #007aff; }
+  .provider-badge.provider-cohere { background: rgba(117, 81, 233, 0.15); color: #7551e9; }
+  .provider-badge.provider-deepseek { background: rgba(59, 130, 246, 0.15); color: #3b82f6; }
+
+  .pricing-more {
+    padding: 12px;
+    text-align: center;
+    font-size: 12px;
+    color: var(--text-tertiary);
+    border-top: 1px solid var(--border-primary);
+    background: var(--bg-secondary);
   }
 </style>
