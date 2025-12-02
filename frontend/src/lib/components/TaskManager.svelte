@@ -1446,15 +1446,14 @@
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 12px 24px;
-    background: var(--bg-primary);
-    border-bottom: 1px solid var(--border-secondary);
+    padding: 10px 20px;
+    background: transparent;
   }
 
   .task-manager-inline .panel-content {
     flex: 1;
     overflow: auto;
-    padding: 20px 24px;
+    padding: 0 20px 20px 20px;
   }
 
   .header-left-section {
@@ -1536,30 +1535,31 @@
 
   .view-toggle {
     display: flex;
-    gap: 12px;
+    gap: 4px;
   }
 
   .view-btn {
-    padding: 6px 0;
+    padding: 4px 8px;
     background: transparent;
     border: none;
-    border-bottom: 2px solid transparent;
     color: var(--text-tertiary);
     font-size: 10px;
     font-weight: 500;
     text-transform: uppercase;
     letter-spacing: 0.5px;
     cursor: pointer;
-    transition: all 0.2s;
+    transition: all 0.15s;
+    border-radius: 3px;
   }
 
   .view-btn:hover {
     color: var(--text-secondary);
+    background: var(--bg-hover);
   }
 
   .view-btn.active {
     color: var(--text-primary);
-    border-bottom-color: var(--text-primary);
+    background: var(--bg-primary);
   }
 
   .add-btn {
@@ -1608,30 +1608,28 @@
   .swim-lanes {
     display: flex;
     flex-direction: column;
-    gap: 20px;
+    gap: 24px;
   }
 
   .swim-lane {
-    border: 1px solid var(--border-secondary);
-    border-radius: 4px;
-    background: var(--bg-secondary);
+    background: transparent;
   }
 
   .swim-lane-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 10px 16px;
+    padding: 0 4px 8px 4px;
     border-bottom: 1px solid var(--border-secondary);
-    background: var(--bg-primary);
+    margin-bottom: 12px;
   }
 
   .swim-lane-title {
-    font-size: 12px;
+    font-size: 11px;
     font-weight: 600;
     text-transform: uppercase;
-    letter-spacing: 0.8px;
-    color: var(--accent-primary);
+    letter-spacing: 1px;
+    color: var(--text-secondary);
   }
 
   .swim-lane-count {
@@ -1643,8 +1641,8 @@
   .kanban-board {
     display: grid;
     grid-template-columns: repeat(3, 1fr);
-    gap: 12px;
-    padding: 12px;
+    gap: 16px;
+    padding: 0;
   }
 
   .kanban-board.full-height {
@@ -1653,19 +1651,17 @@
   }
 
   .kanban-column {
-    background: var(--bg-secondary);
-    border: 1px solid var(--border-secondary);
-    border-radius: 4px;
+    background: transparent;
+    border: none;
     display: flex;
     flex-direction: column;
-    min-height: 200px;
+    min-height: 150px;
     min-width: 0;
     overflow: hidden;
-    transition: border-color 0.2s, background 0.2s;
+    transition: background 0.2s;
   }
 
   .kanban-column.drag-over {
-    border-color: var(--accent-primary);
     background: rgba(255, 255, 255, 0.02);
   }
 
@@ -1677,51 +1673,50 @@
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 10px 14px;
-    border-bottom: 1px solid var(--border-secondary);
+    padding: 0 4px 8px 4px;
   }
 
   .column-title {
     font-size: 10px;
-    font-weight: 600;
+    font-weight: 500;
     text-transform: uppercase;
-    letter-spacing: 0.8px;
-    color: var(--text-primary);
+    letter-spacing: 0.5px;
+    color: var(--text-tertiary);
   }
 
   .column-count {
     font-size: 9px;
     color: var(--text-tertiary);
-    background: var(--bg-primary);
-    padding: 2px 6px;
-    border-radius: 10px;
+    background: transparent;
+    padding: 0;
   }
 
   .column-tasks {
     flex: 1;
-    padding: 12px;
+    padding: 0;
     overflow-y: auto;
     overflow-x: hidden;
     display: flex;
     flex-direction: column;
-    gap: 12px;
+    gap: 8px;
     min-width: 0;
   }
 
   .task-card {
     background: var(--bg-primary);
-    border: 1px solid var(--border-primary);
-    border-radius: 6px;
-    padding: 14px 16px;
+    border: 1px solid var(--border-secondary);
+    border-radius: 4px;
+    padding: 10px 12px;
     cursor: grab;
-    transition: all 0.2s;
+    transition: all 0.15s;
     position: relative;
     width: 100%;
     box-sizing: border-box;
   }
 
   .task-card:hover {
-    border-color: var(--border-hover);
+    border-color: var(--border-primary);
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
   }
 
   .task-card.dragging {
@@ -1739,18 +1734,18 @@
   }
 
   .task-title {
-    font-size: 14px;
-    font-weight: 600;
+    font-size: 13px;
+    font-weight: 500;
     color: var(--text-primary);
-    margin-bottom: 8px;
+    margin-bottom: 4px;
     line-height: 1.4;
-    padding-right: 40px;
+    padding-right: 36px;
   }
 
   .task-description {
-    font-size: 13px;
-    color: var(--text-secondary);
-    line-height: 1.5;
+    font-size: 12px;
+    color: var(--text-tertiary);
+    line-height: 1.4;
     white-space: pre-wrap;
   }
 
@@ -1767,10 +1762,10 @@
 
   .task-actions {
     position: absolute;
-    top: 8px;
-    right: 6px;
+    top: 6px;
+    right: 4px;
     display: flex;
-    gap: 2px;
+    gap: 1px;
     align-items: center;
     opacity: 0;
     transition: opacity 0.15s;
@@ -1792,15 +1787,15 @@
   }
 
   .edit-btn, .delete-btn, .copy-btn {
-    width: 22px;
-    height: 22px;
+    width: 18px;
+    height: 18px;
     padding: 0;
     display: flex;
     align-items: center;
     justify-content: center;
-    background: var(--bg-secondary);
-    border: 1px solid var(--border-primary);
-    border-radius: 3px;
+    background: transparent;
+    border: none;
+    border-radius: 2px;
     color: var(--text-tertiary);
     font-size: 10px;
     cursor: pointer;
@@ -1809,23 +1804,22 @@
 
   .edit-btn:hover, .copy-btn:hover {
     background: var(--bg-hover);
-    border-color: var(--border-hover);
     color: var(--text-primary);
   }
 
   .delete-btn:hover {
-    background: #ef4444;
-    border-color: #ef4444;
-    color: white;
+    background: rgba(239, 68, 68, 0.15);
+    color: #ef4444;
   }
 
   .empty-column {
     text-align: center;
     color: var(--text-tertiary);
-    font-size: 11px;
-    padding: 16px;
-    border: 2px dashed var(--border-secondary);
-    border-radius: 4px;
+    font-size: 10px;
+    padding: 12px 8px;
+    border: 1px dashed var(--border-secondary);
+    border-radius: 3px;
+    opacity: 0.6;
   }
 
   /* Edit in place */
@@ -2067,22 +2061,17 @@
     display: flex;
     align-items: center;
     gap: 6px;
-    padding: 6px 12px;
-    background: var(--bg-primary);
-    border: 1px solid var(--border-primary);
+    padding: 4px 0;
+    background: transparent;
+    border: none;
     color: var(--text-secondary);
-    border-radius: 1px;
-    font-size: 9px;
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.8px;
+    font-size: 11px;
+    font-weight: 500;
     cursor: pointer;
-    transition: all 0.2s;
+    transition: all 0.15s;
   }
 
   .versions-menu-btn:hover {
-    background: var(--bg-hover);
-    border-color: var(--border-hover);
     color: var(--text-primary);
   }
 
@@ -2367,33 +2356,36 @@
   }
 
   .quick-add-btn {
-    width: 20px;
-    height: 20px;
+    width: 18px;
+    height: 18px;
     display: flex;
     align-items: center;
     justify-content: center;
     padding: 0;
     background: transparent;
-    border: 1px solid var(--border-secondary);
+    border: none;
     color: var(--text-tertiary);
     border-radius: 2px;
     font-size: 14px;
     font-weight: 400;
     cursor: pointer;
-    transition: all 0.2s;
+    transition: all 0.15s;
+    opacity: 0;
+  }
+
+  .column-header:hover .quick-add-btn {
+    opacity: 1;
   }
 
   .quick-add-btn:hover {
-    background: var(--accent-primary);
-    border-color: var(--accent-primary);
-    color: var(--bg-primary);
+    color: var(--accent-primary);
   }
 
   .quick-add-card {
     background: var(--bg-primary);
-    border: 1px solid var(--accent-primary);
-    border-radius: 4px;
-    padding: 8px;
+    border: 1px solid var(--border-secondary);
+    border-radius: 3px;
+    padding: 6px;
   }
 
   .quick-add-input {
@@ -2403,7 +2395,7 @@
     border: 1px solid var(--border-primary);
     border-radius: 2px;
     color: var(--text-primary);
-    font-size: 11px;
+    font-size: 12px;
   }
 
   .quick-add-input:focus {
@@ -2413,12 +2405,13 @@
 
   .empty-column {
     cursor: pointer;
-    transition: all 0.2s;
+    transition: all 0.15s;
   }
 
   .empty-column:hover {
-    border-color: var(--accent-primary);
+    border-color: var(--border-primary);
     color: var(--text-secondary);
+    opacity: 1;
   }
 
   @media (max-width: 768px) {
