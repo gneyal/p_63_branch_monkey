@@ -1,12 +1,10 @@
 <script>
   import { onMount } from 'svelte';
-  import { push } from 'svelte-spa-router';
   import { repoInfo } from '../stores/store.js';
   import { fetchRepoInfo } from '../services/api.js';
   import Toast from './Toast.svelte';
   import TaskManager from './TaskManager.svelte';
   import Topbar from './Topbar.svelte';
-  import GlobalActions from './GlobalActions.svelte';
   import ThemePicker from './ThemePicker.svelte';
 
   onMount(async () => {
@@ -20,31 +18,6 @@
       }
     }
   });
-
-  // Handlers for GlobalActions - navigate back to main view for most actions
-  function handleGoToTop() {
-    push('/commits');
-  }
-
-  function handleGoToBottom() {
-    push('/commits');
-  }
-
-  function handleShowRemote() {
-    push('/commits');
-  }
-
-  function handleNameBranches() {
-    push('/commits');
-  }
-
-  function handleShowPrompts() {
-    push('/commits');
-  }
-
-  function handleShowContext() {
-    push('/commits');
-  }
 </script>
 
 <main class="tasks-page">
@@ -56,14 +29,6 @@
 
   <footer class="app-footer">
     <div class="footer-left">
-      <GlobalActions
-        onGoToTop={handleGoToTop}
-        onGoToBottom={handleGoToBottom}
-        onShowRemote={handleShowRemote}
-        onNameBranches={handleNameBranches}
-        onShowPrompts={handleShowPrompts}
-        onShowContext={handleShowContext}
-      />
     </div>
 
     <div class="footer-center">

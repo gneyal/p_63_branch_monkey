@@ -12,16 +12,14 @@
 
   export let onClose = () => {};
 
-  const CONTEXT_TYPES = ['codebase', 'prompts'];
+  const CONTEXT_TYPES = ['codebase'];
   const TYPE_LABELS = {
     codebase: 'Codebase',
-    architecture: 'Architecture',
-    prompts: 'Prompts'
+    architecture: 'Architecture'
   };
   const TYPE_DESCRIPTIONS = {
     codebase: 'File structure, key components, and code patterns',
-    architecture: 'System design, tech stack, and API structure',
-    prompts: 'AI prompts inventory and patterns'
+    architecture: 'System design, tech stack, and API structure'
   };
 
   let activeTab = 'codebase';

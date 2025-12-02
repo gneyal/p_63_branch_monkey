@@ -1,10 +1,22 @@
 <script>
+  export let activeView = 'commits';
   export let onGoToTop = () => {};
   export let onGoToBottom = () => {};
   export let onShowRemote = () => {};
   export let onNameBranches = () => {};
   export let onShowPrompts = () => {};
   export let onShowContext = () => {};
+
+  // Define which buttons are relevant for each page
+  const pageButtons = {
+    commits: ['top', 'bottom', 'cloud', 'branches', 'prompts', 'context'],
+    tasks: [],
+    prompts: [],
+    arch: ['context'],
+    tests: []
+  };
+
+  $: visibleButtons = pageButtons[activeView] || [];
 
   function handleGoToTop() {
     onGoToTop();
@@ -31,31 +43,45 @@
   }
 </script>
 
+{#if visibleButtons.length > 0}
 <div class="global-actions">
+  {#if visibleButtons.includes('top')}
   <button class="action-item" on:click={handleGoToTop} title="Go to newest">
     <span>⬆</span>
   </button>
+  {/if}
 
+  {#if visibleButtons.includes('bottom')}
   <button class="action-item" on:click={handleGoToBottom} title="Go to oldest">
     <span>⬇</span>
   </button>
+  {/if}
 
+  {#if visibleButtons.includes('cloud')}
   <button class="action-item" on:click={handleShowRemote} title="Check cloud sync">
     <span>Cloud</span>
   </button>
+  {/if}
 
+  {#if visibleButtons.includes('branches')}
   <button class="action-item" on:click={handleNameBranches} title="Show all branches">
     <span>Branches</span>
   </button>
+  {/if}
 
+  {#if visibleButtons.includes('prompts')}
   <button class="action-item" on:click={handleShowPrompts} title="View prompts library">
     <span>Prompts</span>
   </button>
+  {/if}
 
+  {#if visibleButtons.includes('context')}
   <button class="action-item" on:click={handleShowContext} title="View context library">
     <span>Context</span>
   </button>
+  {/if}
 </div>
+{/if}
 
 <style>
   .global-actions {

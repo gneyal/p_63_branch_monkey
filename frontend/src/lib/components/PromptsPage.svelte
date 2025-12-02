@@ -1,11 +1,9 @@
 <script>
   import { onMount } from 'svelte';
-  import { push } from 'svelte-spa-router';
   import { repoInfo } from '../stores/store.js';
   import { fetchRepoInfo, fetchPromptLogs, fetchPromptStats, deletePromptLog } from '../services/api.js';
   import Toast from './Toast.svelte';
   import Topbar from './Topbar.svelte';
-  import GlobalActions from './GlobalActions.svelte';
   import ThemePicker from './ThemePicker.svelte';
 
   let prompts = [];
@@ -162,30 +160,6 @@
     }
     await loadPrompts();
   });
-
-  function handleGoToTop() {
-    push('/commits');
-  }
-
-  function handleGoToBottom() {
-    push('/commits');
-  }
-
-  function handleShowRemote() {
-    push('/commits');
-  }
-
-  function handleNameBranches() {
-    push('/commits');
-  }
-
-  function handleShowPrompts() {
-    // Already on prompts page
-  }
-
-  function handleShowContext() {
-    push('/commits');
-  }
 
   function formatTimestamp(ts) {
     const date = new Date(ts);
@@ -607,14 +581,6 @@
 
   <footer class="app-footer">
     <div class="footer-left">
-      <GlobalActions
-        onGoToTop={handleGoToTop}
-        onGoToBottom={handleGoToBottom}
-        onShowRemote={handleShowRemote}
-        onNameBranches={handleNameBranches}
-        onShowPrompts={handleShowPrompts}
-        onShowContext={handleShowContext}
-      />
     </div>
 
     <div class="footer-center">

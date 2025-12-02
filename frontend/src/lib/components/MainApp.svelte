@@ -185,6 +185,7 @@
   <footer class="app-footer">
     <div class="footer-left">
       <GlobalActions
+        activeView="commits"
         onGoToTop={handleGoToTop}
         onGoToBottom={handleGoToBottom}
         onShowRemote={handleShowRemote}
