@@ -24,12 +24,13 @@
 Add this to ~/.claude/settings.json in the hooks section:
 {
   "hooks": {
-    "PostToolUse": [{
-      "command": "python /path/to/branch_monkey/hooks/claude_code_hook.py",
-      "match": ".*"
+    "Stop": [{
+      "command": "python /path/to/branch_monkey/hooks/claude_code_hook.py"
     }]
   }
-}`;
+}
+
+The "Stop" hook fires once when Claude finishes responding, giving you complete token counts and costs.`;
 
   function copyAiPrompt(prompt, section) {
     navigator.clipboard.writeText(prompt).then(() => {
