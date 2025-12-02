@@ -2,17 +2,12 @@ import { writable } from 'svelte/store';
 
 // Vim-inspired color themes
 export const themes = [
+  // Dark themes
   {
     id: 'gruvbox-dark',
     name: 'Gruvbox Dark',
     type: 'dark',
     preview: { bg: '#282828', fg: '#ebdbb2', accent: '#fabd2f' }
-  },
-  {
-    id: 'gruvbox-light',
-    name: 'Gruvbox Light',
-    type: 'light',
-    preview: { bg: '#fbf1c7', fg: '#3c3836', accent: '#d79921' }
   },
   {
     id: 'nord',
@@ -33,24 +28,6 @@ export const themes = [
     preview: { bg: '#282c34', fg: '#abb2bf', accent: '#61afef' }
   },
   {
-    id: 'solarized-dark',
-    name: 'Solarized Dark',
-    type: 'dark',
-    preview: { bg: '#002b36', fg: '#839496', accent: '#2aa198' }
-  },
-  {
-    id: 'solarized-light',
-    name: 'Solarized Light',
-    type: 'light',
-    preview: { bg: '#fdf6e3', fg: '#657b83', accent: '#2aa198' }
-  },
-  {
-    id: 'monokai',
-    name: 'Monokai',
-    type: 'dark',
-    preview: { bg: '#272822', fg: '#f8f8f2', accent: '#a6e22e' }
-  },
-  {
     id: 'tokyo-night',
     name: 'Tokyo Night',
     type: 'dark',
@@ -63,6 +40,12 @@ export const themes = [
     preview: { bg: '#1e1e2e', fg: '#cdd6f4', accent: '#cba6f7' }
   },
   {
+    id: 'monokai',
+    name: 'Monokai',
+    type: 'dark',
+    preview: { bg: '#272822', fg: '#f8f8f2', accent: '#a6e22e' }
+  },
+  {
     id: 'everforest',
     name: 'Everforest',
     type: 'dark',
@@ -73,6 +56,97 @@ export const themes = [
     name: 'Rose Pine',
     type: 'dark',
     preview: { bg: '#191724', fg: '#e0def4', accent: '#ebbcba' }
+  },
+  {
+    id: 'kanagawa',
+    name: 'Kanagawa',
+    type: 'dark',
+    preview: { bg: '#1f1f28', fg: '#dcd7ba', accent: '#7e9cd8' }
+  },
+  {
+    id: 'nightfox',
+    name: 'Nightfox',
+    type: 'dark',
+    preview: { bg: '#192330', fg: '#cdcecf', accent: '#719cd6' }
+  },
+  {
+    id: 'material',
+    name: 'Material',
+    type: 'dark',
+    preview: { bg: '#263238', fg: '#eeffff', accent: '#82aaff' }
+  },
+  {
+    id: 'palenight',
+    name: 'Palenight',
+    type: 'dark',
+    preview: { bg: '#292d3e', fg: '#a6accd', accent: '#c792ea' }
+  },
+  {
+    id: 'ayu-dark',
+    name: 'Ayu Dark',
+    type: 'dark',
+    preview: { bg: '#0d1017', fg: '#bfbdb6', accent: '#e6b450' }
+  },
+  {
+    id: 'github-dark',
+    name: 'GitHub Dark',
+    type: 'dark',
+    preview: { bg: '#0d1117', fg: '#c9d1d9', accent: '#58a6ff' }
+  },
+  {
+    id: 'horizon',
+    name: 'Horizon',
+    type: 'dark',
+    preview: { bg: '#1c1e26', fg: '#d5d8da', accent: '#e95678' }
+  },
+  {
+    id: 'iceberg',
+    name: 'Iceberg',
+    type: 'dark',
+    preview: { bg: '#161821', fg: '#c6c8d1', accent: '#84a0c6' }
+  },
+  {
+    id: 'solarized-dark',
+    name: 'Solarized Dark',
+    type: 'dark',
+    preview: { bg: '#002b36', fg: '#839496', accent: '#2aa198' }
+  },
+  // Light themes
+  {
+    id: 'gruvbox-light',
+    name: 'Gruvbox Light',
+    type: 'light',
+    preview: { bg: '#fbf1c7', fg: '#3c3836', accent: '#d79921' }
+  },
+  {
+    id: 'one-light',
+    name: 'One Light',
+    type: 'light',
+    preview: { bg: '#fafafa', fg: '#383a42', accent: '#4078f2' }
+  },
+  {
+    id: 'github-light',
+    name: 'GitHub Light',
+    type: 'light',
+    preview: { bg: '#ffffff', fg: '#24292f', accent: '#0969da' }
+  },
+  {
+    id: 'solarized-light',
+    name: 'Solarized Light',
+    type: 'light',
+    preview: { bg: '#fdf6e3', fg: '#657b83', accent: '#2aa198' }
+  },
+  {
+    id: 'ayu-light',
+    name: 'Ayu Light',
+    type: 'light',
+    preview: { bg: '#fafafa', fg: '#5c6166', accent: '#ff9940' }
+  },
+  {
+    id: 'rose-pine-dawn',
+    name: 'Rose Pine Dawn',
+    type: 'light',
+    preview: { bg: '#faf4ed', fg: '#575279', accent: '#d7827e' }
   }
 ];
 

@@ -302,6 +302,282 @@
     --branch-default: #908caa;
   }
 
+  /* Kanagawa - Japanese ink painting */
+  :global(:root[data-theme="kanagawa"]) {
+    --bg-primary: #1f1f28;
+    --bg-secondary: #16161d;
+    --bg-hover: #2a2a37;
+    --text-primary: #dcd7ba;
+    --text-secondary: #c8c093;
+    --text-tertiary: #727169;
+    --border-primary: #363646;
+    --border-secondary: #2a2a37;
+    --border-hover: #54546d;
+    --accent-primary: #7e9cd8;
+    --accent-secondary: #957fb8;
+    --shadow-small: 0 1px 2px rgba(0, 0, 0, 0.5);
+    --shadow-medium: 0 2px 4px rgba(0, 0, 0, 0.6);
+    --shadow-large: 0 4px 8px rgba(0, 0, 0, 0.7);
+    --branch-main: #7e9cd8;
+    --branch-experiment: #98bb6c;
+    --branch-feature: #957fb8;
+    --branch-fix: #e82424;
+    --branch-default: #c8c093;
+  }
+
+  /* Nightfox - blue arctic night */
+  :global(:root[data-theme="nightfox"]) {
+    --bg-primary: #192330;
+    --bg-secondary: #131a24;
+    --bg-hover: #212e3f;
+    --text-primary: #cdcecf;
+    --text-secondary: #aeafb0;
+    --text-tertiary: #71839b;
+    --border-primary: #2b3b51;
+    --border-secondary: #212e3f;
+    --border-hover: #39506d;
+    --accent-primary: #719cd6;
+    --accent-secondary: #9d79d6;
+    --shadow-small: 0 1px 2px rgba(0, 0, 0, 0.5);
+    --shadow-medium: 0 2px 4px rgba(0, 0, 0, 0.6);
+    --shadow-large: 0 4px 8px rgba(0, 0, 0, 0.7);
+    --branch-main: #719cd6;
+    --branch-experiment: #81b29a;
+    --branch-feature: #9d79d6;
+    --branch-fix: #c94f6d;
+    --branch-default: #aeafb0;
+  }
+
+  /* Material - Google material dark */
+  :global(:root[data-theme="material"]) {
+    --bg-primary: #263238;
+    --bg-secondary: #1e272c;
+    --bg-hover: #37474f;
+    --text-primary: #eeffff;
+    --text-secondary: #b0bec5;
+    --text-tertiary: #607d8b;
+    --border-primary: #37474f;
+    --border-secondary: #2c3940;
+    --border-hover: #546e7a;
+    --accent-primary: #82aaff;
+    --accent-secondary: #c792ea;
+    --shadow-small: 0 1px 2px rgba(0, 0, 0, 0.4);
+    --shadow-medium: 0 2px 4px rgba(0, 0, 0, 0.5);
+    --shadow-large: 0 4px 8px rgba(0, 0, 0, 0.6);
+    --branch-main: #82aaff;
+    --branch-experiment: #c3e88d;
+    --branch-feature: #c792ea;
+    --branch-fix: #ff5370;
+    --branch-default: #b0bec5;
+  }
+
+  /* Palenight - soft purple night */
+  :global(:root[data-theme="palenight"]) {
+    --bg-primary: #292d3e;
+    --bg-secondary: #1f2233;
+    --bg-hover: #34394e;
+    --text-primary: #a6accd;
+    --text-secondary: #8087a2;
+    --text-tertiary: #676e95;
+    --border-primary: #3a3f58;
+    --border-secondary: #34394e;
+    --border-hover: #4e5579;
+    --accent-primary: #c792ea;
+    --accent-secondary: #89ddff;
+    --shadow-small: 0 1px 2px rgba(0, 0, 0, 0.4);
+    --shadow-medium: 0 2px 4px rgba(0, 0, 0, 0.5);
+    --shadow-large: 0 4px 8px rgba(0, 0, 0, 0.6);
+    --branch-main: #82aaff;
+    --branch-experiment: #c3e88d;
+    --branch-feature: #c792ea;
+    --branch-fix: #ff5370;
+    --branch-default: #8087a2;
+  }
+
+  /* Ayu Dark - minimal dark */
+  :global(:root[data-theme="ayu-dark"]) {
+    --bg-primary: #0d1017;
+    --bg-secondary: #0a0e14;
+    --bg-hover: #151a22;
+    --text-primary: #bfbdb6;
+    --text-secondary: #8b8680;
+    --text-tertiary: #565b66;
+    --border-primary: #1c212b;
+    --border-secondary: #151a22;
+    --border-hover: #2d3640;
+    --accent-primary: #e6b450;
+    --accent-secondary: #ffb454;
+    --shadow-small: 0 1px 2px rgba(0, 0, 0, 0.6);
+    --shadow-medium: 0 2px 4px rgba(0, 0, 0, 0.7);
+    --shadow-large: 0 4px 8px rgba(0, 0, 0, 0.8);
+    --branch-main: #59c2ff;
+    --branch-experiment: #aad94c;
+    --branch-feature: #d2a6ff;
+    --branch-fix: #f07178;
+    --branch-default: #8b8680;
+  }
+
+  /* GitHub Dark */
+  :global(:root[data-theme="github-dark"]) {
+    --bg-primary: #0d1117;
+    --bg-secondary: #010409;
+    --bg-hover: #161b22;
+    --text-primary: #c9d1d9;
+    --text-secondary: #8b949e;
+    --text-tertiary: #6e7681;
+    --border-primary: #30363d;
+    --border-secondary: #21262d;
+    --border-hover: #484f58;
+    --accent-primary: #58a6ff;
+    --accent-secondary: #1f6feb;
+    --shadow-small: 0 1px 2px rgba(0, 0, 0, 0.5);
+    --shadow-medium: 0 2px 4px rgba(0, 0, 0, 0.6);
+    --shadow-large: 0 4px 8px rgba(0, 0, 0, 0.7);
+    --branch-main: #58a6ff;
+    --branch-experiment: #3fb950;
+    --branch-feature: #a371f7;
+    --branch-fix: #f85149;
+    --branch-default: #8b949e;
+  }
+
+  /* Horizon - warm sunset theme */
+  :global(:root[data-theme="horizon"]) {
+    --bg-primary: #1c1e26;
+    --bg-secondary: #16161c;
+    --bg-hover: #232530;
+    --text-primary: #d5d8da;
+    --text-secondary: #b0b3b5;
+    --text-tertiary: #6c6f93;
+    --border-primary: #2e303e;
+    --border-secondary: #232530;
+    --border-hover: #3d3f52;
+    --accent-primary: #e95678;
+    --accent-secondary: #fab795;
+    --shadow-small: 0 1px 2px rgba(0, 0, 0, 0.5);
+    --shadow-medium: 0 2px 4px rgba(0, 0, 0, 0.6);
+    --shadow-large: 0 4px 8px rgba(0, 0, 0, 0.7);
+    --branch-main: #25b0bc;
+    --branch-experiment: #09f7a0;
+    --branch-feature: #b877db;
+    --branch-fix: #e95678;
+    --branch-default: #b0b3b5;
+  }
+
+  /* Iceberg - cool blue theme */
+  :global(:root[data-theme="iceberg"]) {
+    --bg-primary: #161821;
+    --bg-secondary: #0f1117;
+    --bg-hover: #1e2132;
+    --text-primary: #c6c8d1;
+    --text-secondary: #9a9ca5;
+    --text-tertiary: #6b7089;
+    --border-primary: #2a2e3f;
+    --border-secondary: #1e2132;
+    --border-hover: #3d435c;
+    --accent-primary: #84a0c6;
+    --accent-secondary: #89b8c2;
+    --shadow-small: 0 1px 2px rgba(0, 0, 0, 0.5);
+    --shadow-medium: 0 2px 4px rgba(0, 0, 0, 0.6);
+    --shadow-large: 0 4px 8px rgba(0, 0, 0, 0.7);
+    --branch-main: #84a0c6;
+    --branch-experiment: #b4be82;
+    --branch-feature: #a093c7;
+    --branch-fix: #e27878;
+    --branch-default: #9a9ca5;
+  }
+
+  /* One Light */
+  :global(:root[data-theme="one-light"]) {
+    --bg-primary: #fafafa;
+    --bg-secondary: #f0f0f0;
+    --bg-hover: #e5e5e6;
+    --text-primary: #383a42;
+    --text-secondary: #4f525e;
+    --text-tertiary: #a0a1a7;
+    --border-primary: #d4d4d4;
+    --border-secondary: #e5e5e6;
+    --border-hover: #b4b4b4;
+    --accent-primary: #4078f2;
+    --accent-secondary: #0184bc;
+    --shadow-small: 0 1px 3px rgba(0, 0, 0, 0.08);
+    --shadow-medium: 0 2px 6px rgba(0, 0, 0, 0.12);
+    --shadow-large: 0 4px 12px rgba(0, 0, 0, 0.16);
+    --branch-main: #4078f2;
+    --branch-experiment: #50a14f;
+    --branch-feature: #a626a4;
+    --branch-fix: #e45649;
+    --branch-default: #4f525e;
+  }
+
+  /* GitHub Light */
+  :global(:root[data-theme="github-light"]) {
+    --bg-primary: #ffffff;
+    --bg-secondary: #f6f8fa;
+    --bg-hover: #f3f4f6;
+    --text-primary: #24292f;
+    --text-secondary: #57606a;
+    --text-tertiary: #8c959f;
+    --border-primary: #d0d7de;
+    --border-secondary: #e1e4e8;
+    --border-hover: #afb8c1;
+    --accent-primary: #0969da;
+    --accent-secondary: #0550ae;
+    --shadow-small: 0 1px 3px rgba(0, 0, 0, 0.06);
+    --shadow-medium: 0 2px 6px rgba(0, 0, 0, 0.1);
+    --shadow-large: 0 4px 12px rgba(0, 0, 0, 0.15);
+    --branch-main: #0969da;
+    --branch-experiment: #1a7f37;
+    --branch-feature: #8250df;
+    --branch-fix: #cf222e;
+    --branch-default: #57606a;
+  }
+
+  /* Ayu Light */
+  :global(:root[data-theme="ayu-light"]) {
+    --bg-primary: #fafafa;
+    --bg-secondary: #f3f3f3;
+    --bg-hover: #e8e8e8;
+    --text-primary: #5c6166;
+    --text-secondary: #787b80;
+    --text-tertiary: #abb0b6;
+    --border-primary: #d8d8d8;
+    --border-secondary: #e8e8e8;
+    --border-hover: #c0c0c0;
+    --accent-primary: #ff9940;
+    --accent-secondary: #f2ae49;
+    --shadow-small: 0 1px 3px rgba(0, 0, 0, 0.06);
+    --shadow-medium: 0 2px 6px rgba(0, 0, 0, 0.1);
+    --shadow-large: 0 4px 12px rgba(0, 0, 0, 0.15);
+    --branch-main: #399ee6;
+    --branch-experiment: #86b300;
+    --branch-feature: #a37acc;
+    --branch-fix: #f51818;
+    --branch-default: #787b80;
+  }
+
+  /* Rose Pine Dawn - light rose theme */
+  :global(:root[data-theme="rose-pine-dawn"]) {
+    --bg-primary: #faf4ed;
+    --bg-secondary: #fffaf3;
+    --bg-hover: #f2e9de;
+    --text-primary: #575279;
+    --text-secondary: #6e6a86;
+    --text-tertiary: #9893a5;
+    --border-primary: #dfdad9;
+    --border-secondary: #f2e9de;
+    --border-hover: #cecacd;
+    --accent-primary: #d7827e;
+    --accent-secondary: #ea9d34;
+    --shadow-small: 0 1px 3px rgba(87, 82, 121, 0.08);
+    --shadow-medium: 0 2px 6px rgba(87, 82, 121, 0.12);
+    --shadow-large: 0 4px 12px rgba(87, 82, 121, 0.16);
+    --branch-main: #56949f;
+    --branch-experiment: #286983;
+    --branch-feature: #907aa9;
+    --branch-fix: #b4637a;
+    --branch-default: #6e6a86;
+  }
+
   /* Legacy fallbacks for 'light' and 'dark' */
   :global(:root[data-theme="light"]) {
     --bg-primary: #fbf1c7;
