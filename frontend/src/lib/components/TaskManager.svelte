@@ -587,6 +587,7 @@
 
   async function handleCopyTask(task) {
     const json = JSON.stringify({
+      task_id: task.id,
       title: task.title,
       description: task.description || ''
     }, null, 2);

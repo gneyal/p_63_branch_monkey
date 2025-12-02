@@ -3,6 +3,8 @@
   import { SvelteFlow, Background, Controls, MiniMap } from '@xyflow/svelte';
   import '@xyflow/svelte/dist/style.css';
   import CommitNode from './CommitNode.svelte';
+  import WorkingTreeNode from './WorkingTreeNode.svelte';
+  import { workingTreeStatus } from '../stores/store.js';
 
   export let commits = [];
   export let onNodeClick = null;
@@ -12,11 +14,19 @@
   const edges = writable([]);
 
   const nodeTypes = {
-    commit: CommitNode
+    commit: CommitNode,
+    workingTree: WorkingTreeNode
   };
 
   $: if (commits && commits.length > 0) {
     buildTimeline();
+  }
+
+  // Also rebuild when working tree status changes
+  $: if ($workingTreeStatus) {
+    if (commits && commits.length > 0) {
+      buildTimeline();
+    }
   }
 
   function buildTimeline() {
@@ -85,6 +95,9 @@
     const columnWidth = 500; // Width between date columns (increased for more spacing)
     const baseY = 600; // Baseline for alignment
 
+    // Check if we should show working tree node (uncommitted changes)
+    const showWorkingTreeNode = $workingTreeStatus && !$workingTreeStatus.clean;
+
     buildings.forEach((building, columnIndex) => {
       const xPos = columnIndex * columnWidth;
       const commitCount = building.commits.length;
@@ -126,6 +139,22 @@
           }
         });
       });
+
+      // Add working tree node at the top of the last (most recent) column
+      if (columnIndex === buildings.length - 1 && showWorkingTreeNode) {
+        const topCommitCount = reversedCommits.length;
+        const workingTreeY = baseY - ((topCommitCount + 1) * commitHeight);
+
+        newNodes.push({
+          id: 'working-tree',
+          type: 'workingTree',
+          position: { x: xPos, y: workingTreeY },
+          zIndex: 1,
+          data: {
+            status: $workingTreeStatus
+          }
+        });
+      }
     });
 
     nodes.set(newNodes);
