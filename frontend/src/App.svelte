@@ -3,6 +3,7 @@
   import LandingPage from './lib/components/LandingPage.svelte';
   import MainApp from './lib/components/MainApp.svelte';
   import TasksPage from './lib/components/TasksPage.svelte';
+  import PromptsPage from './lib/components/PromptsPage.svelte';
   import ArchitecturePage from './lib/components/ArchitecturePage.svelte';
   import TestsPage from './lib/components/TestsPage.svelte';
   import { push } from 'svelte-spa-router';
@@ -12,6 +13,7 @@
     '/commits': MainApp,
     '/home': LandingPage,
     '/tasks': TasksPage,
+    '/prompts': PromptsPage,
     '/architecture': ArchitecturePage,
     '/tests': TestsPage,
   };
