@@ -94,18 +94,23 @@
     return aIdx - bIdx;
   });
 
+  // Helper to sort tasks by sort_order
+  function sortBySortOrder(taskList) {
+    return [...taskList].sort((a, b) => (a.sort_order ?? 999999) - (b.sort_order ?? 999999));
+  }
+
   // Reactive: swim lane data - combines versions with their tasks to ensure reactivity
   // Explicitly reference tasks.length to ensure Svelte tracks it as a dependency
   $: swimLaneData = (tasks.length, versions.map(version => ({
     version,
     label: versionLabels[version] || version,
-    tasks: tasks.filter(t => (t.sprint || 'backlog') === version),
+    tasks: sortBySortOrder(tasks.filter(t => (t.sprint || 'backlog') === version)),
     isDefault: visibleDefaultVersions.includes(version),
     isCustom: !INITIAL_VERSIONS.includes(version) && customVersions.includes(version),
     byStatus: {
-      todo: tasks.filter(t => (t.sprint || 'backlog') === version && t.status === 'todo'),
-      in_progress: tasks.filter(t => (t.sprint || 'backlog') === version && t.status === 'in_progress'),
-      done: tasks.filter(t => (t.sprint || 'backlog') === version && t.status === 'done')
+      todo: sortBySortOrder(tasks.filter(t => (t.sprint || 'backlog') === version && t.status === 'todo')),
+      in_progress: sortBySortOrder(tasks.filter(t => (t.sprint || 'backlog') === version && t.status === 'in_progress')),
+      done: sortBySortOrder(tasks.filter(t => (t.sprint || 'backlog') === version && t.status === 'done'))
     }
   })));
 
