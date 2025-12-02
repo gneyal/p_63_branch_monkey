@@ -6,6 +6,7 @@
   import PromptsPage from './lib/components/PromptsPage.svelte';
   import ArchitecturePage from './lib/components/ArchitecturePage.svelte';
   import TestsPage from './lib/components/TestsPage.svelte';
+  import InstallPage from './lib/components/InstallPage.svelte';
   import { push } from 'svelte-spa-router';
 
   const routes = {
@@ -16,6 +17,7 @@
     '/prompts': PromptsPage,
     '/architecture': ArchitecturePage,
     '/tests': TestsPage,
+    '/install': InstallPage,
   };
 
   function handleGetStarted() {

@@ -79,6 +79,10 @@
   function goToTests() {
     push('/tests');
   }
+
+  function goToInstall() {
+    push('/install');
+  }
 </script>
 
 <header class="topbar">
@@ -106,6 +110,14 @@
 
   <div class="header-right">
     <div class="view-toggle">
+      <button
+        class="view-btn help-btn"
+        class:active={activeView === 'install'}
+        on:click={goToInstall}
+        title="Getting Started"
+      >
+        ?
+      </button>
       <button
         class="view-btn"
         class:active={activeView === 'commits'}
@@ -304,5 +316,11 @@
   .view-btn.active {
     background: var(--accent-primary);
     color: var(--bg-primary);
+  }
+
+  .view-btn.help-btn {
+    font-weight: 700;
+    font-size: 11px;
+    padding: 6px 10px;
   }
 </style>
