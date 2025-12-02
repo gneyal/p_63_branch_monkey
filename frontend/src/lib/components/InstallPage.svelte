@@ -9,6 +9,35 @@
 
   let copiedSection = null;
 
+  const aiInstallPrompt = `Install and run Branch Monkey for me:
+
+1. git clone https://github.com/anthropics/branch-monkey.git
+2. cd branch-monkey
+3. pip install -e .
+4. cd frontend && npm install
+5. Start backend: python fastapi_server.py (in background)
+6. Start frontend: cd frontend && npm run dev
+7. Open http://localhost:5173 in browser`;
+
+  const aiHookPrompt = `Set up Claude Code hook for Branch Monkey prompt tracking:
+
+Add this to ~/.claude/settings.json in the hooks section:
+{
+  "hooks": {
+    "PostToolUse": [{
+      "command": "python /path/to/branch_monkey/hooks/claude_code_hook.py",
+      "match": ".*"
+    }]
+  }
+}`;
+
+  function copyAiPrompt(prompt, section) {
+    navigator.clipboard.writeText(prompt).then(() => {
+      copiedSection = section;
+      setTimeout(() => copiedSection = null, 2000);
+    });
+  }
+
   onMount(async () => {
     if (!$repoInfo || !$repoInfo.path) {
       try {
@@ -39,126 +68,37 @@
       </div>
 
       <div class="sections">
-        <!-- Installation -->
-        <section class="install-section">
-          <h2>Installation</h2>
-          <div class="step">
-            <div class="step-number">1</div>
-            <div class="step-content">
-              <h3>Clone the repository</h3>
-              <div class="code-block">
-                <code>git clone https://github.com/your-org/branch-monkey.git</code>
-                <button class="copy-btn" on:click={() => copyToClipboard('git clone https://github.com/your-org/branch-monkey.git', 'clone')}>
-                  {copiedSection === 'clone' ? 'Copied!' : 'Copy'}
-                </button>
-              </div>
-            </div>
-          </div>
+        <!-- Quick Install with AI -->
+        <section class="install-section ai-section">
+          <h2>Quick Install</h2>
+          <p class="section-desc">Copy this prompt and paste it to your AI assistant to install Branch Monkey.</p>
 
-          <div class="step">
-            <div class="step-number">2</div>
-            <div class="step-content">
-              <h3>Install Python dependencies</h3>
-              <div class="code-block">
-                <code>cd branch-monkey && pip install -e .</code>
-                <button class="copy-btn" on:click={() => copyToClipboard('cd branch-monkey && pip install -e .', 'pip')}>
-                  {copiedSection === 'pip' ? 'Copied!' : 'Copy'}
-                </button>
-              </div>
-            </div>
-          </div>
-
-          <div class="step">
-            <div class="step-number">3</div>
-            <div class="step-content">
-              <h3>Install frontend dependencies</h3>
-              <div class="code-block">
-                <code>cd frontend && npm install</code>
-                <button class="copy-btn" on:click={() => copyToClipboard('cd frontend && npm install', 'npm')}>
-                  {copiedSection === 'npm' ? 'Copied!' : 'Copy'}
-                </button>
-              </div>
-            </div>
+          <div class="ai-prompt-box">
+            <pre class="ai-prompt">{aiInstallPrompt}</pre>
+            <button
+              class="copy-ai-btn"
+              class:copied={copiedSection === 'ai-install'}
+              on:click={() => copyAiPrompt(aiInstallPrompt, 'ai-install')}
+            >
+              {copiedSection === 'ai-install' ? 'Copied!' : 'Copy for AI'}
+            </button>
           </div>
         </section>
 
-        <!-- Running -->
-        <section class="install-section">
-          <h2>Running Branch Monkey</h2>
-          <div class="step">
-            <div class="step-number">1</div>
-            <div class="step-content">
-              <h3>Start the backend server</h3>
-              <div class="code-block">
-                <code>python fastapi_server.py</code>
-                <button class="copy-btn" on:click={() => copyToClipboard('python fastapi_server.py', 'server')}>
-                  {copiedSection === 'server' ? 'Copied!' : 'Copy'}
-                </button>
-              </div>
-              <p class="note">The server runs on port 8081 by default</p>
-            </div>
-          </div>
+        <!-- Claude Code Hook with AI -->
+        <section class="install-section ai-section">
+          <h2>Claude Code Hook</h2>
+          <p class="section-desc">Track your AI prompt usage automatically. Copy this to set up the hook.</p>
 
-          <div class="step">
-            <div class="step-number">2</div>
-            <div class="step-content">
-              <h3>Start the frontend (in another terminal)</h3>
-              <div class="code-block">
-                <code>cd frontend && npm run dev</code>
-                <button class="copy-btn" on:click={() => copyToClipboard('cd frontend && npm run dev', 'frontend')}>
-                  {copiedSection === 'frontend' ? 'Copied!' : 'Copy'}
-                </button>
-              </div>
-              <p class="note">Opens at http://localhost:5173 (or next available port)</p>
-            </div>
-          </div>
-        </section>
-
-        <!-- Claude Code Hook -->
-        <section class="install-section">
-          <h2>Claude Code Integration</h2>
-          <p class="section-desc">
-            Track your AI prompt usage automatically by setting up the Claude Code hook.
-          </p>
-
-          <div class="step">
-            <div class="step-number">1</div>
-            <div class="step-content">
-              <h3>Add hook to your Claude Code settings</h3>
-              <p class="note">Edit <code>~/.claude/settings.json</code> and add:</p>
-              <div class="code-block code-json">
-                <pre>{`{
-  "hooks": {
-    "PostToolUse": [
-      {
-        "command": "python /path/to/branch_monkey/hooks/claude_code_hook.py",
-        "match": ".*"
-      }
-    ]
-  }
-}`}</pre>
-                <button class="copy-btn" on:click={() => copyToClipboard(`{
-  "hooks": {
-    "PostToolUse": [
-      {
-        "command": "python /path/to/branch_monkey/hooks/claude_code_hook.py",
-        "match": ".*"
-      }
-    ]
-  }
-}`, 'hook')}>
-                  {copiedSection === 'hook' ? 'Copied!' : 'Copy'}
-                </button>
-              </div>
-            </div>
-          </div>
-
-          <div class="step">
-            <div class="step-number">2</div>
-            <div class="step-content">
-              <h3>View your prompts</h3>
-              <p>Navigate to the <strong>Prompts</strong> tab to see token usage, costs, and performance metrics for all your AI interactions.</p>
-            </div>
+          <div class="ai-prompt-box">
+            <pre class="ai-prompt">{aiHookPrompt}</pre>
+            <button
+              class="copy-ai-btn"
+              class:copied={copiedSection === 'ai-hook'}
+              on:click={() => copyAiPrompt(aiHookPrompt, 'ai-hook')}
+            >
+              {copiedSection === 'ai-hook' ? 'Copied!' : 'Copy for AI'}
+            </button>
           </div>
         </section>
 
@@ -331,6 +271,54 @@
     margin: -8px 0 20px 0;
     color: var(--text-secondary);
     font-size: 14px;
+  }
+
+  .ai-section {
+    border: 2px solid var(--accent-primary);
+  }
+
+  .ai-prompt-box {
+    position: relative;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-primary);
+    border-radius: 6px;
+    overflow: hidden;
+  }
+
+  .ai-prompt {
+    margin: 0;
+    padding: 16px;
+    padding-right: 100px;
+    font-family: 'Courier New', monospace;
+    font-size: 13px;
+    line-height: 1.6;
+    color: var(--text-primary);
+    white-space: pre-wrap;
+    word-break: break-word;
+  }
+
+  .copy-ai-btn {
+    position: absolute;
+    top: 12px;
+    right: 12px;
+    padding: 8px 16px;
+    background: var(--accent-primary);
+    border: none;
+    border-radius: 4px;
+    color: var(--bg-primary);
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+
+  .copy-ai-btn:hover {
+    filter: brightness(1.1);
+    transform: scale(1.02);
+  }
+
+  .copy-ai-btn.copied {
+    background: #22c55e;
   }
 
   .step {
