@@ -21,16 +21,24 @@
 
   const aiHookPrompt = `Set up Claude Code hook for Branch Monkey prompt tracking:
 
-Add this to ~/.claude/settings.json in the hooks section:
+Add this to your project's .claude/settings.local.json file:
 {
   "hooks": {
-    "Stop": [{
-      "command": "python /path/to/branch_monkey/hooks/claude_code_hook.py"
-    }]
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python /path/to/branch_monkey/branch_monkey/hooks/claude_code_hook.py"
+          }
+        ]
+      }
+    ]
   }
 }
 
-The "Stop" hook fires once when Claude finishes responding, giving you complete token counts and costs.`;
+The "Stop" hook fires once when Claude finishes responding, giving you complete token counts and costs.
+Note: Replace /path/to/branch_monkey with your actual Branch Monkey installation path.`;
 
   function copyAiPrompt(prompt, section) {
     navigator.clipboard.writeText(prompt).then(() => {

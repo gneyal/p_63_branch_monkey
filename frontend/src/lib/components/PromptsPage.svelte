@@ -246,7 +246,78 @@
   $: totalCost = stats?.totalCost ?? prompts.reduce((sum, p) => sum + (p.cost || 0), 0);
   $: totalTokens = stats?.totalTokens ?? prompts.reduce((sum, p) => sum + (p.totalTokens || 0), 0);
   $: totalPrompts = stats?.totalPrompts ?? prompts.length;
+
+  let copiedId = null;
+  let selectedPrompt = null;
+  let selectedIds = new Set();
+  let copiedModal = null;
+  let copiedMulti = false;
+
+  function copyPromptJson(prompt, event) {
+    event.stopPropagation();
+    const json = JSON.stringify(prompt, null, 2);
+    navigator.clipboard.writeText(json).then(() => {
+      copiedId = prompt.id;
+      setTimeout(() => copiedId = null, 2000);
+    });
+  }
+
+  function copyPromptText(text, field) {
+    navigator.clipboard.writeText(text).then(() => {
+      copiedModal = field;
+      setTimeout(() => copiedModal = null, 2000);
+    });
+  }
+
+  function openModal(prompt) {
+    selectedPrompt = prompt;
+  }
+
+  function closeModal() {
+    selectedPrompt = null;
+  }
+
+  function handleKeydown(event) {
+    if (event.key === 'Escape' && selectedPrompt) {
+      closeModal();
+    }
+  }
+
+  function toggleSelect(id, event) {
+    event.stopPropagation();
+    if (selectedIds.has(id)) {
+      selectedIds.delete(id);
+    } else {
+      selectedIds.add(id);
+    }
+    selectedIds = selectedIds; // trigger reactivity
+  }
+
+  function toggleSelectAll() {
+    if (selectedIds.size === sortedPrompts.length) {
+      selectedIds = new Set();
+    } else {
+      selectedIds = new Set(sortedPrompts.map(p => p.id));
+    }
+  }
+
+  function copySelectedPrompts() {
+    const selected = sortedPrompts.filter(p => selectedIds.has(p.id));
+    const json = JSON.stringify(selected, null, 2);
+    navigator.clipboard.writeText(json).then(() => {
+      copiedMulti = true;
+      setTimeout(() => copiedMulti = false, 2000);
+    });
+  }
+
+  function clearSelection() {
+    selectedIds = new Set();
+  }
+
+  $: hasSelection = selectedIds.size > 0;
 </script>
+
+<svelte:window on:keydown={handleKeydown} />
 
 <main class="prompts-page">
   <Topbar activeView="prompts" />
@@ -312,9 +383,25 @@
             <p>Prompt history will appear here as you interact with AI assistants.</p>
           </div>
         {:else}
+          {#if hasSelection}
+            <div class="selection-bar">
+              <span>{selectedIds.size} selected</span>
+              <button class="selection-btn" class:copied={copiedMulti} on:click={copySelectedPrompts}>
+                {copiedMulti ? '✓ Copied' : 'Copy Selected'}
+              </button>
+              <button class="selection-btn clear" on:click={clearSelection}>Clear</button>
+            </div>
+          {/if}
           <table class="prompts-table">
             <thead>
               <tr>
+                <th class="checkbox-col">
+                  <input
+                    type="checkbox"
+                    checked={selectedIds.size === sortedPrompts.length && sortedPrompts.length > 0}
+                    on:change={toggleSelectAll}
+                  />
+                </th>
                 <th class="sortable" class:sorted={sortColumn === 'timestamp'} on:click={() => sortBy('timestamp')}>
                   Time
                   {#if sortColumn === 'timestamp'}
@@ -345,6 +432,12 @@
                     <span class="sort-indicator">{sortDirection === 'asc' ? '↑' : '↓'}</span>
                   {/if}
                 </th>
+                <th class="sortable" class:sorted={sortColumn === 'totalTokens'} on:click={() => sortBy('totalTokens')}>
+                  Total
+                  {#if sortColumn === 'totalTokens'}
+                    <span class="sort-indicator">{sortDirection === 'asc' ? '↑' : '↓'}</span>
+                  {/if}
+                </th>
                 <th class="sortable" class:sorted={sortColumn === 'cost'} on:click={() => sortBy('cost')}>
                   Cost
                   {#if sortColumn === 'cost'}
@@ -358,12 +451,21 @@
                   {/if}
                 </th>
                 <th>Prompt</th>
+                <th>Response</th>
                 <th>Status</th>
+                <th></th>
               </tr>
             </thead>
             <tbody>
               {#each sortedPrompts as prompt (prompt.id)}
-                <tr class:error={prompt.status === 'error'}>
+                <tr class:error={prompt.status === 'error'} class:selected={selectedIds.has(prompt.id)} class="clickable-row" on:click={() => openModal(prompt)}>
+                  <td class="checkbox-col" on:click|stopPropagation>
+                    <input
+                      type="checkbox"
+                      checked={selectedIds.has(prompt.id)}
+                      on:change={(e) => toggleSelect(prompt.id, e)}
+                    />
+                  </td>
                   <td class="timestamp">{formatTimestamp(prompt.timestamp)}</td>
                   <td>
                     <span class="provider-badge" class:anthropic={prompt.provider === 'anthropic'} class:openai={prompt.provider === 'openai'}>
@@ -373,13 +475,25 @@
                   <td class="model">{prompt.model}</td>
                   <td class="tokens">{formatTokens(prompt.inputTokens)}</td>
                   <td class="tokens">{formatTokens(prompt.outputTokens)}</td>
+                  <td class="tokens">{formatTokens(prompt.totalTokens)}</td>
                   <td class="cost">{formatCost(prompt.cost)}</td>
                   <td class="duration">{formatDuration(prompt.duration)}</td>
                   <td class="preview">{prompt.promptPreview}</td>
+                  <td class="preview">{prompt.responsePreview}</td>
                   <td>
                     <span class="status-badge" class:success={prompt.status === 'success'} class:error={prompt.status === 'error'}>
                       {prompt.status}
                     </span>
+                  </td>
+                  <td class="actions">
+                    <button
+                      class="copy-btn"
+                      class:copied={copiedId === prompt.id}
+                      on:click={(e) => copyPromptJson(prompt, e)}
+                      title="Copy JSON"
+                    >
+                      {copiedId === prompt.id ? '✓' : '⧉'}
+                    </button>
                   </td>
                 </tr>
               {/each}
@@ -512,6 +626,109 @@
   </footer>
 
   <Toast />
+
+  {#if selectedPrompt}
+    <div class="modal-overlay" on:click={closeModal}>
+      <div class="modal-content" on:click|stopPropagation>
+        <div class="modal-header">
+          <h3>Prompt Details</h3>
+          <button class="modal-close" on:click={closeModal}>×</button>
+        </div>
+        <div class="modal-body">
+          <div class="detail-grid">
+            <div class="detail-item">
+              <span class="detail-label">Time</span>
+              <span class="detail-value">{formatTimestamp(selectedPrompt.timestamp)}</span>
+            </div>
+            <div class="detail-item">
+              <span class="detail-label">Provider</span>
+              <span class="detail-value">{selectedPrompt.provider}</span>
+            </div>
+            <div class="detail-item">
+              <span class="detail-label">Model</span>
+              <span class="detail-value">{selectedPrompt.model}</span>
+            </div>
+            <div class="detail-item">
+              <span class="detail-label">Session ID</span>
+              <span class="detail-value mono">{selectedPrompt.sessionId || '-'}</span>
+            </div>
+            <div class="detail-item">
+              <span class="detail-label">Input Tokens</span>
+              <span class="detail-value">{formatTokens(selectedPrompt.inputTokens)}</span>
+            </div>
+            <div class="detail-item">
+              <span class="detail-label">Output Tokens</span>
+              <span class="detail-value">{formatTokens(selectedPrompt.outputTokens)}</span>
+            </div>
+            <div class="detail-item">
+              <span class="detail-label">Total Tokens</span>
+              <span class="detail-value">{formatTokens(selectedPrompt.totalTokens)}</span>
+            </div>
+            <div class="detail-item">
+              <span class="detail-label">Cost</span>
+              <span class="detail-value">{formatCost(selectedPrompt.cost)}</span>
+            </div>
+            <div class="detail-item">
+              <span class="detail-label">Duration</span>
+              <span class="detail-value">{formatDuration(selectedPrompt.duration)}</span>
+            </div>
+            <div class="detail-item">
+              <span class="detail-label">Status</span>
+              <span class="detail-value">
+                <span class="status-badge" class:success={selectedPrompt.status === 'success'} class:error={selectedPrompt.status === 'error'}>
+                  {selectedPrompt.status}
+                </span>
+              </span>
+            </div>
+          </div>
+
+          <div class="detail-section">
+            <div class="section-header">
+              <h4>Prompt</h4>
+              {#if selectedPrompt.promptPreview}
+                <button
+                  class="copy-text-btn"
+                  class:copied={copiedModal === 'prompt'}
+                  on:click={() => copyPromptText(selectedPrompt.promptPreview, 'prompt')}
+                >
+                  {copiedModal === 'prompt' ? '✓' : 'Copy'}
+                </button>
+              {/if}
+            </div>
+            <div class="detail-text">{selectedPrompt.promptPreview || '(empty)'}</div>
+          </div>
+
+          <div class="detail-section">
+            <div class="section-header">
+              <h4>Response</h4>
+              {#if selectedPrompt.responsePreview}
+                <button
+                  class="copy-text-btn"
+                  class:copied={copiedModal === 'response'}
+                  on:click={() => copyPromptText(selectedPrompt.responsePreview, 'response')}
+                >
+                  {copiedModal === 'response' ? '✓' : 'Copy'}
+                </button>
+              {/if}
+            </div>
+            <div class="detail-text">{selectedPrompt.responsePreview || '(empty)'}</div>
+          </div>
+
+          {#if selectedPrompt.errorMessage}
+            <div class="detail-section error-section">
+              <h4>Error</h4>
+              <div class="detail-text error-text">{selectedPrompt.errorMessage}</div>
+            </div>
+          {/if}
+
+          <div class="detail-section">
+            <h4>JSON</h4>
+            <pre class="json-preview">{JSON.stringify(selectedPrompt, null, 2)}</pre>
+          </div>
+        </div>
+      </div>
+    </div>
+  {/if}
 </main>
 
 <style>
@@ -614,7 +831,8 @@
     background: var(--bg-primary);
     border: 1px solid var(--border-primary);
     border-radius: 4px;
-    overflow: hidden;
+    overflow-x: auto;
+    overflow-y: hidden;
   }
 
   .loading-state {
@@ -656,6 +874,7 @@
 
   .prompts-table {
     width: 100%;
+    min-width: 1200px;
     border-collapse: collapse;
     font-size: 13px;
   }
@@ -781,6 +1000,269 @@
   .status-badge.error {
     background: rgba(239, 68, 68, 0.15);
     color: #ef4444;
+  }
+
+  .actions {
+    text-align: center;
+    width: 40px;
+  }
+
+  .copy-btn {
+    padding: 4px 8px;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-primary);
+    border-radius: 3px;
+    color: var(--text-secondary);
+    font-size: 12px;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+
+  .copy-btn:hover {
+    background: var(--bg-hover);
+    color: var(--text-primary);
+    border-color: var(--accent-primary);
+  }
+
+  .copy-btn.copied {
+    background: rgba(34, 197, 94, 0.15);
+    color: #22c55e;
+    border-color: #22c55e;
+  }
+
+  .clickable-row {
+    cursor: pointer;
+  }
+
+  .clickable-row:hover {
+    background: var(--bg-hover);
+  }
+
+  .clickable-row.selected {
+    background: rgba(59, 130, 246, 0.1);
+  }
+
+  .checkbox-col {
+    width: 40px;
+    text-align: center;
+  }
+
+  .checkbox-col input {
+    cursor: pointer;
+  }
+
+  .selection-bar {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 16px;
+    background: var(--bg-primary);
+    border: 1px solid var(--accent-primary);
+    border-bottom: none;
+    border-radius: 4px 4px 0 0;
+    font-size: 13px;
+    color: var(--text-primary);
+  }
+
+  .selection-btn {
+    padding: 4px 12px;
+    background: var(--accent-primary);
+    border: none;
+    border-radius: 3px;
+    color: white;
+    font-size: 12px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+
+  .selection-btn:hover {
+    opacity: 0.9;
+  }
+
+  .selection-btn.copied {
+    background: #22c55e;
+  }
+
+  .selection-btn.clear {
+    background: transparent;
+    border: 1px solid var(--border-primary);
+    color: var(--text-secondary);
+  }
+
+  .selection-btn.clear:hover {
+    background: var(--bg-hover);
+    color: var(--text-primary);
+  }
+
+  /* Modal styles */
+  .modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.6);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+  }
+
+  .modal-content {
+    background: var(--bg-primary);
+    border: 1px solid var(--border-primary);
+    border-radius: 8px;
+    width: 90%;
+    max-width: 700px;
+    max-height: 85vh;
+    display: flex;
+    flex-direction: column;
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+  }
+
+  .modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 16px 20px;
+    border-bottom: 1px solid var(--border-primary);
+  }
+
+  .modal-header h3 {
+    margin: 0;
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--text-primary);
+  }
+
+  .modal-close {
+    background: none;
+    border: none;
+    font-size: 24px;
+    color: var(--text-tertiary);
+    cursor: pointer;
+    padding: 0;
+    line-height: 1;
+  }
+
+  .modal-close:hover {
+    color: var(--text-primary);
+  }
+
+  .modal-body {
+    padding: 20px;
+    overflow-y: auto;
+  }
+
+  .detail-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+    gap: 16px;
+    margin-bottom: 24px;
+  }
+
+  .detail-item {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .detail-label {
+    font-size: 10px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--text-tertiary);
+  }
+
+  .detail-value {
+    font-size: 14px;
+    color: var(--text-primary);
+  }
+
+  .detail-value.mono {
+    font-family: 'Courier New', monospace;
+    font-size: 12px;
+  }
+
+  .detail-section {
+    margin-bottom: 20px;
+  }
+
+  .section-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 8px;
+  }
+
+  .section-header h4 {
+    margin: 0;
+  }
+
+  .copy-text-btn {
+    padding: 3px 10px;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-primary);
+    border-radius: 3px;
+    color: var(--text-secondary);
+    font-size: 11px;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+
+  .copy-text-btn:hover {
+    background: var(--bg-hover);
+    color: var(--text-primary);
+    border-color: var(--accent-primary);
+  }
+
+  .copy-text-btn.copied {
+    background: rgba(34, 197, 94, 0.15);
+    color: #22c55e;
+    border-color: #22c55e;
+  }
+
+  .detail-section h4 {
+    margin: 0 0 8px 0;
+    font-size: 12px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--text-tertiary);
+  }
+
+  .detail-text {
+    padding: 12px;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-primary);
+    border-radius: 4px;
+    font-size: 13px;
+    line-height: 1.6;
+    color: var(--text-primary);
+    white-space: pre-wrap;
+    word-break: break-word;
+  }
+
+  .error-section .detail-text {
+    background: rgba(239, 68, 68, 0.1);
+    border-color: rgba(239, 68, 68, 0.3);
+    color: #ef4444;
+  }
+
+  .json-preview {
+    margin: 0;
+    padding: 12px;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-primary);
+    border-radius: 4px;
+    font-family: 'Courier New', monospace;
+    font-size: 11px;
+    line-height: 1.5;
+    color: var(--text-secondary);
+    overflow-x: auto;
+    max-height: 200px;
   }
 
   .app-footer {
