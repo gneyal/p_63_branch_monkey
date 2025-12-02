@@ -10,9 +10,9 @@
   import { push } from 'svelte-spa-router';
 
   const routes = {
-    '/': MainApp,
-    '/commits': MainApp,
+    '/': LandingPage,
     '/home': LandingPage,
+    '/commits': MainApp,
     '/tasks': TasksPage,
     '/prompts': PromptsPage,
     '/architecture': ArchitecturePage,
