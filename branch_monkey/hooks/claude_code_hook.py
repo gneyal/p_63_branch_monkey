@@ -163,10 +163,22 @@ def main():
             error_message=None
         )
 
-        # Output result as JSON
+        log_debug(f"Logged prompt id={result.get('id')}, model={model}, tokens={input_tokens}+{output_tokens}")
+
+        # Output result as JSON (stdout for success)
         print(json.dumps({'success': True, 'id': result.get('id')}))
 
+        # User-friendly message to stderr (visible in Claude Code)
+        total_tokens = input_tokens + output_tokens
+        if total_tokens > 0:
+            print(f"[Branch Monkey] Logged: {model} | {input_tokens:,}+{output_tokens:,} tokens", file=sys.stderr)
+        else:
+            print(f"[Branch Monkey] Logged prompt (no token data)", file=sys.stderr)
+
     except Exception as e:
+        log_debug(f"Error: {str(e)}")
+        # Error message to stderr
+        print(f"[Branch Monkey] Failed to log prompt: {str(e)}", file=sys.stderr)
         print(json.dumps({'success': False, 'error': str(e)}), file=sys.stderr)
         sys.exit(1)
 
