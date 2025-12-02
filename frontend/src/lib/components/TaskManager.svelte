@@ -1700,6 +1700,29 @@
     flex-direction: column;
     gap: 8px;
     min-width: 0;
+    min-height: 60px;
+  }
+
+  .kanban-column.drag-over .column-tasks::after {
+    content: '↓ Drop at end';
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-top: 4px;
+    padding: 12px 8px;
+    border: 2px dashed var(--accent-primary);
+    border-radius: 4px;
+    background: rgba(var(--accent-rgb, 59, 130, 246), 0.08);
+    font-size: 10px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--accent-primary);
+  }
+
+  /* Hide the bottom drop zone when hovering over a specific task */
+  .kanban-column.drag-over .column-tasks:has(.drag-over-task)::after {
+    display: none;
   }
 
   .task-card {
@@ -1720,13 +1743,44 @@
   }
 
   .task-card.dragging {
-    opacity: 0.5;
+    opacity: 0.3;
     cursor: grabbing;
+    transform: scale(0.98);
   }
 
   .task-card.drag-over-task {
-    border-top: 2px solid var(--accent-primary);
-    margin-top: -2px;
+    position: relative;
+    margin-top: 40px;
+    transition: margin-top 0.15s ease;
+  }
+
+  .task-card.drag-over-task::before {
+    content: '';
+    position: absolute;
+    top: -36px;
+    left: 0;
+    right: 0;
+    height: 32px;
+    background: rgba(var(--accent-rgb, 59, 130, 246), 0.1);
+    border-radius: 4px;
+    border: 2px dashed var(--accent-primary);
+  }
+
+  .task-card.drag-over-task::after {
+    content: '↓ Drop here';
+    position: absolute;
+    top: -32px;
+    left: 0;
+    right: 0;
+    height: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 10px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--accent-primary);
   }
 
   .task-card:active {
@@ -1820,6 +1874,14 @@
     border: 1px dashed var(--border-secondary);
     border-radius: 3px;
     opacity: 0.6;
+  }
+
+  .kanban-column.drag-over .empty-column {
+    border-color: var(--accent-primary);
+    border-width: 2px;
+    background: rgba(var(--accent-rgb, 59, 130, 246), 0.08);
+    color: var(--accent-primary);
+    opacity: 1;
   }
 
   /* Edit in place */
