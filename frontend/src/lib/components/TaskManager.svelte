@@ -630,6 +630,23 @@
     draggedTask = task;
     e.dataTransfer.effectAllowed = 'move';
     e.dataTransfer.setData('text/plain', task.id);
+
+    // Create tilted drag image
+    const dragImage = e.target.cloneNode(true);
+    dragImage.style.position = 'absolute';
+    dragImage.style.top = '-1000px';
+    dragImage.style.transform = 'rotate(-3deg) scale(1.02)';
+    dragImage.style.boxShadow = '0 10px 30px rgba(0,0,0,0.25)';
+    dragImage.style.opacity = '0.9';
+    dragImage.style.pointerEvents = 'none';
+    dragImage.style.width = e.target.offsetWidth + 'px';
+    document.body.appendChild(dragImage);
+    e.dataTransfer.setDragImage(dragImage, e.target.offsetWidth / 2, 20);
+
+    // Clean up after drag starts
+    setTimeout(() => {
+      document.body.removeChild(dragImage);
+    }, 0);
   }
 
   function handleDragEnd() {
@@ -1786,7 +1803,6 @@
   .task-card.dragging {
     opacity: 0.3;
     cursor: grabbing;
-    transform: scale(0.98);
   }
 
   .task-card.drag-over-task {
