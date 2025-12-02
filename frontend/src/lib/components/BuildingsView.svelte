@@ -45,10 +45,39 @@
       groups.get(key).commits.push(commit);
     });
 
-    // Convert to array and sort by date
-    const buildings = Array.from(groups.values()).sort((a, b) =>
-      new Date(a.date) - new Date(b.date)
-    );
+    // Find date range and fill in empty days/weeks
+    const allDates = Array.from(groups.keys()).sort();
+    if (allDates.length === 0) {
+      nodes.set([]);
+      edges.set([]);
+      return;
+    }
+
+    const startDate = new Date(allDates[0]);
+    const endDate = new Date(allDates[allDates.length - 1]);
+    const buildings = [];
+
+    // Generate all dates in range
+    const currentDate = new Date(startDate);
+    while (currentDate <= endDate) {
+      let key;
+      if (groupBy === 'day') {
+        key = currentDate.toISOString().split('T')[0];
+        // Add existing group or empty placeholder
+        buildings.push(groups.get(key) || { date: key, commits: [] });
+        // Move to next day
+        currentDate.setDate(currentDate.getDate() + 1);
+      } else {
+        const weekStart = getWeekStart(currentDate);
+        key = weekStart.toISOString().split('T')[0];
+        // Only add if we haven't added this week yet
+        if (!buildings.find(b => b.date === key)) {
+          buildings.push(groups.get(key) || { date: key, commits: [] });
+        }
+        // Move to next week
+        currentDate.setDate(currentDate.getDate() + 7);
+      }
+    }
 
     // Convert to Svelte Flow nodes - one node per commit, stacked vertically by date
     const newNodes = [];
@@ -58,6 +87,8 @@
 
     buildings.forEach((building, columnIndex) => {
       const xPos = columnIndex * columnWidth;
+      const commitCount = building.commits.length;
+      const isEmpty = commitCount === 0;
 
       // Add date label node (centered with commits)
       // CommitNode is ~220px wide, date label is 150px, so offset by (220-150)/2 = 35px
@@ -66,11 +97,11 @@
         type: 'input',
         position: { x: xPos + 35, y: baseY + 20 },
         data: {
-          label: formatDate(building.date)
+          label: `${formatDate(building.date)}${isEmpty ? '\n0 commits' : ''}`
         },
         draggable: false,
         selectable: false,
-        style: 'background: var(--bg-secondary); border: 1px solid var(--border-primary); padding: 8px 12px; font-size: 10px; font-weight: 600; color: var(--text-tertiary); text-transform: uppercase; letter-spacing: 0.5px; border-radius: 1px; text-align: center; width: 150px;'
+        style: `background: var(--bg-secondary); border: 1px solid var(--border-primary); padding: 8px 12px; font-size: 10px; font-weight: 600; color: ${isEmpty ? 'var(--text-tertiary)' : 'var(--text-secondary)'}; text-transform: uppercase; letter-spacing: 0.5px; border-radius: 1px; text-align: center; width: 150px; opacity: ${isEmpty ? '0.5' : '1'};`
       });
 
       // Add commit nodes stacked vertically (bottom to top, oldest to newest)
