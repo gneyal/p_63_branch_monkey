@@ -41,6 +41,8 @@
 
   // Task detail view state
   let viewingTask = null;
+  let copiedTaskId = null;
+  let copiedWithPlan = false;
 
   // Versions menu state
   let showVersionsMenu = false;
@@ -594,7 +596,46 @@
 
     try {
       await navigator.clipboard.writeText(json);
-      showToast('Copied to clipboard', 'success');
+      copiedTaskId = task.id;
+      copiedWithPlan = false;
+      setTimeout(() => copiedTaskId = null, 2000);
+    } catch (err) {
+      showToast('Failed to copy to clipboard', 'error');
+    }
+  }
+
+  async function handleCopyTaskWithPlan(task) {
+    const prompt = `## Task
+${task.title}
+
+${task.description || ''}
+
+---
+
+Please help me implement this task:
+
+1. **Deep Plan**: Before writing any code, create a detailed implementation plan. Consider:
+   - What files need to be created or modified
+   - What components/functions are needed
+   - What edge cases to handle
+   - What dependencies or imports are required
+   - The order of implementation steps
+
+2. **Implementation**: After I approve the plan, implement the solution step by step.
+
+3. **Tests**: Write comprehensive tests covering:
+   - Happy path scenarios
+   - Edge cases
+   - Error handling
+   - Integration with existing code
+
+Task ID: ${task.id}`;
+
+    try {
+      await navigator.clipboard.writeText(prompt);
+      copiedTaskId = task.id;
+      copiedWithPlan = true;
+      setTimeout(() => { copiedTaskId = null; copiedWithPlan = false; }, 2000);
     } catch (err) {
       showToast('Failed to copy to clipboard', 'error');
     }
@@ -1485,13 +1526,23 @@
       </div>
 
       <div class="task-detail-footer">
-        {#if editingTask}
-          <button class="action-btn primary" on:click={async () => { await handleSaveEdit(); viewingTask = tasks.find(t => t.id === editingTask?.id) || null; editingTask = null; }}>Save</button>
-          <button class="action-btn" on:click={() => editingTask = null}>Cancel</button>
-        {:else}
-          <button class="action-btn" on:click={() => editingTask = { ...viewingTask }}>Edit</button>
-          <button class="action-btn danger" on:click={() => { handleDeleteTask(viewingTask); viewingTask = null; }}>Delete</button>
-        {/if}
+        <div class="footer-left">
+          <button class="action-btn" on:click={() => handleCopyTask(editingTask || viewingTask)}>
+            {copiedTaskId === (editingTask || viewingTask)?.id && !copiedWithPlan ? 'Copied!' : 'Copy for AI'}
+          </button>
+          <button class="action-btn" on:click={() => handleCopyTaskWithPlan(editingTask || viewingTask)}>
+            {copiedTaskId === (editingTask || viewingTask)?.id && copiedWithPlan ? 'Copied!' : 'Copy + Plan + Tests'}
+          </button>
+        </div>
+        <div class="footer-right">
+          {#if editingTask}
+            <button class="action-btn primary" on:click={async () => { await handleSaveEdit(); viewingTask = tasks.find(t => t.id === editingTask?.id) || null; editingTask = null; }}>Save</button>
+            <button class="action-btn" on:click={() => editingTask = null}>Cancel</button>
+          {:else}
+            <button class="action-btn" on:click={() => editingTask = { ...viewingTask }}>Edit</button>
+            <button class="action-btn danger" on:click={() => { handleDeleteTask(viewingTask); viewingTask = null; }}>Delete</button>
+          {/if}
+        </div>
       </div>
     </div>
   </div>
@@ -2732,10 +2783,20 @@
 
   .task-detail-footer {
     display: flex;
-    justify-content: flex-end;
-    gap: 10px;
+    justify-content: space-between;
+    align-items: center;
     padding: 16px 24px;
     border-top: 1px solid var(--border-secondary);
     background: var(--bg-secondary);
+  }
+
+  .task-detail-footer .footer-left {
+    display: flex;
+    gap: 10px;
+  }
+
+  .task-detail-footer .footer-right {
+    display: flex;
+    gap: 10px;
   }
 </style>

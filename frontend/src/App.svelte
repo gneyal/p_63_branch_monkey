@@ -6,6 +6,7 @@
   import PromptsPage from './lib/components/PromptsPage.svelte';
   import ArchitecturePage from './lib/components/ArchitecturePage.svelte';
   import TestsPage from './lib/components/TestsPage.svelte';
+  import SpecBuilder from './lib/components/SpecBuilder.svelte';
   import InstallPage from './lib/components/InstallPage.svelte';
   import { push } from 'svelte-spa-router';
 
@@ -17,6 +18,7 @@
     '/prompts': PromptsPage,
     '/architecture': ArchitecturePage,
     '/tests': TestsPage,
+    '/spec': SpecBuilder,
     '/install': InstallPage,
   };
 
