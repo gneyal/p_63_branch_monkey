@@ -2,7 +2,7 @@
   import { push } from 'svelte-spa-router';
   import RepoSelector from './RepoSelector.svelte';
 
-  export let activeView = 'commits'; // 'commits', 'tasks', 'prompts', 'arch', 'tests', 'spec'
+  export let activeView = 'commits'; // 'commits', 'tasks', 'prompts', 'arch', 'tests', 'spec', 'standards'
 
   let showMonkey = false;
   let monkeyFrame = 0;
@@ -82,6 +82,10 @@
 
   function goToSpec() {
     push('/spec');
+  }
+
+  function goToStandards() {
+    push('/standards');
   }
 
   function goToInstall() {
@@ -169,6 +173,14 @@
         title="Spec Builder"
       >
         Spec
+      </button>
+      <button
+        class="view-btn"
+        class:active={activeView === 'standards'}
+        on:click={goToStandards}
+        title="Standards"
+      >
+        Standards
       </button>
     </div>
   </div>
