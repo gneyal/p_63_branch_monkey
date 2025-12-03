@@ -1912,12 +1912,20 @@ def get_remote_status():
         # Get remote name
         remote_name = remote_branch.split('/')[0] if '/' in remote_branch else 'origin'
 
+        # Get remote commit SHA
+        remote_sha = subprocess.check_output(
+            ["git", "rev-parse", remote_branch],
+            cwd=REPO_PATH,
+            text=True
+        ).strip()
+
         return {
             "success": True,
             "has_remote": True,
             "current_branch": current_branch,
             "remote_branch": remote_branch,
             "remote_name": remote_name,
+            "remote_sha": remote_sha,
             "ahead": ahead,
             "behind": behind,
             "synced": ahead == 0 and behind == 0

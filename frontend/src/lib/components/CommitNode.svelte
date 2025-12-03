@@ -189,6 +189,8 @@
   $: borderColor = getBranchColor(data.branches);
   $: backgroundColor = getBranchBackground(data.branches);
   $: isHead = data.is_head;
+  $: isAhead = data.isAhead;
+  $: isRemote = data.isRemote;
 
   function handleMouseEnter() {
     if (hideMenuTimeout) {
@@ -226,6 +228,8 @@
 <div
   class="commit-node z-[1200]"
   class:is-head={isHead}
+  class:is-ahead={isAhead}
+  class:is-remote={isRemote}
   class:has-open-panel={showPrompt || showNotes || showFullMessage}
   style="border-color: {borderColor}; background: {backgroundColor};"
   on:mouseenter={handleMouseEnter}
@@ -437,6 +441,47 @@
   .commit-node.is-head {
     border-width: 2px;
     box-shadow: var(--shadow-medium);
+  }
+
+  .commit-node.is-ahead {
+    border-left: 4px solid #10b981;
+    background: linear-gradient(90deg, rgba(16, 185, 129, 0.15) 0%, var(--bg-primary) 30%);
+    box-shadow: var(--shadow-small), inset 4px 0 0 #10b981;
+  }
+
+  .commit-node.is-ahead::before {
+    content: 'LOCAL';
+    position: absolute;
+    top: -10px;
+    right: 8px;
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    color: #fff;
+    background: #10b981;
+    padding: 3px 8px;
+    border-radius: 2px;
+  }
+
+  .commit-node.is-remote {
+    border: 2px solid #f59e0b;
+    position: relative;
+    box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.3), var(--shadow-medium);
+  }
+
+  .commit-node.is-remote::after {
+    content: 'ORIGIN';
+    position: absolute;
+    top: -12px;
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    color: #fff;
+    background: #f59e0b;
+    padding: 4px 12px;
+    border-radius: 2px;
   }
 
   .node-content {

@@ -3,7 +3,7 @@
   import { push } from 'svelte-spa-router';
   import { commitTree, isLoading, showToast, showModal, repoInfo, workingTreeStatus } from '../stores/store.js';
   import ThemePicker from './ThemePicker.svelte';
-  import { fetchCommitTree, fetchRepoInfo, fetchWorkingTreeStatus } from '../services/api.js';
+  import { fetchCommitTree, fetchRepoInfo, fetchWorkingTreeStatus, fetchRemoteStatus } from '../services/api.js';
   import Toast from './Toast.svelte';
   import Modal from './Modal.svelte';
   import CommitTree from './CommitTree.svelte';
@@ -20,6 +20,7 @@
   let showPromptsLibrary = false;
   let showContextLibrary = false;
   let currentView = 'buildings'; // 'flow' or 'buildings'
+  let remoteStatus = null;
   let groupBy = 'day'; // 'day' or 'week' for buildings view
   let commitTreeComponent;
 
@@ -27,10 +28,12 @@
     await loadRepoInfo();
     await loadData();
     await loadWorkingTreeStatus();
-    // Refresh working tree status every 5 seconds (don't reset commit tree)
+    await loadRemoteStatus();
+    // Refresh working tree status and remote status periodically
     const interval = setInterval(() => {
       loadWorkingTreeStatus();
-    }, 5000);
+      loadRemoteStatus();
+    }, 10000);
     return () => clearInterval(interval);
   });
 
@@ -49,6 +52,15 @@
       workingTreeStatus.set(status);
     } catch (err) {
       console.error('Failed to load working tree status:', err);
+    }
+  }
+
+  async function loadRemoteStatus() {
+    try {
+      remoteStatus = await fetchRemoteStatus();
+    } catch (err) {
+      console.error('Failed to load remote status:', err);
+      remoteStatus = null;
     }
   }
 
@@ -176,9 +188,10 @@
         {totalCommits}
         loadedCount={currentOffset}
         onLoadMore={loadMore}
+        remoteSha={remoteStatus?.remote_sha}
       />
     {:else}
-      <BuildingsView commits={$commitTree?.commits || []} onNodeClick={handleNodeClick} {groupBy} />
+      <BuildingsView commits={$commitTree?.commits || []} onNodeClick={handleNodeClick} {groupBy} remoteSha={remoteStatus?.remote_sha} />
     {/if}
   </div>
 
@@ -242,6 +255,24 @@
           </button>
         {/if}
       </div>
+      {#if remoteStatus}
+        <button class="remote-sync-indicator" on:click={() => showRemoteStatus = true} title="Remote sync status">
+          {#if !remoteStatus.has_remote}
+            <span class="sync-icon no-remote">○</span>
+            <span class="sync-label">No remote</span>
+          {:else if remoteStatus.ahead === 0 && remoteStatus.behind === 0}
+            <span class="sync-icon synced">✓</span>
+            <span class="sync-label">Synced</span>
+          {:else}
+            {#if remoteStatus.ahead > 0}
+              <span class="sync-ahead">↑{remoteStatus.ahead}</span>
+            {/if}
+            {#if remoteStatus.behind > 0}
+              <span class="sync-behind">↓{remoteStatus.behind}</span>
+            {/if}
+          {/if}
+        </button>
+      {/if}
     </div>
 
     <div class="footer-right">
@@ -483,5 +514,53 @@
     .footer-right {
       justify-content: center;
     }
+  }
+
+  /* Remote Sync Indicator */
+  .remote-sync-indicator {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 12px;
+    background: var(--bg-primary);
+    border: 1px solid var(--border-primary);
+    border-radius: 1px;
+    cursor: pointer;
+    transition: all 0.2s;
+    font-size: 10px;
+    font-weight: 500;
+  }
+
+  .remote-sync-indicator:hover {
+    border-color: var(--border-hover);
+    background: var(--bg-hover);
+  }
+
+  .sync-icon {
+    font-size: 12px;
+  }
+
+  .sync-icon.synced {
+    color: #10b981;
+  }
+
+  .sync-icon.no-remote {
+    color: var(--text-tertiary);
+  }
+
+  .sync-label {
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+
+  .sync-ahead {
+    color: #10b981;
+    font-weight: 600;
+  }
+
+  .sync-behind {
+    color: #f59e0b;
+    font-weight: 600;
   }
 </style>

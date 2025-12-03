@@ -9,6 +9,25 @@
   export let commits = [];
   export let onNodeClick = null;
   export let groupBy = 'day'; // 'day' or 'week'
+  export let remoteSha = null;
+
+  // Calculate which commits are ahead of remote
+  $: aheadShas = calculateAheadShas(commits, remoteSha);
+
+  function calculateAheadShas(commits, remoteSha) {
+    if (!remoteSha || !commits || commits.length === 0) return new Set();
+
+    // Check if remote commit exists in the loaded commits
+    const remoteIndex = commits.findIndex(c => c.sha === remoteSha);
+    if (remoteIndex === -1) return new Set(); // Remote not in loaded commits
+
+    // Only commits BEFORE the remote are ahead
+    const ahead = new Set();
+    for (let i = 0; i < remoteIndex; i++) {
+      ahead.add(commits[i].sha);
+    }
+    return ahead;
+  }
 
   const nodes = writable([]);
   const edges = writable([]);
@@ -22,8 +41,8 @@
     buildTimeline();
   }
 
-  // Also rebuild when working tree status changes
-  $: if ($workingTreeStatus) {
+  // Also rebuild when working tree status or remote sha changes
+  $: if ($workingTreeStatus || remoteSha !== undefined) {
     if (commits && commits.length > 0) {
       buildTimeline();
     }
@@ -135,7 +154,9 @@
             author: commit.author,
             age: commit.age,
             branches: commit.branches,
-            is_head: commit.is_head
+            is_head: commit.is_head,
+            isAhead: aheadShas.has(commit.sha),
+            isRemote: commit.sha === remoteSha
           }
         });
       });

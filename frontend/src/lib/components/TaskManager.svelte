@@ -43,6 +43,7 @@
   let viewingTask = null;
   let copiedTaskId = null;
   let copiedWithPlan = false;
+  let deletingTask = null;
 
   // Versions menu state
   let showVersionsMenu = false;
@@ -572,19 +573,38 @@
     }
   }
 
-  async function handleDeleteTask(task) {
+  function handleDeleteTask(task) {
+    deletingTask = task;
+  }
+
+  async function confirmDeleteTask() {
+    if (!deletingTask) return;
+
+    const taskToDelete = deletingTask;
     const oldTasks = [...tasks];
+
+    // Close modals
+    deletingTask = null;
+    if (viewingTask?.id === taskToDelete.id) {
+      viewingTask = null;
+      editingTask = null;
+    }
+
     // Optimistic delete
-    tasks = tasks.filter(t => t.id !== task.id);
+    tasks = tasks.filter(t => t.id !== taskToDelete.id);
 
     try {
-      await deleteTask(task.id);
+      await deleteTask(taskToDelete.id);
       showToast('Task deleted', 'success');
     } catch (err) {
       // Revert on error
       tasks = oldTasks;
       showToast(`Failed to delete task: ${err.message}`, 'error');
     }
+  }
+
+  function cancelDeleteTask() {
+    deletingTask = null;
   }
 
   async function handleCopyTask(task) {
@@ -858,7 +878,9 @@ Task ID: ${task.id}`;
 
   function handleKeydown(e) {
     if (e.key === 'Escape') {
-      if (deletingVersion) {
+      if (deletingTask) {
+        cancelDeleteTask();
+      } else if (deletingVersion) {
         cancelDeleteVersion();
       } else if (showVersionsMenu) {
         showVersionsMenu = false;
@@ -1469,6 +1491,33 @@ Task ID: ${task.id}`;
   </div>
 {/if}
 
+<!-- Delete Task Confirmation Modal -->
+{#if deletingTask}
+  <div class="modal-backdrop" on:click={cancelDeleteTask} role="dialog">
+    <div class="modal delete-task-modal" on:click|stopPropagation role="document">
+      <div class="modal-header">
+        <h4>Delete Task</h4>
+        <button class="close-btn" on:click={cancelDeleteTask}>×</button>
+      </div>
+      <div class="modal-body">
+        <p class="delete-warning">
+          Are you sure you want to delete this task?
+        </p>
+        <div class="delete-task-preview">
+          <div class="delete-task-title">{deletingTask.title}</div>
+          {#if deletingTask.description}
+            <div class="delete-task-description">{deletingTask.description}</div>
+          {/if}
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="action-btn danger" on:click={confirmDeleteTask}>Delete Task</button>
+        <button class="action-btn" on:click={cancelDeleteTask}>Cancel</button>
+      </div>
+    </div>
+  </div>
+{/if}
+
 <!-- Task Detail Modal -->
 {#if viewingTask}
   <div class="modal-backdrop task-detail-backdrop" on:click={() => { viewingTask = null; editingTask = null; }} role="dialog">
@@ -1540,7 +1589,7 @@ Task ID: ${task.id}`;
             <button class="action-btn" on:click={() => editingTask = null}>Cancel</button>
           {:else}
             <button class="action-btn" on:click={() => editingTask = { ...viewingTask }}>Edit</button>
-            <button class="action-btn danger" on:click={() => { handleDeleteTask(viewingTask); viewingTask = null; }}>Delete</button>
+            <button class="action-btn danger" on:click={() => handleDeleteTask(viewingTask)}>Delete</button>
           {/if}
         </div>
       </div>
@@ -2498,6 +2547,34 @@ Task ID: ${task.id}`;
     margin: 0;
     font-size: 12px;
     color: var(--text-tertiary);
+  }
+
+  /* Delete Task Modal */
+  .delete-task-modal {
+    max-width: 450px;
+  }
+
+  .delete-task-preview {
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-secondary);
+    border-radius: 4px;
+    padding: 12px 16px;
+  }
+
+  .delete-task-title {
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--text-primary);
+    margin-bottom: 6px;
+  }
+
+  .delete-task-description {
+    font-size: 12px;
+    color: var(--text-tertiary);
+    line-height: 1.4;
+    white-space: pre-wrap;
+    max-height: 100px;
+    overflow-y: auto;
   }
 
   .small-btn {
