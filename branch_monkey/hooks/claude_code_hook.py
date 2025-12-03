@@ -33,17 +33,24 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspa
 from branch_monkey.core.prompts import log_claude_code_prompt
 
 
-def read_transcript(transcript_path: str) -> tuple[str, str, str, int, int]:
+def read_transcript(transcript_path: str) -> tuple[str, str, str, int, int, float]:
     """Read the transcript file to extract conversation data.
 
     Returns:
-        tuple of (prompt_preview, response_preview, model, input_tokens, output_tokens)
+        tuple of (prompt_preview, response_preview, model, input_tokens, output_tokens, duration_ms)
     """
+    from datetime import datetime
+
     prompt_preview = ''
     response_preview = ''
     model = 'unknown'
     input_tokens = 0
     output_tokens = 0
+    duration_ms = 0.0
+
+    # Track timestamps for duration calculation
+    last_user_timestamp = None
+    last_assistant_timestamp = None
 
     try:
         with open(transcript_path, 'r') as f:
@@ -58,6 +65,7 @@ def read_transcript(transcript_path: str) -> tuple[str, str, str, int, int]:
                     entry = json.loads(line)
                     msg_type = entry.get('type', '')
                     message = entry.get('message', {})
+                    timestamp_str = entry.get('timestamp', '')
 
                     # Extract from assistant messages
                     if msg_type == 'assistant':
@@ -80,6 +88,13 @@ def read_transcript(transcript_path: str) -> tuple[str, str, str, int, int]:
                                 texts = [b.get('text', '') for b in content if isinstance(b, dict) and 'text' in b]
                                 response_preview = ' '.join(texts)[:500]
 
+                        # Track last assistant timestamp
+                        if not last_assistant_timestamp and timestamp_str:
+                            try:
+                                last_assistant_timestamp = datetime.fromisoformat(timestamp_str.replace('Z', '+00:00'))
+                            except:
+                                pass
+
                     # Extract from user messages
                     elif msg_type == 'user':
                         if not prompt_preview:
@@ -90,16 +105,28 @@ def read_transcript(transcript_path: str) -> tuple[str, str, str, int, int]:
                                 texts = [b.get('text', '') for b in content if isinstance(b, dict) and 'text' in b]
                                 prompt_preview = ' '.join(texts)[:500]
 
+                            # Track user timestamp (only for the message we're extracting)
+                            if timestamp_str:
+                                try:
+                                    last_user_timestamp = datetime.fromisoformat(timestamp_str.replace('Z', '+00:00'))
+                                except:
+                                    pass
+
                     if prompt_preview and response_preview and model != 'unknown':
                         break
 
                 except json.JSONDecodeError:
                     continue
 
+        # Calculate duration if we have both timestamps
+        if last_user_timestamp and last_assistant_timestamp:
+            delta = last_assistant_timestamp - last_user_timestamp
+            duration_ms = max(0, delta.total_seconds() * 1000)
+
     except Exception:
         pass
 
-    return prompt_preview, response_preview, model, input_tokens, output_tokens
+    return prompt_preview, response_preview, model, input_tokens, output_tokens, duration_ms
 
 
 def main():
@@ -141,9 +168,10 @@ def main():
         model = 'unknown'
         input_tokens = 0
         output_tokens = 0
+        duration_ms = 0.0
 
         if transcript_path and Path(transcript_path).exists():
-            prompt_preview, response_preview, model, input_tokens, output_tokens = read_transcript(transcript_path)
+            prompt_preview, response_preview, model, input_tokens, output_tokens, duration_ms = read_transcript(transcript_path)
 
         # User
         user = os.environ.get('USER', 'unknown')
@@ -154,7 +182,7 @@ def main():
             model=model,
             input_tokens=input_tokens,
             output_tokens=output_tokens,
-            duration_ms=0,
+            duration_ms=duration_ms,
             session_id=session_id,
             user=user,
             prompt_preview=prompt_preview,
