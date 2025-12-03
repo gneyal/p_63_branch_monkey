@@ -2010,6 +2010,46 @@ def search_repo_paths(request: PathSearchRequest):
         return {"success": True, "suggestions": []}
 
 
+class FolderRequest(BaseModel):
+    folder_path: str
+
+
+@app.post("/api/repo/list-projects")
+def list_projects_in_folder(request: FolderRequest):
+    """List all git repositories in a parent folder."""
+    import os
+
+    folder_path = request.folder_path.strip()
+    if not folder_path:
+        return {"success": True, "projects": []}
+
+    try:
+        # Expand home directory
+        folder = Path(folder_path).expanduser().resolve()
+
+        if not folder.exists() or not folder.is_dir():
+            return {"success": True, "projects": []}
+
+        projects = []
+
+        try:
+            for item in sorted(folder.iterdir()):
+                if item.is_dir() and not item.name.startswith('.'):
+                    # Check if it's a git repo
+                    if (item / ".git").exists():
+                        projects.append({
+                            "name": item.name,
+                            "path": str(item)
+                        })
+        except PermissionError:
+            pass
+
+        return {"success": True, "projects": projects}
+
+    except Exception as e:
+        return {"success": True, "projects": []}
+
+
 @app.get("/api/notes/{sha}")
 def get_notes(sha: str):
     """Get notes for a commit."""

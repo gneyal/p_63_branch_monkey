@@ -1,6 +1,7 @@
 <script>
   import { onMount, onDestroy } from 'svelte';
   import { push } from 'svelte-spa-router';
+  import ThemePicker from './ThemePicker.svelte';
 
   let scrollY = 0;
   let heroRef;
@@ -198,7 +199,8 @@
       <div class="logo">branch<span class="logo-slash">/</span>monkey</div>
       <nav class="nav">
         <a href="#features">Features</a>
-        <a href="#install">Install</a>
+        <a href="#pricing">Pricing</a>
+        <ThemePicker compact={true} dropdownDirection="down" />
         <button class="nav-cta" on:click={onGetStarted}>Get Started</button>
       </nav>
     </div>
@@ -373,6 +375,179 @@
           <p class="pillar-description">{pillar.description}</p>
         </div>
       {/each}
+    </div>
+  </section>
+
+  <section class="git-section" id="git">
+    <div class="git-section-content">
+      <div class="git-section-visual">
+        <div class="git-visual-card">
+          <div class="git-visual-header">
+            <span class="git-visual-title">Branch History</span>
+            <span class="git-visual-repo">acme-webapp</span>
+          </div>
+          <div class="git-timeline">
+            <div class="timeline-branch">
+              <div class="timeline-branch-header">
+                <span class="timeline-branch-name main">main</span>
+                <span class="timeline-branch-status">protected</span>
+              </div>
+              <div class="timeline-commits">
+                <div class="timeline-commit">
+                  <div class="commit-dot main"></div>
+                  <div class="commit-info">
+                    <span class="commit-msg">Merge: Add authentication</span>
+                    <span class="commit-meta">2 hours ago</span>
+                  </div>
+                </div>
+                <div class="timeline-commit">
+                  <div class="commit-dot main"></div>
+                  <div class="commit-info">
+                    <span class="commit-msg">Update dependencies</span>
+                    <span class="commit-meta">yesterday</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div class="timeline-branch">
+              <div class="timeline-branch-header">
+                <span class="timeline-branch-name feature">feature/dark-mode</span>
+                <span class="timeline-branch-status wip">agent working</span>
+              </div>
+              <div class="timeline-commits">
+                <div class="timeline-commit">
+                  <div class="commit-dot feature"></div>
+                  <div class="commit-info">
+                    <span class="commit-msg">Add theme toggle component</span>
+                    <span class="commit-meta">5 min ago</span>
+                  </div>
+                </div>
+                <div class="timeline-commit">
+                  <div class="commit-dot feature dashed"></div>
+                  <div class="commit-info">
+                    <span class="commit-msg uncommitted">Working changes...</span>
+                    <span class="commit-meta">now</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="git-visual-footer">
+            <span class="git-safety-badge">↺ Revert anytime</span>
+            <span class="git-safety-badge">✓ Main protected</span>
+          </div>
+        </div>
+      </div>
+      <div class="git-section-text">
+        <h2 class="git-section-title">Git is a Lost Art</h2>
+        <p class="git-section-lead">
+          We adapted agents to work with git.
+        </p>
+        <p class="git-section-description">
+          Git is basically perfect, but in today's world people don't have time to learn it properly.
+          Branch Monkey lets you agent-code and vibe-code with safety — you can always go back.
+          Big features get their own branch. Experiments stay isolated. Your main branch stays clean.
+        </p>
+        <ul class="git-section-list">
+          <li>Visual branch management</li>
+          <li>One-click branch creation for features</li>
+          <li>Safe experimentation with easy rollback</li>
+          <li>See your entire history at a glance</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <section class="prompts-section" id="prompts">
+    <div class="prompts-section-content">
+      <div class="prompts-section-text">
+        <h2 class="prompts-section-title">Think Meta-Prompt</h2>
+        <p class="prompts-section-lead">
+          You can't build a framework today without thinking about prompts.
+        </p>
+        <p class="prompts-section-description">
+          Our Prompts feature helps you think at the meta level. Learn from your prompts,
+          track costs across providers, analyze team patterns, and understand what makes
+          your AI interactions effective.
+        </p>
+        <ul class="prompts-section-list">
+          <li>Track token usage and costs per project</li>
+          <li>Analyze prompt patterns across your team</li>
+          <li>Compare effectiveness across AI providers</li>
+          <li>Build your prompt knowledge base</li>
+        </ul>
+      </div>
+      <div class="prompts-section-visual">
+        <div class="prompts-visual-card">
+          <div class="visual-header">Prompt Economy</div>
+          <div class="visual-stats">
+            <div class="visual-stat">
+              <span class="visual-stat-value">47,892</span>
+              <span class="visual-stat-label">Prompts</span>
+            </div>
+            <div class="visual-stat">
+              <span class="visual-stat-value">$12,847</span>
+              <span class="visual-stat-label">Total Cost</span>
+            </div>
+            <div class="visual-stat">
+              <span class="visual-stat-value">89.4M</span>
+              <span class="visual-stat-label">Tokens</span>
+            </div>
+          </div>
+          <div class="visual-breakdown">
+            <div class="breakdown-item">
+              <span class="breakdown-provider">Claude</span>
+              <div class="breakdown-bar">
+                <div class="breakdown-fill" style="width: 65%"></div>
+              </div>
+              <span class="breakdown-percent">65%</span>
+            </div>
+            <div class="breakdown-item">
+              <span class="breakdown-provider">GPT-4</span>
+              <div class="breakdown-bar">
+                <div class="breakdown-fill" style="width: 25%"></div>
+              </div>
+              <span class="breakdown-percent">25%</span>
+            </div>
+            <div class="breakdown-item">
+              <span class="breakdown-provider">Other</span>
+              <div class="breakdown-bar">
+                <div class="breakdown-fill" style="width: 10%"></div>
+              </div>
+              <span class="breakdown-percent">10%</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="pricing-section" id="pricing">
+    <div class="pricing-content">
+      <h2 class="pricing-title">Pricing</h2>
+      <div class="pricing-card">
+        <div class="pricing-header">
+          <span class="pricing-name">Free</span>
+          <span class="pricing-badge">Open Source</span>
+        </div>
+        <div class="pricing-price">
+          <span class="price-amount">$0</span>
+          <span class="price-period">forever</span>
+        </div>
+        <ul class="pricing-features">
+          <li>All features included</li>
+          <li>Unlimited projects</li>
+          <li>Local-first, no cloud</li>
+          <li>Full source code access</li>
+        </ul>
+        <div class="pricing-divider"></div>
+        <div class="pricing-support">
+          <p class="support-text">Love the project? Support development</p>
+          <a href="https://github.com/sponsors/gneyal" target="_blank" rel="noopener" class="support-button">
+            Sponsor on GitHub
+          </a>
+        </div>
+      </div>
     </div>
   </section>
 
@@ -1023,6 +1198,504 @@
     line-height: 1.5;
   }
 
+  /* Git Section */
+  .git-section {
+    padding: 100px 40px;
+    background: var(--bg-primary);
+    border-top: 1px solid var(--border-secondary);
+  }
+
+  .git-section-content {
+    max-width: 1100px;
+    margin: 0 auto;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 60px;
+    align-items: center;
+  }
+
+  .git-section-title {
+    font-size: 36px;
+    font-weight: 700;
+    margin: 0 0 16px 0;
+    color: var(--text-primary);
+  }
+
+  .git-section-lead {
+    font-size: 18px;
+    font-weight: 500;
+    color: var(--text-secondary);
+    margin: 0 0 16px 0;
+    line-height: 1.5;
+  }
+
+  .git-section-description {
+    font-size: 15px;
+    color: var(--text-tertiary);
+    margin: 0 0 24px 0;
+    line-height: 1.7;
+  }
+
+  .git-section-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+  }
+
+  .git-section-list li {
+    padding: 8px 0;
+    font-size: 14px;
+    color: var(--text-secondary);
+  }
+
+  .git-section-list li::before {
+    content: '→';
+    margin-right: 12px;
+    color: var(--text-tertiary);
+  }
+
+  .git-visual-card {
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-primary);
+    border-radius: 8px;
+    overflow: hidden;
+  }
+
+  .git-visual-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px 16px;
+    background: var(--bg-primary);
+    border-bottom: 1px solid var(--border-secondary);
+  }
+
+  .git-visual-title {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text-primary);
+  }
+
+  .git-visual-repo {
+    font-size: 11px;
+    font-family: 'Courier New', monospace;
+    color: var(--text-tertiary);
+  }
+
+  .git-timeline {
+    padding: 16px;
+  }
+
+  .timeline-branch {
+    margin-bottom: 16px;
+  }
+
+  .timeline-branch:last-child {
+    margin-bottom: 0;
+  }
+
+  .timeline-branch-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 12px;
+  }
+
+  .timeline-branch-name {
+    font-size: 12px;
+    font-weight: 600;
+    font-family: 'Courier New', monospace;
+    padding: 3px 8px;
+    border-radius: 4px;
+  }
+
+  .timeline-branch-name.main {
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    border: 1px solid var(--text-tertiary);
+  }
+
+  .timeline-branch-name.feature {
+    background: var(--bg-primary);
+    color: var(--text-secondary);
+    border: 1px solid var(--border-primary);
+  }
+
+  .timeline-branch-status {
+    font-size: 10px;
+    color: var(--text-tertiary);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+
+  .timeline-branch-status.wip {
+    color: var(--text-secondary);
+    background: var(--bg-primary);
+    padding: 2px 6px;
+    border-radius: 3px;
+  }
+
+  .timeline-commits {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding-left: 8px;
+    border-left: 2px solid var(--border-secondary);
+  }
+
+  .timeline-commit {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 8px 12px;
+    background: var(--bg-primary);
+    border-radius: 4px;
+    margin-left: 12px;
+    position: relative;
+  }
+
+  .timeline-commit::before {
+    content: '';
+    position: absolute;
+    left: -14px;
+    width: 12px;
+    height: 2px;
+    background: var(--border-secondary);
+  }
+
+  .commit-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+
+  .commit-dot.main {
+    background: var(--text-tertiary);
+  }
+
+  .commit-dot.feature {
+    background: var(--text-secondary);
+  }
+
+  .commit-dot.dashed {
+    background: transparent;
+    border: 2px dashed var(--text-tertiary);
+  }
+
+  .commit-info {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+  }
+
+  .commit-msg {
+    font-size: 12px;
+    color: var(--text-primary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .commit-msg.uncommitted {
+    color: var(--text-tertiary);
+    font-style: italic;
+  }
+
+  .commit-meta {
+    font-size: 10px;
+    color: var(--text-tertiary);
+  }
+
+  .git-visual-footer {
+    display: flex;
+    gap: 12px;
+    padding: 12px 16px;
+    background: var(--bg-primary);
+    border-top: 1px solid var(--border-secondary);
+  }
+
+  .git-safety-badge {
+    font-size: 10px;
+    color: var(--text-tertiary);
+    padding: 4px 8px;
+    background: var(--bg-secondary);
+    border-radius: 4px;
+  }
+
+  /* Prompts Section */
+  .prompts-section {
+    padding: 100px 40px;
+    background: var(--bg-primary);
+    border-top: 1px solid var(--border-secondary);
+  }
+
+  .prompts-section-content {
+    max-width: 1100px;
+    margin: 0 auto;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 60px;
+    align-items: center;
+  }
+
+  .prompts-section-title {
+    font-size: 36px;
+    font-weight: 700;
+    margin: 0 0 16px 0;
+    color: var(--text-primary);
+  }
+
+  .prompts-section-lead {
+    font-size: 18px;
+    font-weight: 500;
+    color: var(--text-secondary);
+    margin: 0 0 16px 0;
+    line-height: 1.5;
+  }
+
+  .prompts-section-description {
+    font-size: 15px;
+    color: var(--text-tertiary);
+    margin: 0 0 24px 0;
+    line-height: 1.7;
+  }
+
+  .prompts-section-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+  }
+
+  .prompts-section-list li {
+    padding: 8px 0;
+    font-size: 14px;
+    color: var(--text-secondary);
+  }
+
+  .prompts-section-list li::before {
+    content: '→';
+    margin-right: 12px;
+    color: var(--text-tertiary);
+  }
+
+  .prompts-visual-card {
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-primary);
+    border-radius: 8px;
+    padding: 24px;
+  }
+
+  .visual-header {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin-bottom: 20px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid var(--border-secondary);
+  }
+
+  .visual-stats {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 16px;
+    margin-bottom: 24px;
+  }
+
+  .visual-stat {
+    text-align: center;
+    padding: 16px;
+    background: var(--bg-primary);
+    border-radius: 6px;
+  }
+
+  .visual-stat-value {
+    display: block;
+    font-size: 24px;
+    font-weight: 700;
+    color: var(--text-primary);
+    margin-bottom: 4px;
+  }
+
+  .visual-stat-label {
+    font-size: 11px;
+    color: var(--text-tertiary);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+
+  .visual-breakdown {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .breakdown-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .breakdown-provider {
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--text-secondary);
+    width: 60px;
+  }
+
+  .breakdown-bar {
+    flex: 1;
+    height: 8px;
+    background: var(--bg-primary);
+    border-radius: 4px;
+    overflow: hidden;
+  }
+
+  .breakdown-fill {
+    height: 100%;
+    background: var(--text-tertiary);
+    border-radius: 4px;
+    transition: width 0.3s ease;
+  }
+
+  .breakdown-percent {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text-tertiary);
+    width: 40px;
+    text-align: right;
+  }
+
+  /* Pricing Section */
+  .pricing-section {
+    padding: 80px 40px;
+    background: var(--bg-secondary);
+  }
+
+  .pricing-content {
+    max-width: 400px;
+    margin: 0 auto;
+    text-align: center;
+  }
+
+  .pricing-title {
+    font-size: 32px;
+    font-weight: 700;
+    margin: 0 0 40px 0;
+    color: var(--text-primary);
+  }
+
+  .pricing-card {
+    background: var(--bg-primary);
+    border: 1px solid var(--border-primary);
+    border-radius: 8px;
+    padding: 32px;
+    text-align: center;
+  }
+
+  .pricing-header {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    margin-bottom: 16px;
+  }
+
+  .pricing-name {
+    font-size: 24px;
+    font-weight: 700;
+    color: var(--text-primary);
+  }
+
+  .pricing-badge {
+    font-size: 10px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    padding: 4px 8px;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-primary);
+    border-radius: 4px;
+    color: var(--text-tertiary);
+  }
+
+  .pricing-price {
+    margin-bottom: 24px;
+  }
+
+  .price-amount {
+    font-size: 48px;
+    font-weight: 700;
+    color: var(--text-primary);
+  }
+
+  .price-period {
+    font-size: 14px;
+    color: var(--text-tertiary);
+    margin-left: 4px;
+  }
+
+  .pricing-features {
+    list-style: none;
+    padding: 0;
+    margin: 0 0 24px 0;
+    text-align: left;
+  }
+
+  .pricing-features li {
+    padding: 8px 0;
+    font-size: 14px;
+    color: var(--text-secondary);
+    border-bottom: 1px solid var(--border-secondary);
+  }
+
+  .pricing-features li:last-child {
+    border-bottom: none;
+  }
+
+  .pricing-features li::before {
+    content: '✓';
+    margin-right: 12px;
+    color: var(--text-tertiary);
+    font-weight: 600;
+  }
+
+  .pricing-divider {
+    height: 1px;
+    background: var(--border-secondary);
+    margin: 24px 0;
+  }
+
+  .pricing-support {
+    text-align: center;
+  }
+
+  .support-text {
+    font-size: 13px;
+    color: var(--text-tertiary);
+    margin: 0 0 12px 0;
+  }
+
+  .support-button {
+    display: inline-block;
+    padding: 10px 20px;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text-secondary);
+    background: transparent;
+    border: 1px solid var(--border-primary);
+    border-radius: 4px;
+    text-decoration: none;
+    transition: all 0.2s;
+  }
+
+  .support-button:hover {
+    background: var(--bg-hover);
+    border-color: var(--border-hover);
+    color: var(--text-primary);
+  }
+
   /* Install Section */
   .install-section {
     padding: 120px 40px;
@@ -1089,6 +1762,32 @@
 
     .pillars-grid {
       grid-template-columns: repeat(3, 1fr);
+    }
+
+    .git-section-content {
+      grid-template-columns: 1fr;
+      gap: 40px;
+    }
+
+    .git-section-visual {
+      order: 2;
+    }
+
+    .git-section-text {
+      order: 1;
+    }
+
+    .git-section-title {
+      font-size: 28px;
+    }
+
+    .prompts-section-content {
+      grid-template-columns: 1fr;
+      gap: 40px;
+    }
+
+    .prompts-section-title {
+      font-size: 28px;
     }
 
     .screenshot-content {

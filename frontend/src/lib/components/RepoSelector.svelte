@@ -1,6 +1,7 @@
 <script>
+  import { onMount } from 'svelte';
   import { repoInfo, showToast } from '../stores/store.js';
-  import { searchRepoPaths, setRepoPath, fetchRepoInfo } from '../services/api.js';
+  import { searchRepoPaths, setRepoPath, fetchRepoInfo, listProjectsInFolder } from '../services/api.js';
 
   let inputValue = '';
   let fullPath = ''; // Store the full path separately
@@ -10,11 +11,17 @@
   let searchTimeout = null;
   let isFocused = false;
 
-  // Recent/Favorites state
+  // Recent/Favorites/All state
   let showRepoMenu = false;
   let activeTab = 'recent';
   let recentRepos = [];
   let favorites = [];
+
+  // All projects from parent folder
+  let parentFolder = '';
+  let allProjects = [];
+  let loadingProjects = false;
+  let showParentFolderInput = false;
 
   // Load data from localStorage
   function loadData() {
@@ -23,6 +30,39 @@
 
     const storedFavorites = localStorage.getItem('branchMonkeyFavorites');
     favorites = storedFavorites ? JSON.parse(storedFavorites) : [];
+
+    // Load parent folder - default to ~/Code based on username
+    const storedParentFolder = localStorage.getItem('branchMonkeyParentFolder');
+    if (storedParentFolder) {
+      parentFolder = storedParentFolder;
+    } else {
+      // Try to detect username from current path
+      const currentPath = $repoInfo?.path || '';
+      const match = currentPath.match(/\/Users\/([^\/]+)/);
+      if (match) {
+        parentFolder = `/Users/${match[1]}/Code`;
+      }
+    }
+  }
+
+  // Save parent folder
+  function saveParentFolder() {
+    localStorage.setItem('branchMonkeyParentFolder', parentFolder);
+    showParentFolderInput = false;
+    loadAllProjects();
+  }
+
+  // Load all projects from parent folder
+  async function loadAllProjects() {
+    if (!parentFolder) return;
+    loadingProjects = true;
+    try {
+      allProjects = await listProjectsInFolder(parentFolder);
+    } catch (error) {
+      console.error('Failed to load projects:', error);
+      allProjects = [];
+    }
+    loadingProjects = false;
   }
 
   // Save recent repo (max 20)
@@ -51,6 +91,11 @@
 
   // Load on mount
   loadData();
+
+  // Load all projects when tab becomes active
+  $: if (activeTab === 'all' && allProjects.length === 0 && parentFolder) {
+    loadAllProjects();
+  }
 
   // Save current repo when it changes
   $: if ($repoInfo.path) {
@@ -155,8 +200,13 @@
     }
   }
 
-  function handleBlur() {
+  function handleBlur(e) {
     setTimeout(() => {
+      // Don't close if focus moved to something inside the repo-selector
+      const activeEl = document.activeElement;
+      if (activeEl && activeEl.closest('.repo-selector')) {
+        return;
+      }
       isFocused = false;
       showSuggestions = false;
       showRepoMenu = false;
@@ -233,6 +283,13 @@
         >
           Favorites
         </button>
+        <button
+          class="menu-tab"
+          class:active={activeTab === 'all'}
+          on:click={() => activeTab = 'all'}
+        >
+          All
+        </button>
       </div>
 
       <div class="menu-content">
@@ -256,7 +313,7 @@
               </div>
             {/each}
           {/if}
-        {:else}
+        {:else if activeTab === 'favorites'}
           {#if favorites.length === 0}
             <div class="empty-state">No favorite repositories</div>
           {:else}
@@ -271,6 +328,51 @@
                   title="Remove from favorites"
                 >
                   ×
+                </button>
+              </div>
+            {/each}
+          {/if}
+        {:else if activeTab === 'all'}
+          <div class="parent-folder-config" on:click|stopPropagation>
+            {#if showParentFolderInput}
+              <div class="parent-folder-input-row">
+                <input
+                  type="text"
+                  bind:value={parentFolder}
+                  placeholder="/Users/username/Code"
+                  class="parent-folder-input"
+                  on:keydown={(e) => e.key === 'Enter' && saveParentFolder()}
+                  on:click|stopPropagation
+                  on:focus|stopPropagation
+                />
+                <button class="save-folder-btn" on:click|stopPropagation={saveParentFolder}>Save</button>
+              </div>
+            {:else}
+              <button class="parent-folder-btn" on:click|stopPropagation={() => showParentFolderInput = true}>
+                <span class="folder-path">{parentFolder || 'Set parent folder...'}</span>
+                <span class="edit-icon">✎</span>
+              </button>
+            {/if}
+          </div>
+          {#if loadingProjects}
+            <div class="empty-state">Loading projects...</div>
+          {:else if !parentFolder}
+            <div class="empty-state">Set a parent folder to see all projects</div>
+          {:else if allProjects.length === 0}
+            <div class="empty-state">No git repositories found in {parentFolder}</div>
+          {:else}
+            {#each allProjects as project}
+              <div class="repo-item">
+                <button class="repo-path" on:click={() => selectRepo(project.path)} title={project.path}>
+                  {project.name}
+                </button>
+                <button
+                  class="star-btn"
+                  class:starred={favorites.includes(project.path)}
+                  on:click|stopPropagation={() => toggleFavorite(project.path)}
+                  title={favorites.includes(project.path) ? 'Remove from favorites' : 'Add to favorites'}
+                >
+                  ★
                 </button>
               </div>
             {/each}
@@ -499,6 +601,83 @@
   }
 
   .remove-btn:hover {
+    color: var(--text-primary);
+  }
+
+  .parent-folder-config {
+    padding: 8px 12px;
+    border-bottom: 1px solid var(--border-secondary);
+    background: var(--bg-secondary);
+  }
+
+  .parent-folder-btn {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+    padding: 8px 10px;
+    background: var(--bg-primary);
+    border: 1px solid var(--border-primary);
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+
+  .parent-folder-btn:hover {
+    border-color: var(--border-hover);
+  }
+
+  .folder-path {
+    font-size: 11px;
+    font-family: 'Courier', monospace;
+    color: var(--text-secondary);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .edit-icon {
+    font-size: 12px;
+    color: var(--text-tertiary);
+  }
+
+  .parent-folder-input-row {
+    display: flex;
+    gap: 8px;
+  }
+
+  .parent-folder-input {
+    flex: 1;
+    padding: 8px 10px;
+    background: var(--bg-primary);
+    border: 1px solid var(--border-primary);
+    border-radius: 4px;
+    color: var(--text-primary);
+    font-size: 11px;
+    font-family: 'Courier', monospace;
+    outline: none;
+  }
+
+  .parent-folder-input:focus {
+    border-color: var(--border-hover);
+  }
+
+  .save-folder-btn {
+    padding: 8px 12px;
+    background: var(--bg-primary);
+    border: 1px solid var(--border-primary);
+    border-radius: 4px;
+    color: var(--text-secondary);
+    font-size: 9px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+
+  .save-folder-btn:hover {
+    background: var(--bg-hover);
     color: var(--text-primary);
   }
 </style>

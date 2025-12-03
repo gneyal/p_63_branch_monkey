@@ -26,16 +26,13 @@ Add this to your project's .claude/settings.local.json file:
   "hooks": {
     "Stop": [
       {
-        "hooks": [
-          {
-            "type": "command",
-            "command": "python /path/to/branch_monkey/branch_monkey/hooks/claude_code_hook.py"
-          }
-        ]
+        "command": "python /path/to/branch_monkey/branch_monkey/hooks/claude_code_hook.py"
       }
     ]
   }
 }
+
+This installs the hook per-project, so each project tracks its own prompts separately.
 
 The "Stop" hook fires once when Claude finishes responding, giving you complete token counts and costs.
 
@@ -43,7 +40,6 @@ Examples - replace the path based on where you cloned Branch Monkey:
 
 macOS:
   "command": "python /Users/john/Code/branch_monkey/branch_monkey/hooks/claude_code_hook.py"
-  "command": "python /Users/sarah/projects/branch_monkey/branch_monkey/hooks/claude_code_hook.py"
 
 Linux:
   "command": "python /home/alex/dev/branch_monkey/branch_monkey/hooks/claude_code_hook.py"

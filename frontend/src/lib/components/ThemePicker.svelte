@@ -5,6 +5,7 @@
   const dispatch = createEventDispatcher();
 
   export let compact = false;
+  export let dropdownDirection = 'up'; // 'up' or 'down'
 
   let showPicker = false;
 
@@ -49,7 +50,7 @@
   </button>
 
   {#if showPicker}
-    <div class="theme-dropdown" on:click|stopPropagation>
+    <div class="theme-dropdown" class:dropdown-down={dropdownDirection === 'down'} on:click|stopPropagation>
       <div class="theme-dropdown-header">
         <span class="dropdown-title">Color Themes</span>
         <span class="dropdown-subtitle">vim-inspired</span>
@@ -175,6 +176,11 @@
     box-shadow: var(--shadow-large);
     z-index: 1000;
     overflow: hidden;
+  }
+
+  .theme-dropdown.dropdown-down {
+    bottom: auto;
+    top: calc(100% + 4px);
   }
 
   .theme-dropdown-header {

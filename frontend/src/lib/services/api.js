@@ -736,3 +736,23 @@ export async function clearPromptLogs() {
   }
   return response.json();
 }
+
+/**
+ * List all git projects in a parent folder
+ * @param {string} folderPath - Parent folder path
+ * @returns {Promise<Array>} List of projects with name and path
+ */
+export async function listProjectsInFolder(folderPath) {
+  const response = await fetch(`${API_BASE}/repo/list-projects`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ folder_path: folderPath }),
+  });
+  if (!response.ok) {
+    throw new Error(`Failed to list projects: ${response.statusText}`);
+  }
+  const data = await response.json();
+  return data.projects || [];
+}
