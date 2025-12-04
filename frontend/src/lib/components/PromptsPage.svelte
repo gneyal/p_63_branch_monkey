@@ -289,6 +289,73 @@
   }
 
   $: hasSelection = selectedIds.size > 0;
+
+  // Insights Generator state
+  let showInsightsGenerator = false;
+  let insightsPromptCount = 20;
+  let selectedInsightType = 'productivity_insights';
+  let copiedInsights = false;
+  let customQuestion = '';
+
+  const insightTypes = [
+    { id: 'productivity_insights', label: 'Productivity Insights', question: 'Analyze these prompts for productivity patterns. What can you tell about team velocity, focus areas, and potential bottlenecks?' },
+    { id: 'quality_assessment', label: 'Quality Assessment', question: 'Evaluate the quality of these AI interactions. Which prompts got good results? Which ones show room for improvement in how the team prompts AI?' },
+    { id: 'team_segmentation', label: 'Team Segmentation', question: 'Segment the team based on these prompts. Identify distinct working styles, specializations, and roles. Who focuses on what? Are there clear patterns that distinguish different team members or groups?' },
+    { id: 'individual_improvement', label: 'Individual Improvement', question: 'For each identifiable team member or session pattern, suggest specific improvements. What skills should each person develop? What prompting techniques would help them be more effective?' },
+    { id: 'team_patterns', label: 'Team Usage Patterns', question: 'Analyze these prompts and identify patterns in how the team is using AI. What types of tasks are most common? Are there any inefficiencies or missed opportunities?' },
+    { id: 'skill_gaps', label: 'Skill Gaps Analysis', question: 'Based on these prompts, identify areas where the team might benefit from training or better tooling. What tasks seem to struggle most with AI assistance?' },
+    { id: 'cost_optimization', label: 'Cost Optimization', question: 'Review these prompts and suggest ways to optimize AI costs. Are there prompts that could use cheaper models? Are there redundant or wasteful patterns?' },
+    { id: 'custom', label: 'Custom Question', question: '' }
+  ];
+
+  function getInsightsPromptData() {
+    const recentPrompts = sortedPrompts.slice(0, insightsPromptCount).map(p => ({
+      timestamp: p.timestamp,
+      provider: p.provider,
+      model: p.model,
+      inputTokens: p.inputTokens,
+      outputTokens: p.outputTokens,
+      cost: p.cost,
+      duration: p.duration,
+      status: p.status,
+      promptPreview: p.promptPreview,
+      responsePreview: p.responsePreview
+    }));
+    return recentPrompts;
+  }
+
+  function generateInsightsPrompt() {
+    const data = getInsightsPromptData();
+    const selectedType = insightTypes.find(t => t.id === selectedInsightType);
+    const question = selectedInsightType === 'custom' ? customQuestion : selectedType?.question || '';
+
+    const prompt = `You are analyzing AI usage data for a development team. As a VP of R&D, I need insights from this data.
+
+**Question:** ${question}
+
+**Summary:**
+- Total prompts analyzed: ${data.length}
+- Time range: ${data.length > 0 ? formatTimestamp(data[data.length - 1].timestamp) : 'N/A'} to ${data.length > 0 ? formatTimestamp(data[0].timestamp) : 'N/A'}
+- Total cost: $${data.reduce((sum, p) => sum + (p.cost || 0), 0).toFixed(4)}
+- Total tokens: ${data.reduce((sum, p) => sum + (p.inputTokens || 0) + (p.outputTokens || 0), 0).toLocaleString()}
+
+**Prompt Data (JSON):**
+\`\`\`json
+${JSON.stringify(data, null, 2)}
+\`\`\`
+
+Please provide actionable insights and specific recommendations.`;
+
+    return prompt;
+  }
+
+  function copyInsightsPrompt() {
+    const prompt = generateInsightsPrompt();
+    navigator.clipboard.writeText(prompt).then(() => {
+      copiedInsights = true;
+      setTimeout(() => copiedInsights = false, 2000);
+    });
+  }
 </script>
 
 <svelte:window on:keydown={handleKeydown} />
@@ -339,6 +406,79 @@
           <div class="stat stat-error">
             <span class="stat-label">Errors</span>
             <span class="stat-value">{stats.errorCount}</span>
+          </div>
+        {/if}
+      </div>
+
+      <!-- Insights Generator -->
+      <div class="insights-section">
+        <button class="insights-toggle" on:click={() => showInsightsGenerator = !showInsightsGenerator}>
+          <span class="toggle-icon">{showInsightsGenerator ? '▼' : '▶'}</span>
+          <span>Insights Generator</span>
+          <span class="insights-badge">VP R&D</span>
+        </button>
+
+        {#if showInsightsGenerator}
+          <div class="insights-content">
+            <div class="insights-controls">
+              <div class="control-group">
+                <label>Include last</label>
+                <select bind:value={insightsPromptCount}>
+                  <option value={10}>10 prompts</option>
+                  <option value={20}>20 prompts</option>
+                  <option value={30}>30 prompts</option>
+                  <option value={50}>50 prompts</option>
+                </select>
+              </div>
+
+              <div class="control-group">
+                <label>Analysis type</label>
+                <select bind:value={selectedInsightType}>
+                  {#each insightTypes as type}
+                    <option value={type.id}>{type.label}</option>
+                  {/each}
+                </select>
+              </div>
+            </div>
+
+            {#if selectedInsightType === 'custom'}
+              <div class="custom-question">
+                <label>Your question</label>
+                <textarea
+                  bind:value={customQuestion}
+                  placeholder="What would you like to know about these prompts?"
+                  rows="2"
+                ></textarea>
+              </div>
+            {:else}
+              <div class="selected-question">
+                <span class="question-label">Question:</span>
+                <span class="question-text">{insightTypes.find(t => t.id === selectedInsightType)?.question}</span>
+              </div>
+            {/if}
+
+            <div class="insights-preview">
+              <div class="preview-header">
+                <span>Generated prompt will include:</span>
+              </div>
+              <ul class="preview-list">
+                <li>Summary stats (cost, tokens, time range)</li>
+                <li>Last {insightsPromptCount} prompts as JSON</li>
+                <li>Your selected analysis question</li>
+              </ul>
+            </div>
+
+            <div class="insights-actions">
+              <button
+                class="generate-btn"
+                class:copied={copiedInsights}
+                on:click={copyInsightsPrompt}
+                disabled={sortedPrompts.length === 0 || (selectedInsightType === 'custom' && !customQuestion.trim())}
+              >
+                {copiedInsights ? '✓ Copied to clipboard!' : 'Copy Prompt to Clipboard'}
+              </button>
+              <span class="action-hint">Paste into Claude, ChatGPT, or any AI assistant</span>
+            </div>
           </div>
         {/if}
       </div>
@@ -1281,6 +1421,203 @@
     .footer-right {
       justify-content: center;
     }
+  }
+
+  /* Insights Generator */
+  .insights-section {
+    margin-bottom: 16px;
+  }
+
+  .insights-toggle {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 12px 16px;
+    background: var(--bg-primary);
+    border: 1px solid var(--border-primary);
+    border-radius: 4px;
+    color: var(--text-primary);
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+
+  .insights-toggle:hover {
+    background: var(--bg-hover);
+    border-color: var(--accent-primary);
+  }
+
+  .insights-badge {
+    margin-left: auto;
+    font-size: 10px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    padding: 3px 8px;
+    background: rgba(139, 92, 246, 0.15);
+    color: #8b5cf6;
+    border-radius: 3px;
+  }
+
+  .insights-content {
+    margin-top: 12px;
+    padding: 16px;
+    background: var(--bg-primary);
+    border: 1px solid var(--border-primary);
+    border-radius: 4px;
+  }
+
+  .insights-controls {
+    display: flex;
+    gap: 16px;
+    margin-bottom: 16px;
+  }
+
+  .control-group {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .control-group label {
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--text-tertiary);
+  }
+
+  .control-group select {
+    padding: 8px 12px;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-primary);
+    border-radius: 4px;
+    color: var(--text-primary);
+    font-size: 13px;
+    min-width: 180px;
+  }
+
+  .control-group select:focus {
+    outline: none;
+    border-color: var(--accent-primary);
+  }
+
+  .custom-question {
+    margin-bottom: 16px;
+  }
+
+  .custom-question label {
+    display: block;
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--text-tertiary);
+    margin-bottom: 6px;
+  }
+
+  .custom-question textarea {
+    width: 100%;
+    padding: 10px 12px;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-primary);
+    border-radius: 4px;
+    color: var(--text-primary);
+    font-size: 13px;
+    font-family: inherit;
+    resize: vertical;
+  }
+
+  .custom-question textarea:focus {
+    outline: none;
+    border-color: var(--accent-primary);
+  }
+
+  .selected-question {
+    padding: 12px;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-primary);
+    border-radius: 4px;
+    margin-bottom: 16px;
+  }
+
+  .question-label {
+    font-size: 10px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--text-tertiary);
+    margin-right: 8px;
+  }
+
+  .question-text {
+    font-size: 13px;
+    color: var(--text-primary);
+    line-height: 1.5;
+  }
+
+  .insights-preview {
+    padding: 12px;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-secondary);
+    border-radius: 4px;
+    margin-bottom: 16px;
+  }
+
+  .preview-header {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--text-tertiary);
+    margin-bottom: 8px;
+  }
+
+  .preview-list {
+    margin: 0;
+    padding-left: 20px;
+    font-size: 12px;
+    color: var(--text-secondary);
+  }
+
+  .preview-list li {
+    margin-bottom: 4px;
+  }
+
+  .insights-actions {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+  }
+
+  .generate-btn {
+    padding: 10px 20px;
+    background: var(--accent-primary);
+    border: none;
+    border-radius: 4px;
+    color: white;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+
+  .generate-btn:hover:not(:disabled) {
+    opacity: 0.9;
+  }
+
+  .generate-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+
+  .generate-btn.copied {
+    background: #22c55e;
+  }
+
+  .action-hint {
+    font-size: 12px;
+    color: var(--text-tertiary);
   }
 
   /* Pricing Section */
