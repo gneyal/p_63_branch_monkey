@@ -10,7 +10,9 @@
   import StandardsPage from './lib/components/StandardsPage.svelte';
   import InstallPage from './lib/components/InstallPage.svelte';
   import ContextPage from './lib/components/ContextPage.svelte';
+  import TourGuide from './lib/components/TourGuide.svelte';
   import { push } from 'svelte-spa-router';
+  import { showTourGuide, stopTour } from './lib/stores/store.js';
 
   const routes = {
     '/': LandingPage,
@@ -32,6 +34,10 @@
 </script>
 
 <Router {routes} />
+
+{#if $showTourGuide}
+  <TourGuide bind:isActive={$showTourGuide} oncomplete={stopTour} />
+{/if}
 
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');

@@ -3,6 +3,7 @@
   import { onMount } from 'svelte';
   import { Pin, PinOff } from 'lucide-svelte';
   import RepoSelector from './RepoSelector.svelte';
+  import { startTour as startTourStore } from '../stores/store.js';
 
   export let activeView = 'commits'; // 'commits', 'tasks', 'prompts', 'arch', 'tests', 'spec', 'standards'
 
@@ -136,6 +137,11 @@
   function goToHome() {
     push('/');
   }
+
+  function startTour() {
+    showMenu = false;
+    startTourStore();
+  }
 </script>
 
 <header class="topbar">
@@ -155,6 +161,9 @@
         </div>
       {/if}
     </div>
+    <button class="tour-btn-header" on:click={startTour} title="Take a tour">
+      Tour
+    </button>
   </div>
 
   <div class="header-center">
@@ -279,6 +288,24 @@
     display: flex;
     gap: 16px;
     align-items: center;
+  }
+
+  .tour-btn-header {
+    padding: 4px 10px;
+    background: var(--accent-primary);
+    border: 1px solid var(--accent-primary);
+    color: var(--bg-primary);
+    font-size: 9px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    border-radius: 3px;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+
+  .tour-btn-header:hover {
+    opacity: 0.85;
   }
 
   .title-container {

@@ -14,6 +14,7 @@
   import RemoteStatus from './RemoteStatus.svelte';
   import PromptsLibrary from './PromptsLibrary.svelte';
   import ContextLibrary from './ContextLibrary.svelte';
+
   let error = null;
   let showBranchesList = false;
   let showRemoteStatus = false;

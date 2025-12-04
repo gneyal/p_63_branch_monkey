@@ -110,3 +110,20 @@ export function showModal(options) {
 export function hideModal() {
   modal.update(m => ({ ...m, isOpen: false }));
 }
+
+// Tour guide state
+export const showTourGuide = writable(false);
+
+/**
+ * Start the tour guide
+ */
+export function startTour() {
+  showTourGuide.set(true);
+}
+
+/**
+ * Stop the tour guide
+ */
+export function stopTour() {
+  showTourGuide.set(false);
+}
