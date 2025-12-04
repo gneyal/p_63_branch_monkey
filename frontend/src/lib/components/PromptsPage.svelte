@@ -293,17 +293,19 @@
   // Insights Generator state
   let showInsightsGenerator = false;
   let insightsPromptCount = 20;
-  let selectedInsightType = 'productivity_insights';
+  let selectedInsightType = 'struggling_users';
   let copiedInsights = false;
   let customQuestion = '';
 
   const insightTypes = [
+    { id: 'struggling_users', label: 'Who Needs Help', question: 'Identify team members or sessions that show signs of struggling with AI. Look for: high iteration counts (many back-and-forth exchanges), frequent "undo/remove/revert" requests, vague prompts, error patterns, or task abandonment. List specific people/sessions that need coaching and why.' },
+    { id: 'bad_prompts', label: 'Worst Prompts', question: 'Find the worst prompts in this data. Look for: vague one-word commands, prompts that led to multiple retries, requests that had to be undone, unnecessarily complex requests, or prompts missing critical context. Show specific examples and explain what went wrong.' },
+    { id: 'security_risks', label: 'Security Risks', question: 'Scan these prompts for security concerns. Look for: API keys, passwords, or secrets being shared; PII or customer data exposure; requests that might generate insecure code; proprietary business logic being shared; prompts asking to bypass security measures; database credentials; internal URLs or infrastructure details. Flag any concerning patterns and rate the severity.' },
+    { id: 'wasted_cycles', label: 'Wasted Cycles', question: 'Identify wasted work: back-and-forth iterations that could have been avoided with better initial prompts, features that got removed after being built, repeated explanations of the same context, and unnecessary retries. Quantify the waste in terms of cost and time.' },
+    { id: 'quick_wins', label: 'Quick Wins', question: 'What are the easiest improvements this team could make next week? Focus on simple fixes: using standards/templates instead of writing from scratch, batching related requests, being more specific upfront, using cheaper models for simple tasks. Give 3-5 concrete action items.' },
     { id: 'productivity_insights', label: 'Productivity Insights', question: 'Analyze these prompts for productivity patterns. What can you tell about team velocity, focus areas, and potential bottlenecks?' },
-    { id: 'quality_assessment', label: 'Quality Assessment', question: 'Evaluate the quality of these AI interactions. Which prompts got good results? Which ones show room for improvement in how the team prompts AI?' },
     { id: 'team_segmentation', label: 'Team Segmentation', question: 'Segment the team based on these prompts. Identify distinct working styles, specializations, and roles. Who focuses on what? Are there clear patterns that distinguish different team members or groups?' },
     { id: 'individual_improvement', label: 'Individual Improvement', question: 'For each identifiable team member or session pattern, suggest specific improvements. What skills should each person develop? What prompting techniques would help them be more effective?' },
-    { id: 'team_patterns', label: 'Team Usage Patterns', question: 'Analyze these prompts and identify patterns in how the team is using AI. What types of tasks are most common? Are there any inefficiencies or missed opportunities?' },
-    { id: 'skill_gaps', label: 'Skill Gaps Analysis', question: 'Based on these prompts, identify areas where the team might benefit from training or better tooling. What tasks seem to struggle most with AI assistance?' },
     { id: 'cost_optimization', label: 'Cost Optimization', question: 'Review these prompts and suggest ways to optimize AI costs. Are there prompts that could use cheaper models? Are there redundant or wasteful patterns?' },
     { id: 'custom', label: 'Custom Question', question: '' }
   ];
