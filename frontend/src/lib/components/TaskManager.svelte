@@ -2,6 +2,7 @@
   import { onMount, tick } from 'svelte';
   import { fetchTasks, createTask, updateTask, deleteTask, fetchVersions, createVersion, updateVersion, deleteVersion as deleteVersionApi, reorderVersions, reorderTasks } from '../services/api.js';
   import { showToast } from '../stores/store.js';
+  import { ChevronDown, ChevronRight } from 'lucide-svelte';
 
   export let onClose = () => {};
   export let inline = false; // When true, renders as inline content without modal backdrop
@@ -31,6 +32,7 @@
   let newTaskDescription = '';
   let newTaskVersion = 'backlog';
   let visibleVersions = new Set(); // Set of visible version keys (empty = all visible)
+  let collapsedVersions = new Set(); // Set of collapsed version keys
 
   // Quick add state
   let quickAddVersion = null;
@@ -161,6 +163,21 @@
     return visibleVersions.size === 0 || visibleVersions.has(version);
   }
 
+  // Toggle version collapse state
+  function toggleCollapse(version) {
+    if (collapsedVersions.has(version)) {
+      collapsedVersions.delete(version);
+    } else {
+      collapsedVersions.add(version);
+    }
+    collapsedVersions = new Set(collapsedVersions); // Trigger reactivity
+  }
+
+  // Check if a version is collapsed
+  function isCollapsed(version) {
+    return collapsedVersions.has(version);
+  }
+
   // Get version label (supports custom versions)
   function getVersionLabel(version) {
     return versionLabels[version] || version;
@@ -238,17 +255,18 @@
     }
   }
 
+  // Generate a simple UUID
+  function generateUUID() {
+    return 'v-' + crypto.randomUUID();
+  }
+
   // Version Management Functions
   async function handleAddVersion() {
     if (!newVersionName.trim()) {
       showToast('Please enter a version name', 'error');
       return;
     }
-    const versionKey = newVersionName.trim().toLowerCase().replace(/\s+/g, '-');
-    if (versions.includes(versionKey)) {
-      showToast('Version already exists', 'error');
-      return;
-    }
+    const versionKey = generateUUID();
 
     // Calculate sort order (before backlog)
     const backlogIdx = versionOrder.indexOf('backlog');
@@ -1031,11 +1049,19 @@ Task ID: ${task.id}`;
         <div class="swim-lanes">
           {#each filteredSwimLaneData as lane (lane.version)}
               {#if lane.tasks.length > 0 || lane.isDefault || lane.isCustom}
-                <div class="swim-lane">
-                  <div class="swim-lane-header">
+                <div class="swim-lane" class:collapsed={collapsedVersions.has(lane.version)}>
+                  <div class="swim-lane-header" on:click={() => toggleCollapse(lane.version)} role="button" tabindex="0" on:keydown={(e) => e.key === 'Enter' && toggleCollapse(lane.version)}>
+                    <span class="collapse-icon">
+                      {#if collapsedVersions.has(lane.version)}
+                        <ChevronRight size={14} />
+                      {:else}
+                        <ChevronDown size={14} />
+                      {/if}
+                    </span>
                     <span class="swim-lane-title">{lane.label}</span>
                     <span class="swim-lane-count">{lane.tasks.length} tasks</span>
                   </div>
+                  {#if !collapsedVersions.has(lane.version)}
                   <div class="kanban-board">
                     {#each STATUSES as status}
                       {@const columnTasks = lane.byStatus[status]}
@@ -1113,6 +1139,7 @@ Task ID: ${task.id}`;
                       </div>
                     {/each}
                   </div>
+                  {/if}
                 </div>
               {/if}
             {/each}
@@ -1250,11 +1277,19 @@ Task ID: ${task.id}`;
           <div class="swim-lanes">
             {#each filteredSwimLaneData as lane (lane.version)}
                 {#if lane.tasks.length > 0 || lane.isDefault || lane.isCustom}
-                  <div class="swim-lane">
-                    <div class="swim-lane-header">
+                  <div class="swim-lane" class:collapsed={collapsedVersions.has(lane.version)}>
+                    <div class="swim-lane-header" on:click={() => toggleCollapse(lane.version)} role="button" tabindex="0" on:keydown={(e) => e.key === 'Enter' && toggleCollapse(lane.version)}>
+                      <span class="collapse-icon">
+                        {#if collapsedVersions.has(lane.version)}
+                          <ChevronRight size={14} />
+                        {:else}
+                          <ChevronDown size={14} />
+                        {/if}
+                      </span>
                       <span class="swim-lane-title">{lane.label}</span>
                       <span class="swim-lane-count">{lane.tasks.length} tasks</span>
                     </div>
+                    {#if !collapsedVersions.has(lane.version)}
                     <div class="kanban-board">
                       {#each STATUSES as status}
                         {@const columnTasks = lane.byStatus[status]}
@@ -1310,6 +1345,7 @@ Task ID: ${task.id}`;
                         </div>
                       {/each}
                     </div>
+                    {/if}
                   </div>
                 {/if}
               {/each}
@@ -1781,11 +1817,24 @@ Task ID: ${task.id}`;
 
   .swim-lane-header {
     display: flex;
-    justify-content: space-between;
+    justify-content: flex-start;
     align-items: center;
-    padding: 0 4px 8px 4px;
+    gap: 8px;
+    padding: 6px 8px;
     border-bottom: 1px solid var(--border-secondary);
     margin-bottom: 12px;
+    cursor: pointer;
+    user-select: none;
+    border-radius: 4px;
+  }
+
+  .swim-lane-header:hover {
+    background: var(--bg-hover);
+  }
+
+  .swim-lane.collapsed .swim-lane-header {
+    margin-bottom: 0;
+    border-bottom: none;
   }
 
   .swim-lane-title {
@@ -1794,6 +1843,13 @@ Task ID: ${task.id}`;
     text-transform: uppercase;
     letter-spacing: 1px;
     color: var(--text-secondary);
+  }
+
+  .collapse-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--text-tertiary);
   }
 
   .swim-lane-count {
