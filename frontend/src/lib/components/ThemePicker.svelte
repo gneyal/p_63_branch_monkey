@@ -37,7 +37,6 @@
         <span class="compact-text" style="color: {currentTheme.preview.fg}">Aa</span>
         <span class="compact-accent" style="background: {currentTheme.preview.accent}"></span>
       </div>
-      <span class="compact-name">{currentTheme.name}</span>
     {:else}
       <div class="theme-swatch">
         <span class="swatch-color" style="background: {currentTheme.preview.bg}"></span>

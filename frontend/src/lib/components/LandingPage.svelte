@@ -201,7 +201,7 @@
         <a href="#features">Features</a>
         <a href="#pricing">Pricing</a>
         <ThemePicker compact={true} dropdownDirection="down" />
-        <button class="nav-cta" on:click={onGetStarted}>Get Started</button>
+        <button class="nav-cta" on:click={() => push('/tasks')}>Login</button>
       </nav>
     </div>
   </header>
@@ -213,12 +213,13 @@
         <span class="highlight">today</span>
       </h1>
       <p class="tagline">
-        Move fast across projects. Work with any AI.<br/>
-        Own your context. Own your memory.
+        Software dev has changed and we need tools to be faster, cleaner,<br/>
+        with little context switching and much speed.<br/>
+        Branch Monkey is an opinionated version of what we think is needed for today's devs.
       </p>
       <div class="hero-buttons">
         <button class="cta-button primary" on:click={onGetStarted}>
-          Get Started
+          Install
         </button>
       </div>
     </div>
@@ -525,27 +526,52 @@
   <section class="pricing-section" id="pricing">
     <div class="pricing-content">
       <h2 class="pricing-title">Pricing</h2>
-      <div class="pricing-card">
-        <div class="pricing-header">
-          <span class="pricing-name">Free</span>
-          <span class="pricing-badge">Open Source</span>
+      <div class="pricing-cards">
+        <div class="pricing-card">
+          <div class="pricing-header">
+            <span class="pricing-name">Free</span>
+          </div>
+          <div class="pricing-price">
+            <span class="price-amount">$0</span>
+          </div>
+          <ul class="pricing-features">
+            <li>Tasks manager</li>
+            <li>Standards</li>
+            <li>Prompts</li>
+            <li>Tests</li>
+            <li>Spec</li>
+            <li>Visual Git</li>
+            <li>Architecture</li>
+            <li>Unlimited projects</li>
+            <li>Local-first, no cloud</li>
+          </ul>
+          <div class="pricing-divider"></div>
+          <div class="pricing-support">
+            <p class="support-text">Love the project? Support development</p>
+            <a href="https://github.com/sponsors/gneyal" target="_blank" rel="noopener" class="support-button">
+              Sponsor on GitHub
+            </a>
+          </div>
         </div>
-        <div class="pricing-price">
-          <span class="price-amount">$0</span>
-          <span class="price-period">forever</span>
-        </div>
-        <ul class="pricing-features">
-          <li>All features included</li>
-          <li>Unlimited projects</li>
-          <li>Local-first, no cloud</li>
-          <li>Full source code access</li>
-        </ul>
-        <div class="pricing-divider"></div>
-        <div class="pricing-support">
-          <p class="support-text">Love the project? Support development</p>
-          <a href="https://github.com/sponsors/gneyal" target="_blank" rel="noopener" class="support-button">
-            Sponsor on GitHub
-          </a>
+        <div class="pricing-card">
+          <div class="pricing-header">
+            <span class="pricing-name">Team</span>
+          </div>
+          <div class="pricing-price">
+            <span class="price-amount contact">Contact us</span>
+          </div>
+          <ul class="pricing-features">
+            <li>Everything in Free</li>
+            <li>VP R&D view</li>
+            <li>Team context</li>
+            <li>Team memory</li>
+            <li>Team standards</li>
+            <li>Team workflows</li>
+          </ul>
+          <div class="pricing-divider"></div>
+          <div class="pricing-support">
+            <p class="support-text">Coming soon</p>
+          </div>
         </div>
       </div>
     </div>
@@ -1574,9 +1600,21 @@
   }
 
   .pricing-content {
-    max-width: 400px;
+    max-width: 800px;
     margin: 0 auto;
     text-align: center;
+  }
+
+  .pricing-cards {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 24px;
+  }
+
+  @media (max-width: 600px) {
+    .pricing-cards {
+      grid-template-columns: 1fr;
+    }
   }
 
   .pricing-title {
@@ -1628,6 +1666,10 @@
     font-size: 48px;
     font-weight: 700;
     color: var(--text-primary);
+  }
+
+  .price-amount.contact {
+    font-size: 24px;
   }
 
   .price-period {
