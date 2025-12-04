@@ -132,8 +132,8 @@
     push('/install');
   }
 
-  function goToCommits() {
-    push('/commits');
+  function goToHome() {
+    push('/');
   }
 </script>
 
@@ -144,7 +144,7 @@
         class="app-title"
         on:mouseenter={startMonkeyAnimation}
         on:mouseleave={stopMonkeyAnimation}
-        on:click={goToCommits}
+        on:click={goToHome}
       >
         branch/monkey
       </h1>
