@@ -3,7 +3,34 @@
  * Handles all communication with the FastAPI backend
  */
 
+import { noBackendDetected } from '../stores/store.js';
+
 const API_BASE = '/api';
+
+/**
+ * Helper to safely parse JSON response
+ * Detects when HTML is returned instead of JSON (no backend running)
+ */
+async function safeJsonParse(response, errorPrefix) {
+  const text = await response.text();
+
+  // Check if we got HTML instead of JSON (no backend)
+  if (text.trim().startsWith('<!') || text.trim().startsWith('<html')) {
+    noBackendDetected.set(true);
+    throw new Error('Backend not running - this app requires local installation');
+  }
+
+  try {
+    return JSON.parse(text);
+  } catch (e) {
+    // If JSON parsing fails, might also be HTML
+    if (text.includes('<!doctype') || text.includes('<html')) {
+      noBackendDetected.set(true);
+      throw new Error('Backend not running - this app requires local installation');
+    }
+    throw new Error(`${errorPrefix}: Invalid response format`);
+  }
+}
 
 /**
  * Fetch the commit tree
@@ -16,7 +43,7 @@ export async function fetchCommitTree(limit = 50, offset = 0) {
   if (!response.ok) {
     throw new Error(`Failed to fetch commit tree: ${response.statusText}`);
   }
-  return response.json();
+  return safeJsonParse(response, 'Failed to fetch commit tree');
 }
 
 /**
@@ -483,7 +510,7 @@ export async function fetchTasks() {
   if (!response.ok) {
     throw new Error(`Failed to fetch tasks: ${response.statusText}`);
   }
-  return response.json();
+  return safeJsonParse(response, 'Failed to fetch tasks');
 }
 
 /**
@@ -502,7 +529,7 @@ export async function createTask(task) {
   if (!response.ok) {
     throw new Error(`Failed to create task: ${response.statusText}`);
   }
-  return response.json();
+  return safeJsonParse(response, 'Failed to create task');
 }
 
 /**

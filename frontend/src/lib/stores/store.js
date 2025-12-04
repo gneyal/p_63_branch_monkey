@@ -114,6 +114,9 @@ export function hideModal() {
 // Tour guide state
 export const showTourGuide = writable(false);
 
+// No backend detected (for demo/web visitors)
+export const noBackendDetected = writable(false);
+
 /**
  * Start the tour guide
  */

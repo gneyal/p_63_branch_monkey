@@ -11,6 +11,7 @@
   import InstallPage from './lib/components/InstallPage.svelte';
   import ContextPage from './lib/components/ContextPage.svelte';
   import TourGuide from './lib/components/TourGuide.svelte';
+  import NoBackendModal from './lib/components/NoBackendModal.svelte';
   import { push } from 'svelte-spa-router';
   import { showTourGuide, stopTour } from './lib/stores/store.js';
 
@@ -38,6 +39,8 @@
 {#if $showTourGuide}
   <TourGuide bind:isActive={$showTourGuide} oncomplete={stopTour} />
 {/if}
+
+<NoBackendModal />
 
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
