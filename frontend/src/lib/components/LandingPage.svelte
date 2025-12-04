@@ -1631,6 +1631,12 @@
     border-radius: 8px;
     padding: 32px;
     text-align: center;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .pricing-card .pricing-features {
+    flex: 1;
   }
 
   .pricing-header {
