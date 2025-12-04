@@ -11,8 +11,8 @@
 
   const aiInstallPrompt = `Install and run Branch Monkey for me:
 
-1. git clone https://github.com/anthropics/branch-monkey.git
-2. cd branch-monkey
+1. git clone https://github.com/gneyal/p_63_branch_monkey.git
+2. cd p_63_branch_monkey
 3. pip install -e .
 4. cd frontend && npm install
 5. Start backend: python fastapi_server.py (in background)
@@ -39,13 +39,13 @@ The "Stop" hook fires once when Claude finishes responding, giving you complete 
 Examples - replace the path based on where you cloned Branch Monkey:
 
 macOS:
-  "command": "python /Users/john/Code/branch_monkey/branch_monkey/hooks/claude_code_hook.py"
+  "command": "python /Users/john/Code/p_63_branch_monkey/branch_monkey/hooks/claude_code_hook.py"
 
 Linux:
-  "command": "python /home/alex/dev/branch_monkey/branch_monkey/hooks/claude_code_hook.py"
+  "command": "python /home/alex/dev/p_63_branch_monkey/branch_monkey/hooks/claude_code_hook.py"
 
 Windows:
-  "command": "python C:/Users/mike/Code/branch_monkey/branch_monkey/hooks/claude_code_hook.py"
+  "command": "python C:/Users/mike/Code/p_63_branch_monkey/branch_monkey/hooks/claude_code_hook.py"
 
 With pip install -e (editable):
   "command": "python -m branch_monkey.hooks.claude_code_hook"`;
