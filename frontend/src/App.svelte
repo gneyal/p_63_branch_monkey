@@ -9,6 +9,7 @@
   import SpecBuilder from './lib/components/SpecBuilder.svelte';
   import StandardsPage from './lib/components/StandardsPage.svelte';
   import InstallPage from './lib/components/InstallPage.svelte';
+  import ContextPage from './lib/components/ContextPage.svelte';
   import { push } from 'svelte-spa-router';
 
   const routes = {
@@ -22,6 +23,7 @@
     '/spec': SpecBuilder,
     '/standards': StandardsPage,
     '/install': InstallPage,
+    '/context': ContextPage,
   };
 
   function handleGetStarted() {
@@ -131,9 +133,9 @@
     --bg-primary: #282c34;
     --bg-secondary: #21252b;
     --bg-hover: #2c313a;
-    --text-primary: #abb2bf;
-    --text-secondary: #9da5b4;
-    --text-tertiary: #5c6370;
+    --text-primary: #e0e4eb;
+    --text-secondary: #bfc5d0;
+    --text-tertiary: #7f8594;
     --border-primary: #3e4451;
     --border-secondary: #2c313a;
     --border-hover: #4b5363;
@@ -154,9 +156,9 @@
     --bg-primary: #002b36;
     --bg-secondary: #073642;
     --bg-hover: #094555;
-    --text-primary: #839496;
-    --text-secondary: #93a1a1;
-    --text-tertiary: #657b83;
+    --text-primary: #c5d8d8;
+    --text-secondary: #a8bfc0;
+    --text-tertiary: #7a9496;
     --border-primary: #094555;
     --border-secondary: #073642;
     --border-hover: #586e75;
@@ -177,9 +179,9 @@
     --bg-primary: #fdf6e3;
     --bg-secondary: #eee8d5;
     --bg-hover: #e4ddc8;
-    --text-primary: #657b83;
-    --text-secondary: #586e75;
-    --text-tertiary: #93a1a1;
+    --text-primary: #3d4f54;
+    --text-secondary: #4a5c61;
+    --text-tertiary: #728a8f;
     --border-primary: #d3cbb7;
     --border-secondary: #eee8d5;
     --border-hover: #93a1a1;
@@ -223,9 +225,9 @@
     --bg-primary: #1a1b26;
     --bg-secondary: #16161e;
     --bg-hover: #24283b;
-    --text-primary: #c0caf5;
-    --text-secondary: #a9b1d6;
-    --text-tertiary: #565f89;
+    --text-primary: #dce0f8;
+    --text-secondary: #c5cbe8;
+    --text-tertiary: #7a82a8;
     --border-primary: #292e42;
     --border-secondary: #1f2335;
     --border-hover: #3b4261;
@@ -246,9 +248,9 @@
     --bg-primary: #1e1e2e;
     --bg-secondary: #181825;
     --bg-hover: #313244;
-    --text-primary: #cdd6f4;
-    --text-secondary: #bac2de;
-    --text-tertiary: #6c7086;
+    --text-primary: #e2e8f8;
+    --text-secondary: #d0d6e8;
+    --text-tertiary: #8c92a8;
     --border-primary: #45475a;
     --border-secondary: #313244;
     --border-hover: #585b70;
@@ -269,9 +271,9 @@
     --bg-primary: #2d353b;
     --bg-secondary: #272e33;
     --bg-hover: #343f44;
-    --text-primary: #d3c6aa;
-    --text-secondary: #9da9a0;
-    --text-tertiary: #7a8478;
+    --text-primary: #e8dcc6;
+    --text-secondary: #c5cec5;
+    --text-tertiary: #9aa598;
     --border-primary: #414b50;
     --border-secondary: #343f44;
     --border-hover: #4f585e;
@@ -292,9 +294,9 @@
     --bg-primary: #191724;
     --bg-secondary: #1f1d2e;
     --bg-hover: #26233a;
-    --text-primary: #e0def4;
-    --text-secondary: #908caa;
-    --text-tertiary: #6e6a86;
+    --text-primary: #eceaf8;
+    --text-secondary: #c4c0d8;
+    --text-tertiary: #908ca8;
     --border-primary: #403d52;
     --border-secondary: #26233a;
     --border-hover: #524f67;
@@ -315,9 +317,9 @@
     --bg-primary: #1f1f28;
     --bg-secondary: #16161d;
     --bg-hover: #2a2a37;
-    --text-primary: #dcd7ba;
-    --text-secondary: #c8c093;
-    --text-tertiary: #727169;
+    --text-primary: #ece7cc;
+    --text-secondary: #d8d2b0;
+    --text-tertiary: #9a9488;
     --border-primary: #363646;
     --border-secondary: #2a2a37;
     --border-hover: #54546d;
@@ -338,9 +340,9 @@
     --bg-primary: #192330;
     --bg-secondary: #131a24;
     --bg-hover: #212e3f;
-    --text-primary: #cdcecf;
-    --text-secondary: #aeafb0;
-    --text-tertiary: #71839b;
+    --text-primary: #e2e4e5;
+    --text-secondary: #c8cacc;
+    --text-tertiary: #94a3b8;
     --border-primary: #2b3b51;
     --border-secondary: #212e3f;
     --border-hover: #39506d;
@@ -384,9 +386,9 @@
     --bg-primary: #292d3e;
     --bg-secondary: #1f2233;
     --bg-hover: #34394e;
-    --text-primary: #a6accd;
-    --text-secondary: #8087a2;
-    --text-tertiary: #676e95;
+    --text-primary: #d4d8f0;
+    --text-secondary: #b8bdd6;
+    --text-tertiary: #8a90b5;
     --border-primary: #3a3f58;
     --border-secondary: #34394e;
     --border-hover: #4e5579;
@@ -407,9 +409,9 @@
     --bg-primary: #0d1017;
     --bg-secondary: #0a0e14;
     --bg-hover: #151a22;
-    --text-primary: #bfbdb6;
-    --text-secondary: #8b8680;
-    --text-tertiary: #565b66;
+    --text-primary: #e0ded6;
+    --text-secondary: #b5b0a8;
+    --text-tertiary: #7a7d85;
     --border-primary: #1c212b;
     --border-secondary: #151a22;
     --border-hover: #2d3640;
@@ -453,9 +455,9 @@
     --bg-primary: #1c1e26;
     --bg-secondary: #16161c;
     --bg-hover: #232530;
-    --text-primary: #d5d8da;
-    --text-secondary: #b0b3b5;
-    --text-tertiary: #6c6f93;
+    --text-primary: #e8ebee;
+    --text-secondary: #c8cccf;
+    --text-tertiary: #9095a8;
     --border-primary: #2e303e;
     --border-secondary: #232530;
     --border-hover: #3d3f52;
@@ -476,9 +478,9 @@
     --bg-primary: #161821;
     --bg-secondary: #0f1117;
     --bg-hover: #1e2132;
-    --text-primary: #c6c8d1;
-    --text-secondary: #9a9ca5;
-    --text-tertiary: #6b7089;
+    --text-primary: #e0e2eb;
+    --text-secondary: #c0c3d0;
+    --text-tertiary: #8a8ea8;
     --border-primary: #2a2e3f;
     --border-secondary: #1e2132;
     --border-hover: #3d435c;
@@ -545,9 +547,9 @@
     --bg-primary: #fafafa;
     --bg-secondary: #f3f3f3;
     --bg-hover: #e8e8e8;
-    --text-primary: #5c6166;
-    --text-secondary: #787b80;
-    --text-tertiary: #abb0b6;
+    --text-primary: #3a3d42;
+    --text-secondary: #52555a;
+    --text-tertiary: #82878e;
     --border-primary: #d8d8d8;
     --border-secondary: #e8e8e8;
     --border-hover: #c0c0c0;
@@ -568,9 +570,9 @@
     --bg-primary: #faf4ed;
     --bg-secondary: #fffaf3;
     --bg-hover: #f2e9de;
-    --text-primary: #575279;
-    --text-secondary: #6e6a86;
-    --text-tertiary: #9893a5;
+    --text-primary: #3d3960;
+    --text-secondary: #524f6a;
+    --text-tertiary: #7a7790;
     --border-primary: #dfdad9;
     --border-secondary: #f2e9de;
     --border-hover: #cecacd;

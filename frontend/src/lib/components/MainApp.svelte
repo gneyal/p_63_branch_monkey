@@ -227,26 +227,6 @@
           Buildings
         </button>
       </div>
-      {#if currentView === 'buildings'}
-        <div class="view-toggle">
-          <button
-            class="view-btn"
-            class:active={groupBy === 'day'}
-            on:click={() => groupBy = 'day'}
-            title="Group by day"
-          >
-            Day
-          </button>
-          <button
-            class="view-btn"
-            class:active={groupBy === 'week'}
-            on:click={() => groupBy = 'week'}
-            title="Group by week"
-          >
-            Week
-          </button>
-        </div>
-      {/if}
       <div class="commit-info" class:has-more={hasMore}>
         <span class="commit-count">{currentOffset} / {totalCommits} saves</span>
         {#if hasMore}

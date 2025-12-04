@@ -13,6 +13,7 @@
     { id: 'commits', label: 'Commits', route: '/commits', view: 'commits' },
     { id: 'tasks', label: 'Tasks', route: '/tasks', view: 'tasks' },
     { id: 'prompts', label: 'Prompts', route: '/prompts', view: 'prompts' },
+    { id: 'context', label: 'Context', route: '/context', view: 'context' },
     { id: 'arch', label: 'Arch', route: '/architecture', view: 'arch' },
     { id: 'tests', label: 'Tests', route: '/tests', view: 'tests' },
     { id: 'spec', label: 'Spec', route: '/spec', view: 'spec' },

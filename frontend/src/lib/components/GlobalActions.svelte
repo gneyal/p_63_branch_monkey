@@ -9,11 +9,12 @@
 
   // Define which buttons are relevant for each page
   const pageButtons = {
-    commits: ['top', 'bottom', 'cloud', 'branches', 'prompts', 'context'],
+    commits: ['top', 'bottom', 'branches'],
     tasks: [],
     prompts: [],
-    arch: ['context'],
-    tests: []
+    arch: [],
+    tests: [],
+    context: []
   };
 
   $: visibleButtons = pageButtons[activeView] || [];
