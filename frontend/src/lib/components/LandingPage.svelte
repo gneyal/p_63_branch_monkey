@@ -379,6 +379,70 @@
     </div>
   </section>
 
+  <section class="prompts-section" id="prompts">
+    <div class="prompts-section-content">
+      <div class="prompts-section-text">
+        <h2 class="prompts-section-title">Think Meta-Prompt</h2>
+        <p class="prompts-section-lead">
+          You can't build a framework today without thinking about prompts.
+        </p>
+        <p class="prompts-section-description">
+          Our Prompts feature helps you think at the meta level. Learn from your prompts,
+          track costs across providers, analyze team patterns, and understand what makes
+          your AI interactions effective.
+        </p>
+        <ul class="prompts-section-list">
+          <li>Track token usage and costs per project</li>
+          <li>Analyze prompt patterns across your team</li>
+          <li>Compare effectiveness across AI providers</li>
+          <li>Build your prompt knowledge base</li>
+        </ul>
+      </div>
+      <div class="prompts-section-visual">
+        <div class="prompts-visual-card">
+          <div class="visual-header">Prompt Economy</div>
+          <div class="visual-stats">
+            <div class="visual-stat">
+              <span class="visual-stat-value">47,892</span>
+              <span class="visual-stat-label">Prompts</span>
+            </div>
+            <div class="visual-stat">
+              <span class="visual-stat-value">$12,847</span>
+              <span class="visual-stat-label">Total Cost</span>
+            </div>
+            <div class="visual-stat">
+              <span class="visual-stat-value">89.4M</span>
+              <span class="visual-stat-label">Tokens</span>
+            </div>
+          </div>
+          <div class="visual-breakdown">
+            <div class="breakdown-item">
+              <span class="breakdown-provider">Claude</span>
+              <div class="breakdown-bar">
+                <div class="breakdown-fill" style="width: 65%"></div>
+              </div>
+              <span class="breakdown-percent">65%</span>
+            </div>
+            <div class="breakdown-item">
+              <span class="breakdown-provider">GPT-4</span>
+              <div class="breakdown-bar">
+                <div class="breakdown-fill" style="width: 25%"></div>
+              </div>
+              <span class="breakdown-percent">25%</span>
+            </div>
+            <div class="breakdown-item">
+              <span class="breakdown-provider">Other</span>
+              <div class="breakdown-bar">
+                <div class="breakdown-fill" style="width: 10%"></div>
+              </div>
+              <span class="breakdown-percent">10%</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
   <section class="git-section" id="git">
     <div class="git-section-content">
       <div class="git-section-visual">
@@ -459,70 +523,6 @@
     </div>
   </section>
 
-  <section class="prompts-section" id="prompts">
-    <div class="prompts-section-content">
-      <div class="prompts-section-text">
-        <h2 class="prompts-section-title">Think Meta-Prompt</h2>
-        <p class="prompts-section-lead">
-          You can't build a framework today without thinking about prompts.
-        </p>
-        <p class="prompts-section-description">
-          Our Prompts feature helps you think at the meta level. Learn from your prompts,
-          track costs across providers, analyze team patterns, and understand what makes
-          your AI interactions effective.
-        </p>
-        <ul class="prompts-section-list">
-          <li>Track token usage and costs per project</li>
-          <li>Analyze prompt patterns across your team</li>
-          <li>Compare effectiveness across AI providers</li>
-          <li>Build your prompt knowledge base</li>
-        </ul>
-      </div>
-      <div class="prompts-section-visual">
-        <div class="prompts-visual-card">
-          <div class="visual-header">Prompt Economy</div>
-          <div class="visual-stats">
-            <div class="visual-stat">
-              <span class="visual-stat-value">47,892</span>
-              <span class="visual-stat-label">Prompts</span>
-            </div>
-            <div class="visual-stat">
-              <span class="visual-stat-value">$12,847</span>
-              <span class="visual-stat-label">Total Cost</span>
-            </div>
-            <div class="visual-stat">
-              <span class="visual-stat-value">89.4M</span>
-              <span class="visual-stat-label">Tokens</span>
-            </div>
-          </div>
-          <div class="visual-breakdown">
-            <div class="breakdown-item">
-              <span class="breakdown-provider">Claude</span>
-              <div class="breakdown-bar">
-                <div class="breakdown-fill" style="width: 65%"></div>
-              </div>
-              <span class="breakdown-percent">65%</span>
-            </div>
-            <div class="breakdown-item">
-              <span class="breakdown-provider">GPT-4</span>
-              <div class="breakdown-bar">
-                <div class="breakdown-fill" style="width: 25%"></div>
-              </div>
-              <span class="breakdown-percent">25%</span>
-            </div>
-            <div class="breakdown-item">
-              <span class="breakdown-provider">Other</span>
-              <div class="breakdown-bar">
-                <div class="breakdown-fill" style="width: 10%"></div>
-              </div>
-              <span class="breakdown-percent">10%</span>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-  </section>
-
   <section class="pricing-section" id="pricing">
     <div class="pricing-content">
       <h2 class="pricing-title">Pricing</h2>
@@ -547,7 +547,6 @@
           </ul>
           <div class="pricing-divider"></div>
           <div class="pricing-support">
-            <p class="support-text">Love the project? Support development</p>
             <a href="https://github.com/sponsors/gneyal" target="_blank" rel="noopener" class="support-button">
               Sponsor on GitHub
             </a>
@@ -558,7 +557,7 @@
             <span class="pricing-name">Team</span>
           </div>
           <div class="pricing-price">
-            <span class="price-amount contact">Contact us</span>
+            <span class="price-amount contact">Let's talk</span>
           </div>
           <ul class="pricing-features">
             <li>Everything in Free</li>
@@ -570,7 +569,9 @@
           </ul>
           <div class="pricing-divider"></div>
           <div class="pricing-support">
-            <p class="support-text">Coming soon</p>
+            <a href="https://cal.com/eyal-goren/15min" target="_blank" rel="noopener" class="support-button primary">
+              Book a call
+            </a>
           </div>
         </div>
       </div>
@@ -1736,6 +1737,16 @@
     background: var(--bg-hover);
     border-color: var(--border-hover);
     color: var(--text-primary);
+  }
+
+  .support-button.primary {
+    background: var(--text-primary);
+    color: var(--bg-primary);
+    border-color: var(--text-primary);
+  }
+
+  .support-button.primary:hover {
+    opacity: 0.85;
   }
 
   /* Install Section */
