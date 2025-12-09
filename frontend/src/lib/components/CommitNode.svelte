@@ -251,6 +251,17 @@
         {/each}
       </div>
     {/if}
+
+    {#if data.has_stash || data.has_notes}
+      <div class="badges">
+        {#if data.has_stash}
+          <span class="badge stash-badge" title="Has stashed changes">stash</span>
+        {/if}
+        {#if data.has_notes}
+          <span class="badge notes-badge" title="Has notes">notes</span>
+        {/if}
+      </div>
+    {/if}
   </div>
 
   {#if showTooltip}
@@ -519,6 +530,31 @@
     text-transform: uppercase;
     letter-spacing: 0.5px;
     border: 1px solid;
+  }
+
+  .badges {
+    display: flex;
+    gap: 4px;
+    margin-top: 4px;
+  }
+
+  .badge {
+    font-size: 9px;
+    padding: 2px 6px;
+    border-radius: 3px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+  }
+
+  .stash-badge {
+    background: #7c3aed;
+    color: white;
+  }
+
+  .notes-badge {
+    background: #0891b2;
+    color: white;
   }
 
   .action-buttons {

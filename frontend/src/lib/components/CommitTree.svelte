@@ -242,7 +242,9 @@
           branches: commit.branches,
           is_head: commit.is_head,
           isAhead: aheadShas.has(commit.sha),
-          isRemote: commit.sha === remoteSha
+          isRemote: commit.sha === remoteSha,
+          has_stash: commit.has_stash,
+          has_notes: commit.has_notes
         }
       });
 

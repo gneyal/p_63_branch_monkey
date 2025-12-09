@@ -45,6 +45,17 @@
     </div>
   {/if}
 
+  {#if data.has_stash || data.has_notes}
+    <div class="badges">
+      {#if data.has_stash}
+        <span class="badge stash-badge" title="Has stashed changes">stash</span>
+      {/if}
+      {#if data.has_notes}
+        <span class="badge notes-badge" title="Has notes">notes</span>
+      {/if}
+    </div>
+  {/if}
+
   <Handle type="source" position={Position.Bottom} />
 </div>
 
@@ -110,6 +121,30 @@
     border-radius: 3px;
     color: white;
     white-space: nowrap;
+  }
+
+  .badges {
+    display: flex;
+    gap: 4px;
+  }
+
+  .badge {
+    font-size: 8px;
+    padding: 2px 5px;
+    border-radius: 3px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+  }
+
+  .stash-badge {
+    background: #7c3aed;
+    color: white;
+  }
+
+  .notes-badge {
+    background: #0891b2;
+    color: white;
   }
 
   /* Tooltip - hidden by default, shown on hover */

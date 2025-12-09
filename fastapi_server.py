@@ -1676,6 +1676,50 @@ def get_commit_tree(limit: int = 50, offset: int = 0):
                     sha_to_branches[sha] = []
                 sha_to_branches[sha].append(branch_name)
 
+        # Get stash list - map parent SHAs to stash info
+        stash_shas = set()
+        try:
+            stash_output = subprocess.check_output(
+                ["git", "stash", "list", "--format=%H"],
+                cwd=REPO_PATH,
+                text=True,
+                stderr=subprocess.DEVNULL
+            ).strip()
+            for line in stash_output.split('\n'):
+                if line:
+                    # Get the parent of the stash commit (the commit it was made on)
+                    try:
+                        parent = subprocess.check_output(
+                            ["git", "rev-parse", f"{line}^"],
+                            cwd=REPO_PATH,
+                            text=True,
+                            stderr=subprocess.DEVNULL
+                        ).strip()[:7]
+                        stash_shas.add(parent)
+                    except:
+                        pass
+        except:
+            pass
+
+        # Get commits with notes
+        notes_shas = set()
+        try:
+            notes_output = subprocess.check_output(
+                ["git", "notes", "list"],
+                cwd=REPO_PATH,
+                text=True,
+                stderr=subprocess.DEVNULL
+            ).strip()
+            for line in notes_output.split('\n'):
+                if line:
+                    parts = line.split()
+                    if len(parts) >= 2:
+                        # Format: <note-sha> <commit-sha>
+                        commit_sha = parts[1][:7]
+                        notes_shas.add(commit_sha)
+        except:
+            pass
+
         # Get total commit count
         total_commits = int(subprocess.check_output(
             ["git", "rev-list", "--all", "--count"],
@@ -1708,7 +1752,9 @@ def get_commit_tree(limit: int = 50, offset: int = 0):
                     "timestamp": timestamp,
                     "parents": parent_list,
                     "branches": sha_to_branches.get(short_sha, []),
-                    "is_head": short_sha == current_sha
+                    "is_head": short_sha == current_sha,
+                    "has_stash": short_sha in stash_shas,
+                    "has_notes": short_sha in notes_shas
                 })
 
         has_more = (offset + limit) < total_commits
