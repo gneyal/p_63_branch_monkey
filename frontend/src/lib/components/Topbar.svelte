@@ -244,6 +244,8 @@
     background: var(--bg-secondary);
     border-bottom: 1px solid var(--border-primary);
     box-shadow: var(--shadow-small);
+    position: relative;
+    z-index: 100;
   }
 
   @media (max-width: 1200px) {

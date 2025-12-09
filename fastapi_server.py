@@ -29,11 +29,17 @@ app.add_middleware(
 # Store repo path
 REPO_PATH: Optional[Path] = None
 
-# Prompts database path
-PROMPTS_DB = Path.home() / ".branch_monkey" / "prompts.db"
+# Per-repo database filename (stored in <repo>/.branch_monkey/data.db)
+LOCAL_DB_NAME = "data.db"
 
-# Tasks JSON file name (stored in repo's .branch_monkey folder)
+# Tasks JSON file name (stored in repo's .branch_monkey folder) - legacy, migrating to DB
 TASKS_JSON_FILENAME = "tasks.json"
+
+
+def get_local_db_path() -> Path:
+    """Get the path to the current repo's local database."""
+    repo_path = REPO_PATH if REPO_PATH else Path.cwd()
+    return repo_path / ".branch_monkey" / LOCAL_DB_NAME
 
 
 def get_tasks_json_path() -> Path:
@@ -64,20 +70,76 @@ def write_tasks_json(data: dict) -> None:
         json.dump(data, f, indent=2)
 
 
-def init_prompts_db():
-    """Initialize the prompts SQLite database."""
-    # Ensure directory exists
-    PROMPTS_DB.parent.mkdir(parents=True, exist_ok=True)
+def init_local_db():
+    """Initialize the local SQLite database for the current repo."""
+    db_path = get_local_db_path()
+    db_path.parent.mkdir(parents=True, exist_ok=True)
 
-    conn = sqlite3.connect(PROMPTS_DB)
+    conn = sqlite3.connect(db_path)
+
+    # Prompt logs table
     conn.execute('''
-        CREATE TABLE IF NOT EXISTS prompts (
-            sha TEXT PRIMARY KEY,
-            prompt TEXT NOT NULL,
+        CREATE TABLE IF NOT EXISTS prompt_logs (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
             timestamp TEXT NOT NULL,
-            repo_path TEXT NOT NULL
+            provider TEXT NOT NULL,
+            model TEXT NOT NULL,
+            input_tokens INTEGER NOT NULL DEFAULT 0,
+            output_tokens INTEGER NOT NULL DEFAULT 0,
+            total_tokens INTEGER NOT NULL DEFAULT 0,
+            cost REAL NOT NULL DEFAULT 0.0,
+            duration REAL NOT NULL DEFAULT 0.0,
+            prompt_preview TEXT,
+            response_preview TEXT,
+            status TEXT NOT NULL DEFAULT 'success',
+            error_message TEXT,
+            session_id TEXT,
+            user TEXT,
+            tool_name TEXT,
+            metadata TEXT
         )
     ''')
+    conn.execute('''
+        CREATE INDEX IF NOT EXISTS idx_prompt_logs_timestamp
+        ON prompt_logs(timestamp DESC)
+    ''')
+
+    # Context history table
+    conn.execute('''
+        CREATE TABLE IF NOT EXISTS context_history (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            context_type TEXT NOT NULL,
+            content TEXT NOT NULL,
+            created_at TEXT NOT NULL
+        )
+    ''')
+
+    # Tasks table
+    conn.execute('''
+        CREATE TABLE IF NOT EXISTS tasks (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            title TEXT NOT NULL,
+            description TEXT,
+            status TEXT NOT NULL DEFAULT 'todo',
+            priority INTEGER NOT NULL DEFAULT 0,
+            sprint TEXT DEFAULT 'backlog',
+            sort_order INTEGER DEFAULT 0,
+            created_at TEXT NOT NULL,
+            updated_at TEXT NOT NULL
+        )
+    ''')
+
+    # Versions table
+    conn.execute('''
+        CREATE TABLE IF NOT EXISTS versions (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT NOT NULL UNIQUE,
+            description TEXT,
+            status TEXT NOT NULL DEFAULT 'active',
+            created_at TEXT NOT NULL
+        )
+    ''')
+
     conn.commit()
     conn.close()
 
@@ -2822,8 +2884,8 @@ def run_server(repo_path: Optional[Path] = None, port: int = 8081, open_browser:
     global REPO_PATH
     REPO_PATH = repo_path
 
-    # Initialize prompts database
-    init_prompts_db()
+    # Initialize local database
+    init_local_db()
 
     # Auto-open browser
     if open_browser:

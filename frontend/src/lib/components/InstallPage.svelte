@@ -11,13 +11,9 @@
 
   const aiInstallPrompt = `Install and run Branch Monkey for me:
 
-1. git clone https://github.com/gneyal/p_63_branch_monkey.git
-2. cd p_63_branch_monkey
-3. pip install -e .
-4. cd frontend && npm install
-5. Start backend: python fastapi_server.py (in background)
-6. Start frontend: cd frontend && npm run dev
-7. Open http://localhost:5173 in browser`;
+1. git clone https://github.com/gneyal/p_63_branch_monkey.git && cd p_63_branch_monkey
+2. npm run install:all && npm run start
+3. Open http://localhost:5176 in browser`;
 
   const aiHookPrompt = `Set up Claude Code hook for Branch Monkey prompt tracking:
 
@@ -26,7 +22,12 @@ Add this to your project's .claude/settings.local.json file:
   "hooks": {
     "Stop": [
       {
-        "command": "python /path/to/branch_monkey/branch_monkey/hooks/claude_code_hook.py"
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python /path/to/branch_monkey/branch_monkey/hooks/claude_code_hook.py"
+          }
+        ]
       }
     ]
   }

@@ -1,0 +1,10 @@
+{
+  "name": "branch-monkey",
+  "private": true,
+  "scripts": {
+    "install:all": "cd frontend && npm install",
+    "backend": "uv run uvicorn fastapi_server:app --reload --port 8081",
+    "frontend": "cd frontend && npm run dev",
+    "start": "npm run backend & npm run frontend"
+  }
+}

@@ -9,8 +9,13 @@ from typing import Optional, Dict, List, Any
 from dataclasses import dataclass, asdict
 
 
-# Database path for prompt logs
-PROMPTS_DB = Path.home() / ".branch_monkey" / "prompts.db"
+# Per-repo database filename (stored in <repo>/.branch_monkey/data.db)
+LOCAL_DB_NAME = "data.db"
+
+
+def get_local_db_path(repo_path: Path) -> Path:
+    """Get the path to a repo's local database."""
+    return repo_path / ".branch_monkey" / LOCAL_DB_NAME
 
 # Known providers and their pricing (per 1M tokens as of late 2024)
 PROVIDER_PRICING = {
@@ -39,7 +44,6 @@ PROVIDER_PRICING = {
 class PromptLog:
     """A single prompt log entry."""
     id: int
-    repo_path: str
     timestamp: str
     provider: str
     model: str
@@ -58,15 +62,15 @@ class PromptLog:
     metadata: Optional[str]  # JSON string for extra data
 
 
-def init_prompts_db():
-    """Initialize the prompts database."""
-    PROMPTS_DB.parent.mkdir(parents=True, exist_ok=True)
+def init_prompts_db(repo_path: Path):
+    """Initialize the prompts database for a specific repo."""
+    db_path = get_local_db_path(repo_path)
+    db_path.parent.mkdir(parents=True, exist_ok=True)
 
-    conn = sqlite3.connect(PROMPTS_DB)
+    conn = sqlite3.connect(db_path)
     conn.execute('''
         CREATE TABLE IF NOT EXISTS prompt_logs (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
-            repo_path TEXT NOT NULL,
             timestamp TEXT NOT NULL,
             provider TEXT NOT NULL,
             model TEXT NOT NULL,
@@ -86,11 +90,11 @@ def init_prompts_db():
         )
     ''')
     conn.execute('''
-        CREATE INDEX IF NOT EXISTS idx_prompts_repo_time
-        ON prompt_logs(repo_path, timestamp DESC)
+        CREATE INDEX IF NOT EXISTS idx_prompt_logs_timestamp
+        ON prompt_logs(timestamp DESC)
     ''')
     conn.execute('''
-        CREATE INDEX IF NOT EXISTS idx_prompts_session
+        CREATE INDEX IF NOT EXISTS idx_prompt_logs_session
         ON prompt_logs(session_id)
     ''')
     conn.commit()
@@ -138,7 +142,8 @@ class PromptLogger:
             repo_path: Path to the Git repository (optional, can use current dir)
         """
         self.repo_path = repo_path or Path.cwd()
-        init_prompts_db()
+        self.db_path = get_local_db_path(self.repo_path)
+        init_prompts_db(self.repo_path)
 
     def log_prompt(
         self,
@@ -196,20 +201,20 @@ class PromptLogger:
         # Serialize metadata
         metadata_str = json.dumps(metadata) if metadata else None
 
-        conn = sqlite3.connect(PROMPTS_DB)
+        conn = sqlite3.connect(self.db_path)
         cursor = conn.cursor()
         cursor.execute(
             """
             INSERT INTO prompt_logs (
-                repo_path, timestamp, provider, model,
+                timestamp, provider, model,
                 input_tokens, output_tokens, total_tokens, cost, duration,
                 prompt_preview, response_preview, status, error_message,
                 session_id, user, tool_name, metadata
             )
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
-                repo_path_str, timestamp, provider, model,
+                timestamp, provider, model,
                 input_tokens, output_tokens, total_tokens, cost, duration,
                 prompt_preview, response_preview, status, error_message,
                 session_id, user, tool_name, metadata_str
@@ -221,7 +226,6 @@ class PromptLogger:
 
         return PromptLog(
             id=entry_id,
-            repo_path=repo_path_str,
             timestamp=timestamp,
             provider=provider,
             model=model,
@@ -261,20 +265,18 @@ class PromptLogger:
         Returns:
             List of prompt log entries (most recent first)
         """
-        repo_path_str = str(self.repo_path.resolve())
-
-        conn = sqlite3.connect(PROMPTS_DB)
+        conn = sqlite3.connect(self.db_path)
         cursor = conn.cursor()
 
         query = """
-            SELECT id, repo_path, timestamp, provider, model,
+            SELECT id, timestamp, provider, model,
                    input_tokens, output_tokens, total_tokens, cost, duration,
                    prompt_preview, response_preview, status, error_message,
                    session_id, user, tool_name, metadata
             FROM prompt_logs
-            WHERE repo_path = ?
+            WHERE 1=1
         """
-        params = [repo_path_str]
+        params = []
 
         if session_id:
             query += " AND session_id = ?"
@@ -296,23 +298,22 @@ class PromptLogger:
         return [
             {
                 "id": row[0],
-                "repo_path": row[1],
-                "timestamp": row[2],
-                "provider": row[3],
-                "model": row[4],
-                "inputTokens": row[5],
-                "outputTokens": row[6],
-                "totalTokens": row[7],
-                "cost": row[8],
-                "duration": row[9],
-                "promptPreview": row[10] or "",
-                "responsePreview": row[11] or "",
-                "status": row[12],
-                "errorMessage": row[13],
-                "sessionId": row[14],
-                "user": row[15],
-                "toolName": row[16],
-                "metadata": json.loads(row[17]) if row[17] else None
+                "timestamp": row[1],
+                "provider": row[2],
+                "model": row[3],
+                "inputTokens": row[4],
+                "outputTokens": row[5],
+                "totalTokens": row[6],
+                "cost": row[7],
+                "duration": row[8],
+                "promptPreview": row[9] or "",
+                "responsePreview": row[10] or "",
+                "status": row[11],
+                "errorMessage": row[12],
+                "sessionId": row[13],
+                "user": row[14],
+                "toolName": row[15],
+                "metadata": json.loads(row[16]) if row[16] else None
             }
             for row in rows
         ]
@@ -324,9 +325,7 @@ class PromptLogger:
         Returns:
             Dict with total prompts, tokens, cost, etc.
         """
-        repo_path_str = str(self.repo_path.resolve())
-
-        conn = sqlite3.connect(PROMPTS_DB)
+        conn = sqlite3.connect(self.db_path)
         cursor = conn.cursor()
 
         cursor.execute(
@@ -342,9 +341,7 @@ class PromptLogger:
                 COUNT(DISTINCT model) as models_used,
                 COUNT(CASE WHEN status = 'error' THEN 1 END) as error_count
             FROM prompt_logs
-            WHERE repo_path = ?
-            """,
-            (repo_path_str,)
+            """
         )
         row = cursor.fetchone()
 
@@ -353,10 +350,8 @@ class PromptLogger:
             """
             SELECT provider, COUNT(*), SUM(cost), SUM(total_tokens)
             FROM prompt_logs
-            WHERE repo_path = ?
             GROUP BY provider
-            """,
-            (repo_path_str,)
+            """
         )
         provider_rows = cursor.fetchall()
 
@@ -384,7 +379,7 @@ class PromptLogger:
 
     def delete_prompt(self, prompt_id: int) -> bool:
         """Delete a prompt log entry."""
-        conn = sqlite3.connect(PROMPTS_DB)
+        conn = sqlite3.connect(self.db_path)
         cursor = conn.cursor()
         cursor.execute("DELETE FROM prompt_logs WHERE id = ?", (prompt_id,))
         deleted = cursor.rowcount > 0
@@ -394,11 +389,9 @@ class PromptLogger:
 
     def clear_all(self) -> int:
         """Clear all prompt logs for this repository."""
-        repo_path_str = str(self.repo_path.resolve())
-
-        conn = sqlite3.connect(PROMPTS_DB)
+        conn = sqlite3.connect(self.db_path)
         cursor = conn.cursor()
-        cursor.execute("DELETE FROM prompt_logs WHERE repo_path = ?", (repo_path_str,))
+        cursor.execute("DELETE FROM prompt_logs")
         deleted = cursor.rowcount
         conn.commit()
         conn.close()

@@ -131,31 +131,38 @@ def read_transcript(transcript_path: str) -> tuple[str, str, str, int, int, floa
 
 def main():
     """Main entry point for the hook."""
-    # Debug log
-    debug_log = Path.home() / ".branch_monkey" / "hook_debug.log"
+    # Debug log will be set after we know the cwd
+    debug_log = None
 
     def log_debug(msg):
-        with open(debug_log, 'a') as f:
-            from datetime import datetime
-            f.write(f"{datetime.now()}: {msg}\n")
+        if debug_log is None:
+            return  # Skip logging if we don't have a path yet
+        try:
+            debug_log.parent.mkdir(parents=True, exist_ok=True)
+            with open(debug_log, 'a') as f:
+                from datetime import datetime
+                f.write(f"{datetime.now()}: {msg}\n")
+        except Exception:
+            pass  # Silently ignore debug log failures
 
     try:
-        log_debug("Hook started")
-
         # Read hook data from stdin
         if sys.stdin.isatty():
-            log_debug("stdin is tty, exiting")
             return
 
         input_data = sys.stdin.read()
-        log_debug(f"Read input: {input_data[:200]}...")
 
         if not input_data.strip():
-            log_debug("Empty input, exiting")
             return
 
         data = json.loads(input_data)
-        log_debug(f"Parsed JSON: cwd={data.get('cwd')}, session={data.get('session_id')}")
+
+        # Set debug log path based on cwd
+        cwd = data.get('cwd', os.getcwd())
+        debug_log = Path(cwd) / ".branch_monkey" / "hook_debug.log"
+
+        log_debug("Hook started")
+        log_debug(f"Parsed JSON: cwd={cwd}, session={data.get('session_id')}")
 
         # Extract fields from stdin JSON
         cwd = data.get('cwd', os.getcwd())

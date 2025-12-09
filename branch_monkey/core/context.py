@@ -8,11 +8,16 @@ from typing import Optional, Dict, List, Any
 from dataclasses import dataclass
 
 
-# Database path for context history
-CONTEXT_DB = Path.home() / ".branch_monkey" / "context_history.db"
+# Per-repo database filename (stored in <repo>/.branch_monkey/data.db)
+LOCAL_DB_NAME = "data.db"
 
 # Context types
 CONTEXT_TYPES = ["codebase", "architecture", "prompts"]
+
+
+def get_local_db_path(repo_path: Path) -> Path:
+    """Get the path to a repo's local database."""
+    return repo_path / ".branch_monkey" / LOCAL_DB_NAME
 
 
 @dataclass
@@ -22,26 +27,25 @@ class ContextEntry:
     context_type: str
     content: str
     created_at: str
-    repo_path: str
 
 
-def init_context_db():
-    """Initialize the context history database."""
-    CONTEXT_DB.parent.mkdir(parents=True, exist_ok=True)
+def init_context_db(repo_path: Path):
+    """Initialize the context history database for a specific repo."""
+    db_path = get_local_db_path(repo_path)
+    db_path.parent.mkdir(parents=True, exist_ok=True)
 
-    conn = sqlite3.connect(CONTEXT_DB)
+    conn = sqlite3.connect(db_path)
     conn.execute('''
         CREATE TABLE IF NOT EXISTS context_history (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             context_type TEXT NOT NULL,
             content TEXT NOT NULL,
-            created_at TEXT NOT NULL,
-            repo_path TEXT NOT NULL
+            created_at TEXT NOT NULL
         )
     ''')
     conn.execute('''
-        CREATE INDEX IF NOT EXISTS idx_context_repo_type
-        ON context_history(repo_path, context_type)
+        CREATE INDEX IF NOT EXISTS idx_context_type
+        ON context_history(context_type, created_at DESC)
     ''')
     conn.commit()
     conn.close()
@@ -67,7 +71,8 @@ class ContextLibrary:
             repo_path: Path to the Git repository
         """
         self.repo_path = repo_path
-        init_context_db()
+        self.db_path = get_local_db_path(repo_path)
+        init_context_db(repo_path)
 
     def get_prompt(self, context_type: str) -> str:
         """
@@ -301,16 +306,15 @@ curl -X POST http://localhost:8081/api/context/save/prompts -H "Content-Type: ap
             raise ValueError(f"Unknown context type: {context_type}. Must be one of: {CONTEXT_TYPES}")
 
         created_at = datetime.now().isoformat()
-        repo_path_str = str(self.repo_path.resolve())
 
-        conn = sqlite3.connect(CONTEXT_DB)
+        conn = sqlite3.connect(self.db_path)
         cursor = conn.cursor()
         cursor.execute(
             """
-            INSERT INTO context_history (context_type, content, created_at, repo_path)
-            VALUES (?, ?, ?, ?)
+            INSERT INTO context_history (context_type, content, created_at)
+            VALUES (?, ?, ?)
             """,
-            (context_type, content, created_at, repo_path_str)
+            (context_type, content, created_at)
         )
         entry_id = cursor.lastrowid
         conn.commit()
@@ -320,8 +324,7 @@ curl -X POST http://localhost:8081/api/context/save/prompts -H "Content-Type: ap
             id=entry_id,
             context_type=context_type,
             content=content,
-            created_at=created_at,
-            repo_path=repo_path_str
+            created_at=created_at
         )
 
     def get_history(self, context_type: str, limit: int = 50) -> List[Dict]:
@@ -338,19 +341,17 @@ curl -X POST http://localhost:8081/api/context/save/prompts -H "Content-Type: ap
         if context_type not in CONTEXT_TYPES:
             raise ValueError(f"Unknown context type: {context_type}. Must be one of: {CONTEXT_TYPES}")
 
-        repo_path_str = str(self.repo_path.resolve())
-
-        conn = sqlite3.connect(CONTEXT_DB)
+        conn = sqlite3.connect(self.db_path)
         cursor = conn.cursor()
         cursor.execute(
             """
-            SELECT id, context_type, content, created_at, repo_path
+            SELECT id, context_type, content, created_at
             FROM context_history
-            WHERE repo_path = ? AND context_type = ?
+            WHERE context_type = ?
             ORDER BY created_at DESC
             LIMIT ?
             """,
-            (repo_path_str, context_type, limit)
+            (context_type, limit)
         )
         rows = cursor.fetchall()
         conn.close()
@@ -361,8 +362,7 @@ curl -X POST http://localhost:8081/api/context/save/prompts -H "Content-Type: ap
                 "context_type": row[1],
                 "content": row[2],
                 "preview": row[2][:200] + "..." if len(row[2]) > 200 else row[2],
-                "created_at": row[3],
-                "repo_path": row[4]
+                "created_at": row[3]
             }
             for row in rows
         ]
@@ -377,11 +377,11 @@ curl -X POST http://localhost:8081/api/context/save/prompts -H "Content-Type: ap
         Returns:
             The entry dict or None if not found
         """
-        conn = sqlite3.connect(CONTEXT_DB)
+        conn = sqlite3.connect(self.db_path)
         cursor = conn.cursor()
         cursor.execute(
             """
-            SELECT id, context_type, content, created_at, repo_path
+            SELECT id, context_type, content, created_at
             FROM context_history
             WHERE id = ?
             """,
@@ -395,8 +395,7 @@ curl -X POST http://localhost:8081/api/context/save/prompts -H "Content-Type: ap
                 "id": row[0],
                 "context_type": row[1],
                 "content": row[2],
-                "created_at": row[3],
-                "repo_path": row[4]
+                "created_at": row[3]
             }
         return None
 
@@ -410,7 +409,7 @@ curl -X POST http://localhost:8081/api/context/save/prompts -H "Content-Type: ap
         Returns:
             True if deleted, False if not found
         """
-        conn = sqlite3.connect(CONTEXT_DB)
+        conn = sqlite3.connect(self.db_path)
         cursor = conn.cursor()
         cursor.execute("DELETE FROM context_history WHERE id = ?", (entry_id,))
         deleted = cursor.rowcount > 0
@@ -450,9 +449,7 @@ curl -X POST http://localhost:8081/api/context/save/prompts -H "Content-Type: ap
         Returns:
             Dict mapping context_type to count
         """
-        repo_path_str = str(self.repo_path.resolve())
-
-        conn = sqlite3.connect(CONTEXT_DB)
+        conn = sqlite3.connect(self.db_path)
         cursor = conn.cursor()
 
         counts = {}
@@ -460,9 +457,9 @@ curl -X POST http://localhost:8081/api/context/save/prompts -H "Content-Type: ap
             cursor.execute(
                 """
                 SELECT COUNT(*) FROM context_history
-                WHERE repo_path = ? AND context_type = ?
+                WHERE context_type = ?
                 """,
-                (repo_path_str, context_type)
+                (context_type,)
             )
             counts[context_type] = cursor.fetchone()[0]
 
