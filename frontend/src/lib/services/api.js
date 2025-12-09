@@ -5,8 +5,16 @@
 
 import { noBackendDetected, isDemoMode } from '../stores/store.js';
 import { get } from 'svelte/store';
+import { DEMO_DATA } from './demoData.js';
 
 const API_BASE = '/api';
+
+/**
+ * Check if we're in demo mode and return demo data
+ */
+function inDemoMode() {
+  return get(isDemoMode);
+}
 
 /**
  * Helper to safely parse JSON response
@@ -46,6 +54,7 @@ async function safeJsonParse(response, errorPrefix) {
  * @returns {Promise<Object>} Commit tree data
  */
 export async function fetchCommitTree(limit = 50, offset = 0) {
+  if (inDemoMode()) return DEMO_DATA.commitTree;
   const response = await fetch(`${API_BASE}/commit-tree?limit=${limit}&offset=${offset}`);
   if (!response.ok) {
     throw new Error(`Failed to fetch commit tree: ${response.statusText}`);
@@ -58,6 +67,7 @@ export async function fetchCommitTree(limit = 50, offset = 0) {
  * @returns {Promise<Array>} List of experiments
  */
 export async function fetchExperiments() {
+  if (inDemoMode()) return DEMO_DATA.experiments;
   const response = await fetch(`${API_BASE}/experiments`);
   if (!response.ok) {
     throw new Error(`Failed to fetch experiments: ${response.statusText}`);
@@ -169,6 +179,7 @@ export async function discardExperiment(experimentName) {
  * @returns {Promise<Array>} List of notes
  */
 export async function fetchNotes(sha) {
+  if (inDemoMode()) return DEMO_DATA.notes.notes;
   const response = await fetch(`${API_BASE}/notes/${sha}`);
   if (!response.ok) {
     throw new Error(`Failed to fetch notes: ${response.statusText}`);
@@ -225,6 +236,7 @@ export async function deleteNote(sha, noteId) {
  * @returns {Promise<Object>} Repository information
  */
 export async function fetchRepoInfo() {
+  if (inDemoMode()) return DEMO_DATA.repoInfo;
   const response = await fetch(`${API_BASE}/repo/info`);
   if (!response.ok) {
     throw new Error(`Failed to fetch repo info: ${response.statusText}`);
@@ -319,6 +331,7 @@ export async function createBranch(name, fromCommit = null) {
  * @returns {Promise<Object>} Branches data with list and current branch
  */
 export async function fetchBranches() {
+  if (inDemoMode()) return DEMO_DATA.branches;
   const response = await fetch(`${API_BASE}/branches`);
   if (!response.ok) {
     throw new Error(`Failed to fetch branches: ${response.statusText}`);
@@ -331,6 +344,7 @@ export async function fetchBranches() {
  * @returns {Promise<Object>} Working tree status with staged, modified, and untracked counts
  */
 export async function fetchWorkingTreeStatus() {
+  if (inDemoMode()) return DEMO_DATA.workingTree;
   const response = await fetch(`${API_BASE}/working-tree`);
   if (!response.ok) {
     throw new Error(`Failed to fetch working tree status: ${response.statusText}`);
@@ -343,6 +357,7 @@ export async function fetchWorkingTreeStatus() {
  * @returns {Promise<Object>} Remote status with ahead/behind counts
  */
 export async function fetchRemoteStatus() {
+  if (inDemoMode()) return DEMO_DATA.remoteStatus;
   const response = await fetch(`${API_BASE}/remote/status`);
   if (!response.ok) {
     throw new Error(`Failed to fetch remote status: ${response.statusText}`);
@@ -409,6 +424,7 @@ export async function deletePrompt(sha) {
  * @returns {Promise<Object>} All prompts with commit info
  */
 export async function fetchAllPrompts() {
+  if (inDemoMode()) return DEMO_DATA.allPrompts;
   const response = await fetch(`${API_BASE}/prompts/all/list`);
   if (!response.ok) {
     throw new Error(`Failed to fetch prompts: ${response.statusText}`);
@@ -423,6 +439,7 @@ export async function fetchAllPrompts() {
  * @returns {Promise<Object>} Counts by type
  */
 export async function fetchContextCounts() {
+  if (inDemoMode()) return DEMO_DATA.contextCounts;
   const response = await fetch(`${API_BASE}/context/counts`);
   if (!response.ok) {
     throw new Error(`Failed to fetch context counts: ${response.statusText}`);
@@ -470,6 +487,7 @@ export async function saveContextSummary(contextType, content) {
  * @returns {Promise<Object>} History data
  */
 export async function fetchContextHistory(contextType, limit = 50) {
+  if (inDemoMode()) return DEMO_DATA.contextHistory[contextType] || { entries: [] };
   const response = await fetch(`${API_BASE}/context/history/${contextType}?limit=${limit}`);
   if (!response.ok) {
     throw new Error(`Failed to fetch context history: ${response.statusText}`);
@@ -511,6 +529,10 @@ export async function deleteContextEntry(entryId) {
  * @returns {Promise<Object>} Latest entry
  */
 export async function fetchLatestContext(contextType) {
+  if (inDemoMode()) {
+    const history = DEMO_DATA.contextHistory[contextType];
+    return { entry: history?.entries?.[0] || null };
+  }
   const response = await fetch(`${API_BASE}/context/latest/${contextType}`);
   if (!response.ok) {
     throw new Error(`Failed to fetch latest context: ${response.statusText}`);
@@ -525,6 +547,7 @@ export async function fetchLatestContext(contextType) {
  * @returns {Promise<Object>} Tasks data
  */
 export async function fetchTasks() {
+  if (inDemoMode()) return DEMO_DATA.tasks;
   const response = await fetch(`${API_BASE}/tasks`);
   if (!response.ok) {
     throw new Error(`Failed to fetch tasks: ${response.statusText}`);
@@ -612,6 +635,7 @@ export async function reorderTasks(taskIds) {
  * @returns {Promise<Object>} Versions data
  */
 export async function fetchVersions() {
+  if (inDemoMode()) return DEMO_DATA.versions;
   const response = await fetch(`${API_BASE}/versions`);
   if (!response.ok) {
     throw new Error(`Failed to fetch versions: ${response.statusText}`);
@@ -706,6 +730,7 @@ export async function reorderVersions(order) {
  * @returns {Promise<Object>} Prompt logs data
  */
 export async function fetchPromptLogs(options = {}) {
+  if (inDemoMode()) return DEMO_DATA.promptLogs;
   const params = new URLSearchParams();
   if (options.limit) params.append('limit', options.limit);
   if (options.offset) params.append('offset', options.offset);
@@ -747,6 +772,7 @@ export async function logPrompt(promptData) {
  * @returns {Promise<Object>} Stats data
  */
 export async function fetchPromptStats() {
+  if (inDemoMode()) return DEMO_DATA.promptLogs.stats;
   const response = await fetch(`${API_BASE}/prompt-logs/stats`);
   if (!response.ok) {
     throw new Error(`Failed to fetch prompt stats: ${response.statusText}`);
