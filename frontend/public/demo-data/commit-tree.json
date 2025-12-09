@@ -1,0 +1,19 @@
+{
+  "success": true,
+  "commits": [
+    {"sha":"a1b2c3d","fullSha":"a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0","message":"Add real-time notifications feature","author":"Demo User","age":"2 hours ago","timestamp":"2025-12-09 08:00:00 +0000","parents":["b2c3d4e"],"branches":["main"],"is_head":true,"has_stash":false,"has_notes":false},
+    {"sha":"b2c3d4e","fullSha":"b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0c1","message":"Implement dark mode support with 25+ themes","author":"Demo User","age":"5 hours ago","timestamp":"2025-12-09 05:00:00 +0000","parents":["c3d4e5f"],"branches":[],"is_head":false,"has_stash":true,"has_notes":false},
+    {"sha":"c3d4e5f","fullSha":"c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0c1d2","message":"Create task management kanban board","author":"Demo User","age":"1 day ago","timestamp":"2025-12-08 10:00:00 +0000","parents":["d4e5f6a"],"branches":[],"is_head":false,"has_stash":false,"has_notes":true},
+    {"sha":"d4e5f6a","fullSha":"d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0c1d2e3","message":"Add JWT authentication flow","author":"Demo User","age":"2 days ago","timestamp":"2025-12-07 14:00:00 +0000","parents":["e5f6a7b"],"branches":[],"is_head":false,"has_stash":false,"has_notes":false},
+    {"sha":"e5f6a7b","fullSha":"e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0c1d2e3f4","message":"Set up database migrations with Alembic","author":"Demo User","age":"3 days ago","timestamp":"2025-12-06 09:00:00 +0000","parents":["f6a7b8c"],"branches":[],"is_head":false,"has_stash":false,"has_notes":false},
+    {"sha":"f6a7b8c","fullSha":"f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0c1d2e3f4a5","message":"Initialize FastAPI backend structure","author":"Demo User","age":"4 days ago","timestamp":"2025-12-05 16:00:00 +0000","parents":["a7b8c9d"],"branches":[],"is_head":false,"has_stash":false,"has_notes":false},
+    {"sha":"a7b8c9d","fullSha":"a7b8c9d0e1f2a3b4c5d6e7f8a9b0c1d2e3f4a5b6","message":"Create Svelte frontend scaffolding","author":"Demo User","age":"5 days ago","timestamp":"2025-12-04 11:00:00 +0000","parents":["b8c9d0e"],"branches":["feature/ui"],"is_head":false,"has_stash":false,"has_notes":false},
+    {"sha":"b8c9d0e","fullSha":"b8c9d0e1f2a3b4c5d6e7f8a9b0c1d2e3f4a5b6c7","message":"Add project configuration files","author":"Demo User","age":"6 days ago","timestamp":"2025-12-03 15:00:00 +0000","parents":["c9d0e1f"],"branches":[],"is_head":false,"has_stash":false,"has_notes":false},
+    {"sha":"c9d0e1f","fullSha":"c9d0e1f2a3b4c5d6e7f8a9b0c1d2e3f4a5b6c7d8","message":"Initial commit - project setup","author":"Demo User","age":"1 week ago","timestamp":"2025-12-02 10:00:00 +0000","parents":[],"branches":[],"is_head":false,"has_stash":false,"has_notes":false}
+  ],
+  "current_sha": "a1b2c3d",
+  "total": 9,
+  "offset": 0,
+  "limit": 50,
+  "has_more": false
+}

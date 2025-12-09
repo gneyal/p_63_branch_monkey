@@ -2,7 +2,7 @@
   import { onMount, onDestroy } from 'svelte';
   import { push } from 'svelte-spa-router';
   import ThemePicker from './ThemePicker.svelte';
-  import { startTour, repoInfo } from '../stores/store.js';
+  import { startTour, repoInfo, isDemoMode } from '../stores/store.js';
   import { setRepoPath, fetchRepoInfo, getExampleProject } from '../services/api.js';
 
   let scrollY = 0;
@@ -183,22 +183,37 @@
 
   async function onStartTour() {
     try {
-      // Switch to the example project first
+      // First check if backend is available
       const example = await getExampleProject();
       if (example.exists && example.has_data) {
+        // Backend is available - switch to example project and start full tour
         await setRepoPath(example.path);
         const info = await fetchRepoInfo();
         repoInfo.set(info);
+
+        push('/commits');
+        // Small delay to let the page load before starting tour
+        setTimeout(() => {
+          startTour();
+        }, 500);
       }
     } catch (err) {
-      console.error('Failed to switch to example project:', err);
-    }
+      // Backend not available - enable demo mode and start tour with static data
+      console.log('Starting demo mode tour');
+      isDemoMode.set(true);
+      repoInfo.set({
+        name: 'demo-project',
+        path: '/demo/demo-project',
+        branch: 'main',
+        remote_url: 'https://github.com/demo/demo-project',
+        is_demo: true
+      });
 
-    push('/commits');
-    // Small delay to let the page load before starting tour
-    setTimeout(() => {
-      startTour();
-    }, 500);
+      push('/commits');
+      setTimeout(() => {
+        startTour();
+      }, 500);
+    }
   }
 
   const pillars = [

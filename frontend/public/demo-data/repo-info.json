@@ -1,0 +1,7 @@
+{
+  "name": "demo-project",
+  "path": "/demo/demo-project",
+  "branch": "main",
+  "remote_url": "https://github.com/demo/demo-project",
+  "is_demo": true
+}

@@ -1,6 +1,6 @@
 <script>
   import { push } from 'svelte-spa-router';
-  import { noBackendDetected } from '../stores/store.js';
+  import { noBackendDetected, isDemoMode } from '../stores/store.js';
 
   function goToInstall() {
     noBackendDetected.set(false);
@@ -12,7 +12,7 @@
   }
 </script>
 
-{#if $noBackendDetected}
+{#if $noBackendDetected && !$isDemoMode}
   <div class="modal-backdrop" on:click={dismiss}>
     <div class="modal-content" on:click|stopPropagation>
       <div class="modal-header">

@@ -1,0 +1,22 @@
+{
+  "history": [
+    {
+      "id": 3,
+      "context_type": "prompts",
+      "content": "# AI Prompts Analysis\n\n## Usage Statistics\n- **Total Prompts**: 47 in the last 7 days\n- **Total Tokens**: 156,432 (42,100 input / 114,332 output)\n- **Estimated Cost**: $12.45\n\n## Most Common Use Cases\n1. **Code Refactoring** (35%) - Improving code quality and structure\n2. **Bug Fixes** (25%) - Debugging and fixing issues\n3. **Feature Implementation** (20%) - Building new features\n4. **Documentation** (12%) - Generating docs and comments\n5. **Code Review** (8%) - Reviewing PRs and code quality\n\n## Model Usage\n- Claude Opus 4.5: 60% (complex tasks)\n- Claude Sonnet 4: 30% (general coding)\n- Claude Haiku: 10% (quick queries)\n\n## Insights\n- Peak usage hours: 10am-12pm, 2pm-4pm\n- Average response time: 3.2 seconds\n- Success rate: 98.5%\n\n## Recommendations\n- Consider using Haiku for simple queries to reduce costs\n- Complex refactoring tasks benefit from Opus's reasoning",
+      "created_at": "2025-12-06T14:16:55.007735"
+    },
+    {
+      "id": 2,
+      "context_type": "architecture",
+      "content": "{\n  \"name\": \"Demo Application\",\n  \"version\": \"1.0.0\",\n  \"description\": \"A modern full-stack web application\",\n  \"tech_stack\": [\n    {\"name\": \"Python\", \"version\": \"3.12\", \"category\": \"backend\"},\n    {\"name\": \"FastAPI\", \"version\": \"0.104\", \"category\": \"backend\"},\n    {\"name\": \"Svelte\", \"version\": \"5.0\", \"category\": \"frontend\"},\n    {\"name\": \"SQLite\", \"version\": \"3.x\", \"category\": \"database\"}\n  ],\n  \"entities\": [\n    {\n      \"name\": \"User\",\n      \"fields\": [\"id\", \"email\", \"name\", \"created_at\"],\n      \"relationships\": [\"has_many: Tasks\", \"has_many: Sessions\"]\n    },\n    {\n      \"name\": \"Task\",\n      \"fields\": [\"id\", \"title\", \"status\", \"priority\", \"sprint\"],\n      \"relationships\": [\"belongs_to: User\", \"belongs_to: Version\"]\n    },\n    {\n      \"name\": \"Version\",\n      \"fields\": [\"id\", \"key\", \"label\", \"sort_order\"],\n      \"relationships\": [\"has_many: Tasks\"]\n    }\n  ],\n  \"endpoints\": [\n    {\"method\": \"GET\", \"path\": \"/api/tasks\", \"description\": \"List all tasks\"},\n    {\"method\": \"POST\", \"path\": \"/api/tasks\", \"description\": \"Create a task\"},\n    {\"method\": \"PUT\", \"path\": \"/api/tasks/{id}\", \"description\": \"Update a task\"},\n    {\"method\": \"DELETE\", \"path\": \"/api/tasks/{id}\", \"description\": \"Delete a task\"}\n  ],\n  \"ui_components\": [\n    {\"name\": \"TaskManager\", \"type\": \"page\", \"features\": [\"kanban board\", \"drag-drop\", \"filters\"]},\n    {\"name\": \"Topbar\", \"type\": \"layout\", \"features\": [\"navigation\", \"repo selector\", \"theme picker\"]},\n    {\"name\": \"TourGuide\", \"type\": \"overlay\", \"features\": [\"step-by-step guide\", \"highlights\"]}\n  ]\n}",
+      "created_at": "2025-12-06T12:16:55.007735"
+    },
+    {
+      "id": 1,
+      "context_type": "codebase",
+      "content": "# Codebase Summary\n\n## Overview\nThis is a modern full-stack web application built with Python (FastAPI) backend and Svelte frontend.\n\n## Tech Stack\n- **Backend**: Python 3.12, FastAPI, SQLAlchemy, SQLite\n- **Frontend**: Svelte 5, Vite, TypeScript\n- **Styling**: CSS Variables, Custom Theme System\n\n## Directory Structure\n```\n├── backend/\n│   ├── api/          # REST API endpoints\n│   ├── models/       # Database models\n│   ├── services/     # Business logic\n│   └── utils/        # Helper functions\n├── frontend/\n│   ├── src/\n│   │   ├── lib/      # Shared components\n│   │   ├── routes/   # Page components\n│   │   └── stores/   # State management\n│   └── static/       # Static assets\n└── tests/            # Test suites\n```\n\n## Key Features\n1. **User Authentication** - JWT-based auth with refresh tokens\n2. **Real-time Updates** - WebSocket connections for live data\n3. **Task Management** - Kanban-style board with drag-and-drop\n4. **Analytics Dashboard** - Charts and metrics visualization\n\n## Recent Changes\n- Added dark mode support with 25+ themes\n- Implemented per-repository data storage\n- Added tour guide for new users",
+      "created_at": "2025-12-06T10:16:55.007735"
+    }
+  ]
+}

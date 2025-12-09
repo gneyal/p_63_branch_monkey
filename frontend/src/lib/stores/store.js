@@ -117,6 +117,9 @@ export const showTourGuide = writable(false);
 // No backend detected (for demo/web visitors)
 export const noBackendDetected = writable(false);
 
+// Demo mode - when true, API calls return static demo data
+export const isDemoMode = writable(false);
+
 /**
  * Start the tour guide
  */

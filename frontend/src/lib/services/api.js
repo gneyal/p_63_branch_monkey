@@ -3,7 +3,8 @@
  * Handles all communication with the FastAPI backend
  */
 
-import { noBackendDetected } from '../stores/store.js';
+import { noBackendDetected, isDemoMode } from '../stores/store.js';
+import { get } from 'svelte/store';
 
 const API_BASE = '/api';
 
@@ -16,7 +17,10 @@ async function safeJsonParse(response, errorPrefix) {
 
   // Check if we got HTML instead of JSON (no backend)
   if (text.trim().startsWith('<!') || text.trim().startsWith('<html')) {
-    noBackendDetected.set(true);
+    // Don't show modal in demo mode - the demo API handles this
+    if (!get(isDemoMode)) {
+      noBackendDetected.set(true);
+    }
     throw new Error('Backend not running - this app requires local installation');
   }
 
@@ -25,7 +29,10 @@ async function safeJsonParse(response, errorPrefix) {
   } catch (e) {
     // If JSON parsing fails, might also be HTML
     if (text.includes('<!doctype') || text.includes('<html')) {
-      noBackendDetected.set(true);
+      // Don't show modal in demo mode
+      if (!get(isDemoMode)) {
+        noBackendDetected.set(true);
+      }
       throw new Error('Backend not running - this app requires local installation');
     }
     throw new Error(`${errorPrefix}: Invalid response format`);
