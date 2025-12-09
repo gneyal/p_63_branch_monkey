@@ -23,3 +23,4 @@ def get_config() -> Config:
         database_url=os.getenv("DATABASE_URL", "sqlite:///./app.db"),
         secret_key=os.getenv("SECRET_KEY", "change-me-in-production"),
     )
+

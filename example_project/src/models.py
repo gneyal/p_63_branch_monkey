@@ -23,3 +23,4 @@ class Task:
     user_id: int
     created_at: datetime
     updated_at: Optional[datetime] = None
+

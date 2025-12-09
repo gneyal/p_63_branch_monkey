@@ -43,3 +43,6 @@ htmlcov/
 # Distribution
 *.tar.gz
 *.whl
+
+# Example project (nested git repo for demo)
+example_project/.git/
