@@ -248,6 +248,18 @@ export async function setRepoPath(path) {
 }
 
 /**
+ * Get the example project path for the tour
+ * @returns {Promise<Object>} Example project info
+ */
+export async function getExampleProject() {
+  const response = await fetch(`${API_BASE}/example-project`);
+  if (!response.ok) {
+    throw new Error('Failed to get example project');
+  }
+  return response.json();
+}
+
+/**
  * Search for repository paths
  * @param {string} query - Search query
  * @returns {Promise<Array>} List of matching paths

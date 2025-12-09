@@ -2,7 +2,8 @@
   import { onMount, onDestroy } from 'svelte';
   import { push } from 'svelte-spa-router';
   import ThemePicker from './ThemePicker.svelte';
-  import { startTour } from '../stores/store.js';
+  import { startTour, repoInfo } from '../stores/store.js';
+  import { setRepoPath, fetchRepoInfo, getExampleProject } from '../services/api.js';
 
   let scrollY = 0;
   let heroRef;
@@ -180,12 +181,24 @@
     push('/commits');
   }
 
-  function onStartTour() {
+  async function onStartTour() {
+    try {
+      // Switch to the example project first
+      const example = await getExampleProject();
+      if (example.exists && example.has_data) {
+        await setRepoPath(example.path);
+        const info = await fetchRepoInfo();
+        repoInfo.set(info);
+      }
+    } catch (err) {
+      console.error('Failed to switch to example project:', err);
+    }
+
     push('/commits');
     // Small delay to let the page load before starting tour
     setTimeout(() => {
       startTour();
-    }, 300);
+    }, 500);
   }
 
   const pillars = [
@@ -237,10 +250,10 @@
         Branch Monkey is an opinionated version of what we think is needed for today's devs.
       </p>
       <div class="hero-buttons">
-        <button class="cta-button primary" on:click={onGetStarted}>
+        <button class="cta-button secondary" on:click={onGetStarted}>
           Install
         </button>
-        <button class="cta-button secondary" on:click={onStartTour}>
+        <button class="cta-button primary" on:click={onStartTour}>
           Take a Tour
         </button>
       </div>
@@ -604,10 +617,10 @@
     <div class="install-content">
       <h2>Get started in seconds</h2>
       <div class="install-buttons">
-        <button class="cta-button primary" on:click={onGetStarted}>
+        <button class="cta-button secondary" on:click={onGetStarted}>
           Install
         </button>
-        <button class="cta-button secondary" on:click={onStartTour}>
+        <button class="cta-button primary" on:click={onStartTour}>
           Take a Tour
         </button>
       </div>
@@ -753,11 +766,22 @@
   .cta-button.primary {
     background: var(--text-primary);
     color: var(--bg-primary);
+    animation: wiggle 2.5s ease-in-out infinite;
   }
 
   .cta-button.primary:hover {
     opacity: 0.85;
     transform: translateY(-1px);
+    animation: none;
+  }
+
+  @keyframes wiggle {
+    0%, 100% { transform: rotate(0deg); }
+    5% { transform: rotate(-2deg) scale(1.02); }
+    10% { transform: rotate(2deg) scale(1.02); }
+    15% { transform: rotate(-1deg); }
+    20% { transform: rotate(1deg); }
+    25%, 100% { transform: rotate(0deg); }
   }
 
   .cta-button.secondary {

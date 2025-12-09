@@ -29,6 +29,9 @@ app.add_middleware(
 # Store repo path
 REPO_PATH: Optional[Path] = None
 
+# Path to the Branch Monkey installation (for example_project)
+BRANCH_MONKEY_ROOT = Path(__file__).parent
+
 # Per-repo database filename (stored in <repo>/.branch_monkey/data.db)
 LOCAL_DB_NAME = "data.db"
 
@@ -1875,6 +1878,19 @@ def get_repo_info():
         "path": str(path.absolute()),
         "exists": path.exists(),
         "is_git_repo": (path / ".git").exists()
+    }
+
+
+@app.get("/api/example-project")
+def get_example_project():
+    """Get the path to the example project for the tour."""
+    example_path = BRANCH_MONKEY_ROOT / "example_project"
+    return {
+        "success": True,
+        "path": str(example_path.absolute()),
+        "exists": example_path.exists(),
+        "is_git_repo": (example_path / ".git").exists(),
+        "has_data": (example_path / ".branch_monkey" / "data.db").exists()
     }
 
 

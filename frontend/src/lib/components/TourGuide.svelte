@@ -1,5 +1,6 @@
 <script>
   import { onMount, onDestroy } from 'svelte';
+  import { push } from 'svelte-spa-router';
 
   export let isActive = false;
   export let oncomplete = () => {};
@@ -15,63 +16,88 @@
       title: 'Welcome to Branch Monkey!',
       content: 'Let\'s take a quick tour of the app. This will help you get started with the key features.',
       selector: null, // No element highlight for welcome
-      position: 'center'
+      position: 'center',
+      route: '/commits'
     },
     {
       id: 'repo-selector',
       title: 'Repository Selector',
       content: 'Switch between different repositories here. Your current repo is shown in the center.',
       selector: '.header-center',
-      position: 'bottom'
-    },
-    {
-      id: 'nav-tabs',
-      title: 'Navigation',
-      content: 'Quick access to your pinned pages. Click any tab to navigate.',
-      selector: '.view-toggle',
-      position: 'bottom'
-    },
-    {
-      id: 'more-menu',
-      title: 'More Options',
-      content: 'Click the three dots to access all pages. You can pin/unpin tabs from here.',
-      selector: '.menu-container',
-      position: 'bottom-left'
+      position: 'bottom',
+      route: '/commits'
     },
     {
       id: 'commits',
-      title: 'Visual Git (Commits)',
+      title: 'Commits',
       content: 'See your commit history as a visual timeline. Great for understanding project progress.',
       selector: '[title="Commits"]',
-      position: 'bottom'
+      position: 'bottom',
+      route: '/commits'
     },
     {
       id: 'tasks',
-      title: 'Task Manager',
+      title: 'Tasks',
       content: 'Track your development tasks. Organize work with a simple kanban-style board.',
       selector: '[title="Tasks"]',
-      position: 'bottom'
+      position: 'bottom',
+      route: '/tasks'
     },
     {
       id: 'prompts',
-      title: 'Prompts & Insights',
-      content: 'View your AI prompt history, costs, and generate VP R&D insights from usage data.',
+      title: 'Prompts',
+      content: 'View your AI prompt history, token usage, and costs. Track your AI-assisted development.',
       selector: '[title="Prompts"]',
-      position: 'bottom'
+      position: 'bottom',
+      route: '/prompts'
+    },
+    {
+      id: 'more-menu',
+      title: 'More Pages',
+      content: 'Click the ··· menu to access additional pages like Context and Standards. You can also pin/unpin tabs here.',
+      selector: '.menu-container',
+      position: 'bottom-left',
+      route: '/prompts'
+    },
+    {
+      id: 'context',
+      title: 'Context',
+      content: 'Generate and store AI summaries of your codebase and prompt history. Great for onboarding and documentation.',
+      selector: '[title="Context"]',
+      position: 'bottom-left',
+      route: '/context'
+    },
+    {
+      id: 'architecture',
+      title: 'Architecture',
+      content: 'Visualize and document your system architecture. See entities, endpoints, UI components, and tech stack at a glance.',
+      selector: '[title="Architecture"]',
+      position: 'bottom-left',
+      route: '/architecture'
+    },
+    {
+      id: 'standards',
+      title: 'Standards',
+      content: 'Define your team\'s coding standards for Design, Backend, API, and Code. AI assistants can reference these to maintain consistency.',
+      selector: '[title="Standards"]',
+      position: 'bottom-left',
+      route: '/standards'
     },
     {
       id: 'theme-picker',
       title: 'Theme Picker',
-      content: 'Customize your experience with vim-inspired color themes. Light and dark options available.',
+      content: 'Customize your experience with 25+ vim-inspired color themes. Light and dark options available.',
       selector: '.theme-picker-container',
-      position: 'top-left'
+      position: 'top-left',
+      route: '/standards'
     },
     {
       id: 'complete',
       title: 'You\'re all set!',
       content: 'Explore the app and make it yours. You can restart this tour anytime from the menu.',
       selector: null,
-      position: 'center'
+      position: 'center',
+      route: '/commits'
     }
   ];
 
@@ -156,10 +182,21 @@
     arrowDirection = arrowDir;
   }
 
+  function navigateToStep(step) {
+    const route = tourSteps[step]?.route;
+    if (route && window.location.hash !== `#${route}`) {
+      push(route);
+      // Give the page time to load before updating position
+      setTimeout(updatePosition, 150);
+    } else {
+      setTimeout(updatePosition, 50);
+    }
+  }
+
   function nextStep() {
     if (currentStep < tourSteps.length - 1) {
       currentStep++;
-      setTimeout(updatePosition, 50);
+      navigateToStep(currentStep);
     } else {
       completeTour();
     }
@@ -168,7 +205,7 @@
   function prevStep() {
     if (currentStep > 0) {
       currentStep--;
-      setTimeout(updatePosition, 50);
+      navigateToStep(currentStep);
     }
   }
 
