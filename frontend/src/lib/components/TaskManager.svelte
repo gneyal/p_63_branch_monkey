@@ -62,6 +62,9 @@
   // Ordered versions (for custom ordering) - backlog always last
   let versionOrder = ['v1', 'v2', 'backlog'];
 
+  // Version sort mode: 'custom' | 'alpha-asc' | 'alpha-desc' | 'tasks-desc' | 'tasks-asc'
+  let versionSortMode = 'custom';
+
   // Drag state
   let draggedTask = null;
   let dragOverColumn = null;
@@ -85,18 +88,36 @@
 
   // Get unique versions from tasks and custom versions, respecting order
   $: allVersions = [...new Set([...versionOrder, ...customVersions, ...tasks.map(t => t.sprint || 'backlog')])].filter(v => !hiddenDefaultVersions.includes(v));
-  // Sort versions with backlog always at the end
-  $: versions = allVersions.sort((a, b) => {
+
+  // Helper to get task count for a version
+  function getVersionTaskCount(version) {
+    return tasks.filter(t => (t.sprint || 'backlog') === version).length;
+  }
+
+  // Sort versions based on selected sort mode (backlog always last)
+  $: versions = [...allVersions].sort((a, b) => {
     // Backlog always last
     if (a === 'backlog') return 1;
     if (b === 'backlog') return -1;
 
-    const aIdx = versionOrder.indexOf(a);
-    const bIdx = versionOrder.indexOf(b);
-    if (aIdx === -1 && bIdx === -1) return 0;
-    if (aIdx === -1) return 1;
-    if (bIdx === -1) return -1;
-    return aIdx - bIdx;
+    switch (versionSortMode) {
+      case 'alpha-asc':
+        return (versionLabels[a] || a).localeCompare(versionLabels[b] || b);
+      case 'alpha-desc':
+        return (versionLabels[b] || b).localeCompare(versionLabels[a] || a);
+      case 'tasks-desc':
+        return getVersionTaskCount(b) - getVersionTaskCount(a);
+      case 'tasks-asc':
+        return getVersionTaskCount(a) - getVersionTaskCount(b);
+      case 'custom':
+      default:
+        const aIdx = versionOrder.indexOf(a);
+        const bIdx = versionOrder.indexOf(b);
+        if (aIdx === -1 && bIdx === -1) return 0;
+        if (aIdx === -1) return 1;
+        if (bIdx === -1) return -1;
+        return aIdx - bIdx;
+    }
   });
 
   // Helper to sort tasks by sort_order
@@ -943,6 +964,16 @@ Task ID: ${task.id}`;
           </button>
           {#if showVersionsMenu}
             <div class="versions-dropdown" on:click|stopPropagation>
+              <div class="versions-sort-section">
+                <span class="sort-label">Sort:</span>
+                <select class="sort-select" bind:value={versionSortMode}>
+                  <option value="custom">Custom</option>
+                  <option value="alpha-asc">A → Z</option>
+                  <option value="alpha-desc">Z → A</option>
+                  <option value="tasks-desc">Most tasks</option>
+                  <option value="tasks-asc">Least tasks</option>
+                </select>
+              </div>
               <div class="versions-list">
                 <label class="version-item version-checkbox-item">
                   <input
@@ -1224,6 +1255,16 @@ Task ID: ${task.id}`;
             </button>
             {#if showVersionsMenu}
               <div class="versions-dropdown" on:click|stopPropagation>
+                <div class="versions-sort-section">
+                  <span class="sort-label">Sort:</span>
+                  <select class="sort-select" bind:value={versionSortMode}>
+                    <option value="custom">Custom</option>
+                    <option value="alpha-asc">A → Z</option>
+                    <option value="alpha-desc">Z → A</option>
+                    <option value="tasks-desc">Most tasks</option>
+                    <option value="tasks-asc">Least tasks</option>
+                  </select>
+                </div>
                 <div class="versions-list">
                   <label class="version-item version-checkbox-item">
                     <input
@@ -2377,6 +2418,41 @@ Task ID: ${task.id}`;
     box-shadow: var(--shadow-large);
     z-index: 100;
     overflow: hidden;
+  }
+
+  .versions-sort-section {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 12px;
+    border-bottom: 1px solid var(--border-primary);
+    background: var(--bg-secondary);
+  }
+
+  .sort-label {
+    font-size: 11px;
+    color: var(--text-secondary);
+    font-weight: 500;
+  }
+
+  .sort-select {
+    flex: 1;
+    padding: 4px 8px;
+    font-size: 11px;
+    background: var(--bg-primary);
+    border: 1px solid var(--border-primary);
+    border-radius: 3px;
+    color: var(--text-primary);
+    cursor: pointer;
+  }
+
+  .sort-select:hover {
+    border-color: var(--accent-primary);
+  }
+
+  .sort-select:focus {
+    outline: none;
+    border-color: var(--accent-primary);
   }
 
   .versions-list {
