@@ -2,6 +2,7 @@
   import { onMount, onDestroy } from 'svelte';
   import { push } from 'svelte-spa-router';
   import ThemePicker from './ThemePicker.svelte';
+  import { startTour } from '../stores/store.js';
 
   let scrollY = 0;
   let heroRef;
@@ -179,6 +180,14 @@
     push('/commits');
   }
 
+  function onStartTour() {
+    push('/commits');
+    // Small delay to let the page load before starting tour
+    setTimeout(() => {
+      startTour();
+    }, 300);
+  }
+
   const pillars = [
     {
       title: 'Visual Git',
@@ -230,6 +239,9 @@
       <div class="hero-buttons">
         <button class="cta-button primary" on:click={onGetStarted}>
           Install
+        </button>
+        <button class="cta-button secondary" on:click={onStartTour}>
+          Take a Tour
         </button>
       </div>
     </div>
@@ -591,9 +603,14 @@
   <section class="install-section" id="install">
     <div class="install-content">
       <h2>Get started in seconds</h2>
-      <button class="cta-button primary" on:click={onGetStarted}>
-        Install
-      </button>
+      <div class="install-buttons">
+        <button class="cta-button primary" on:click={onGetStarted}>
+          Install
+        </button>
+        <button class="cta-button secondary" on:click={onStartTour}>
+          Take a Tour
+        </button>
+      </div>
     </div>
   </section>
 
@@ -1786,6 +1803,11 @@
     color: var(--text-primary);
   }
 
+  .install-buttons {
+    display: flex;
+    gap: 16px;
+    justify-content: center;
+  }
 
   /* Footer */
   .footer {
