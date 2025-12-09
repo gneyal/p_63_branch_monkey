@@ -71,8 +71,8 @@
       id: 'architecture',
       title: 'Architecture',
       content: 'Visualize and document your system architecture. See entities, endpoints, UI components, and tech stack at a glance.',
-      selector: '[title="Architecture"]',
-      position: 'bottom-left',
+      selector: '.architecture-inline',
+      position: 'center',
       route: '/architecture'
     },
     {

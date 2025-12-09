@@ -199,6 +199,7 @@
           ...
         </button>
         {#if showMenu}
+          <div class="menu-backdrop" on:click={closeMenu}></div>
           <div class="tabs-dropdown">
             {#each allTabs as tab (tab.id)}
               <div class="dropdown-item">
@@ -230,9 +231,6 @@
   </div>
 </header>
 
-{#if showMenu}
-  <div class="menu-backdrop" on:click={closeMenu}></div>
-{/if}
 
 <style>
   .topbar {
@@ -418,6 +416,7 @@
 
   .menu-container {
     position: relative;
+    z-index: 1001;
   }
 
   .tabs-dropdown {
@@ -429,7 +428,7 @@
     border: 1px solid var(--border-primary);
     border-radius: 4px;
     box-shadow: var(--shadow-large);
-    z-index: 1001;
+    z-index: 1002;
     min-width: 180px;
     padding: 4px 0;
   }
