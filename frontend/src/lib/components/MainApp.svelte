@@ -8,6 +8,7 @@
   import Modal from './Modal.svelte';
   import CommitTree from './CommitTree.svelte';
   import BuildingsView from './BuildingsView.svelte';
+  import TrainStationGraph from './TrainStationGraph.svelte';
   import Topbar from './Topbar.svelte';
   import GlobalActions from './GlobalActions.svelte';
   import BranchesList from './BranchesList.svelte';
@@ -191,6 +192,12 @@
         onLoadMore={loadMore}
         remoteSha={remoteStatus?.remote_sha}
       />
+    {:else if currentView === 'graph'}
+      <TrainStationGraph
+        commits={$commitTree?.commits || []}
+        onNodeClick={handleNodeClick}
+        remoteSha={remoteStatus?.remote_sha}
+      />
     {:else}
       <BuildingsView commits={$commitTree?.commits || []} onNodeClick={handleNodeClick} {groupBy} remoteSha={remoteStatus?.remote_sha} />
     {/if}
@@ -218,6 +225,14 @@
           title="Flow view"
         >
           Flow
+        </button>
+        <button
+          class="view-btn"
+          class:active={currentView === 'graph'}
+          on:click={() => currentView = 'graph'}
+          title="Train station view"
+        >
+          Train
         </button>
         <button
           class="view-btn"
