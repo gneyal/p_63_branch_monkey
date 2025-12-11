@@ -2,6 +2,7 @@
   import { Handle, Position } from '@xyflow/svelte';
 
   export let data;
+  export let selected = false;
 
   $: layerType = data.layerType || 'default';
   $: config = getLayerConfig(layerType);
@@ -68,6 +69,7 @@
 
 <div
   class="layer-node"
+  class:selected
   style="
     --layer-color: {config.color};
     --layer-bg: {config.bgColor};
@@ -112,6 +114,12 @@
     border-radius: 6px;
     overflow: hidden;
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+    transition: box-shadow 0.15s ease, transform 0.15s ease;
+  }
+
+  .layer-node.selected {
+    box-shadow: 0 0 0 3px #61afef, 0 4px 12px rgba(97, 175, 239, 0.3);
+    transform: scale(1.02);
   }
 
   .node-badge {

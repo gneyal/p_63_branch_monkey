@@ -19,8 +19,12 @@
   import { showToast } from '../stores/store.js';
   import ChipNode from './ChipNode.svelte';
 
+  import { createEventDispatcher } from 'svelte';
+
   export let onClose = () => {};
   export let inline = true;
+
+  const dispatch = createEventDispatcher();
 
   let history = [];
   let loading = true;
@@ -38,6 +42,52 @@
 
   // Multi-select state
   let selectedNodes = [];
+  let showPromptBuilder = false;
+  let promptInstruction = '';
+  let generatedPrompt = '';
+
+  // Prompt builder options
+  let prePrompt = '';
+  let postPrompt = '';
+  let promptOptions = {
+    noOtherFiles: true,
+    keepItSimple: false,
+    explainChanges: false,
+    addTests: false,
+    preserveStyle: true,
+    noNewDeps: false
+  };
+
+  // Handle node click for selection
+  // Click to add to selection, click again to remove (no modifier key needed)
+  function handleNodeClick(eventDetail) {
+    const clickedNode = eventDetail.node;
+
+    // Toggle: if already selected, remove; otherwise add
+    const index = selectedNodes.findIndex(n => n.id === clickedNode.id);
+    if (index >= 0) {
+      selectedNodes = selectedNodes.filter(n => n.id !== clickedNode.id);
+    } else {
+      selectedNodes = [...selectedNodes, clickedNode];
+    }
+
+    // Update nodes store to reflect selection state
+    const selectedIds = new Set(selectedNodes.map(n => n.id));
+    nodes.update(n => n.map(node => ({
+      ...node,
+      selected: selectedIds.has(node.id)
+    })));
+
+    dispatch('selectionchange', { nodes: selectedNodes });
+  }
+
+  // Handle pane click to deselect all
+  function handlePaneClick() {
+    selectedNodes = [];
+    // Clear selection state on all nodes
+    nodes.update(n => n.map(node => ({ ...node, selected: false })));
+    dispatch('selectionchange', { nodes: selectedNodes });
+  }
 
   const nodes = writable([]);
   const edges = writable([]);
@@ -353,7 +403,9 @@
       });
     }
 
-    nodes.set(newNodes);
+    // Ensure all nodes are selectable
+    const selectableNodes = newNodes.map(n => ({ ...n, selectable: true }));
+    nodes.set(selectableNodes);
     edges.set(newEdges);
   }
 
@@ -458,12 +510,16 @@
     return icons[category] || '?';
   }
 
-  // Multi-select handlers
-  function handleSelectionChange(event) {
-    // Handle both prop callback and event handler formats
-    const selNodes = event?.detail?.nodes || event?.nodes || [];
-    selectedNodes = selNodes;
-    console.log('Selection changed:', selectedNodes.length, 'nodes');
+
+  // Expose methods for parent
+  export function getSelectedNodes() {
+    return selectedNodes;
+  }
+
+  export function openPromptBuilder() {
+    if (selectedNodes.length > 0) {
+      handleOpenPromptBuilder();
+    }
   }
 
   function clearSelection() {
@@ -472,10 +528,86 @@
     nodes.update(n => n.map(node => ({ ...node, selected: false })));
   }
 
-  function handleCreateTest() {
-    const nodeNames = selectedNodes.map(n => n.data?.name || n.id).join(', ');
-    showToast(`Create test for: ${nodeNames}`, 'info');
-    // TODO: Implement actual test creation
+  function handleOpenPromptBuilder() {
+    promptInstruction = '';
+    prePrompt = '';
+    postPrompt = '';
+    showPromptBuilder = true;
+    // Generate initial prompt with default options
+    generateContextPrompt();
+  }
+
+  function generateContextPrompt() {
+    const context = selectedNodes.map(node => {
+      const d = node.data || {};
+      let info = `- ${d.layerType?.toUpperCase() || 'NODE'}: ${d.name || node.id}`;
+      if (d.path) info += `\n  Path: ${d.path}`;
+      if (d.method) info += `\n  Method: ${d.method}`;
+      if (d.description) info += `\n  Description: ${d.description}`;
+      return info;
+    }).join('\n\n');
+
+    const fileHints = selectedNodes
+      .filter(n => n.data?.path)
+      .map(n => n.data.path);
+
+    let parts = [];
+
+    // Pre-prompt
+    if (prePrompt.trim()) {
+      parts.push(prePrompt.trim());
+    }
+
+    // Context section
+    parts.push(`## Context\n\nWork with these specific parts of the codebase:\n\n${context}`);
+
+    if (fileHints.length > 0) {
+      parts.push(`## Files to focus on\n\nOnly modify these files:\n${fileHints.map(f => `- ${f}`).join('\n')}`);
+    }
+
+    // Task section
+    if (promptInstruction.trim()) {
+      parts.push(`## Task\n\n${promptInstruction.trim()}`);
+    }
+
+    // Build constraints from checkboxes
+    const constraints = [];
+    if (promptOptions.noOtherFiles) {
+      constraints.push('Do NOT modify files outside the scope defined above');
+    }
+    if (promptOptions.keepItSimple) {
+      constraints.push('Keep the solution simple and minimal - no over-engineering');
+    }
+    if (promptOptions.explainChanges) {
+      constraints.push('Explain each change you make and why');
+    }
+    if (promptOptions.addTests) {
+      constraints.push('Add or update tests for the changes');
+    }
+    if (promptOptions.preserveStyle) {
+      constraints.push('Preserve the existing code style and patterns');
+    }
+    if (promptOptions.noNewDeps) {
+      constraints.push('Do not add new dependencies unless absolutely necessary');
+    }
+
+    if (constraints.length > 0) {
+      parts.push(`## Constraints\n\n${constraints.map(c => `- ${c}`).join('\n')}`);
+    }
+
+    // Post-prompt
+    if (postPrompt.trim()) {
+      parts.push(postPrompt.trim());
+    }
+
+    generatedPrompt = parts.join('\n\n');
+  }
+
+  function handleCopyContextPrompt() {
+    navigator.clipboard.writeText(generatedPrompt);
+    showToast('Prompt copied to clipboard!', 'success');
+    showPromptBuilder = false;
+    clearSelection();
   }
 </script>
 
@@ -582,9 +714,11 @@
                         minZoom={0.3}
                         maxZoom={1.5}
                         defaultViewport={{ x: 0, y: 0, zoom: 0.8 }}
-                        selectionOnDrag={true}
-                        panOnDrag={[1, 2]}
-                        on:selectionchange={handleSelectionChange}
+                        panOnDrag={true}
+                        elementsSelectable={true}
+                        nodesConnectable={false}
+                        onnodeclick={handleNodeClick}
+                        onpaneclick={handlePaneClick}
                       >
                         <Background variant={BackgroundVariant.Dots} gap={20} />
                         <Controls />
@@ -601,11 +735,12 @@
                     {#if selectedNodes.length > 0}
                       <div class="selection-bar">
                         <span class="selection-count">{selectedNodes.length} selected</span>
-                        <button class="selection-action" on:click={handleCreateTest}>
+                        <button class="selection-action" on:click={handleOpenPromptBuilder}>
                           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/>
+                            <path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/>
+                            <path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/>
                           </svg>
-                          Create Test
+                          Write Prompt
                         </button>
                         <button class="selection-action secondary" on:click={clearSelection}>
                           Clear
@@ -997,6 +1132,115 @@
         </button>
         <button class="action-btn" on:click={() => showPromptModal = false}>
           Close
+        </button>
+      </div>
+    </div>
+  </div>
+{/if}
+
+<!-- Prompt Builder Modal -->
+{#if showPromptBuilder}
+  <div class="modal-backdrop" on:click={() => showPromptBuilder = false}>
+    <div class="modal prompt-builder" on:click|stopPropagation>
+      <div class="modal-header">
+        <h4>Write Prompt with Context</h4>
+        <button class="close-btn" on:click={() => showPromptBuilder = false}>X</button>
+      </div>
+      <div class="modal-body">
+        <div class="prompt-builder-layout">
+          <div class="prompt-builder-left">
+            <!-- Pre-prompt -->
+            <div class="prompt-section">
+              <label class="section-label">Pre-prompt <span class="label-hint">(optional intro or role)</span></label>
+              <textarea
+                class="prompt-textarea small"
+                bind:value={prePrompt}
+                on:input={generateContextPrompt}
+                placeholder="e.g., You are a senior developer reviewing this codebase..."
+                rows="2"
+              ></textarea>
+            </div>
+
+            <!-- Context summary -->
+            <div class="context-summary">
+              <div class="context-label">Selected context ({selectedNodes.length})</div>
+              <div class="context-chips">
+                {#each selectedNodes as node}
+                  <div class="context-chip" class:page={node.data?.layerType === 'page'} class:component={node.data?.layerType === 'component'} class:endpoint={node.data?.layerType === 'endpoint'} class:entity={node.data?.layerType === 'entity'} class:table={node.data?.layerType === 'table'}>
+                    <span class="chip-type">{node.data?.layerType || 'node'}</span>
+                    <span class="chip-name">{node.data?.name || node.id}</span>
+                  </div>
+                {/each}
+              </div>
+            </div>
+
+            <!-- Main instruction -->
+            <div class="prompt-section">
+              <label class="section-label">Task <span class="label-hint">(what should be done)</span></label>
+              <textarea
+                class="prompt-textarea"
+                bind:value={promptInstruction}
+                on:input={generateContextPrompt}
+                placeholder="e.g., Add error handling to these endpoints..."
+                rows="3"
+              ></textarea>
+            </div>
+
+            <!-- Options checkboxes -->
+            <div class="prompt-options">
+              <div class="options-label">Constraints</div>
+              <div class="options-grid">
+                <label class="option-item">
+                  <input type="checkbox" bind:checked={promptOptions.noOtherFiles} on:change={generateContextPrompt} />
+                  <span>Only modify listed files</span>
+                </label>
+                <label class="option-item">
+                  <input type="checkbox" bind:checked={promptOptions.preserveStyle} on:change={generateContextPrompt} />
+                  <span>Preserve code style</span>
+                </label>
+                <label class="option-item">
+                  <input type="checkbox" bind:checked={promptOptions.keepItSimple} on:change={generateContextPrompt} />
+                  <span>Keep it simple</span>
+                </label>
+                <label class="option-item">
+                  <input type="checkbox" bind:checked={promptOptions.noNewDeps} on:change={generateContextPrompt} />
+                  <span>No new dependencies</span>
+                </label>
+                <label class="option-item">
+                  <input type="checkbox" bind:checked={promptOptions.addTests} on:change={generateContextPrompt} />
+                  <span>Add/update tests</span>
+                </label>
+                <label class="option-item">
+                  <input type="checkbox" bind:checked={promptOptions.explainChanges} on:change={generateContextPrompt} />
+                  <span>Explain changes</span>
+                </label>
+              </div>
+            </div>
+
+            <!-- Post-prompt -->
+            <div class="prompt-section">
+              <label class="section-label">Post-prompt <span class="label-hint">(additional notes)</span></label>
+              <textarea
+                class="prompt-textarea small"
+                bind:value={postPrompt}
+                on:input={generateContextPrompt}
+                placeholder="e.g., After making changes, summarize what was done..."
+                rows="2"
+              ></textarea>
+            </div>
+          </div>
+          <div class="prompt-builder-right">
+            <div class="preview-label">Generated prompt</div>
+            <pre class="prompt-preview">{generatedPrompt || 'Configure your prompt on the left...'}</pre>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="action-btn" on:click={() => showPromptBuilder = false}>
+          Cancel
+        </button>
+        <button class="action-btn primary" on:click={handleCopyContextPrompt} disabled={!generatedPrompt}>
+          Copy Prompt
         </button>
       </div>
     </div>
@@ -2439,18 +2683,18 @@
   /* Selection Bar */
   .selection-bar {
     position: absolute;
-    bottom: 16px;
+    bottom: 24px;
     left: 50%;
     transform: translateX(-50%);
     background: var(--bg-primary);
     border: 1px solid var(--border-primary);
-    padding: 8px 12px;
-    border-radius: 4px;
+    padding: 10px 16px;
+    border-radius: 6px;
     display: flex;
     align-items: center;
     gap: 12px;
-    z-index: 100;
-    box-shadow: var(--shadow-large);
+    z-index: 1000;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
   }
 
   .selection-count {
@@ -2509,5 +2753,242 @@
   .svelteflow-view :global(.svelte-flow__nodesselection-rect) {
     background: rgba(97, 175, 239, 0.1) !important;
     border: 2px solid #61afef !important;
+  }
+
+  /* Prompt Builder Modal */
+  .modal.prompt-builder {
+    max-width: 900px;
+    max-height: 80vh;
+  }
+
+  .prompt-builder-layout {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+    min-height: 400px;
+  }
+
+  .prompt-builder-left {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  .prompt-builder-right {
+    display: flex;
+    flex-direction: column;
+    background: var(--bg-secondary);
+    border-radius: 4px;
+    overflow: hidden;
+  }
+
+  .context-summary {
+    background: var(--bg-secondary);
+    border-radius: 4px;
+    padding: 12px;
+  }
+
+  .context-label {
+    font-size: 10px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--text-tertiary);
+    margin-bottom: 10px;
+  }
+
+  .context-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+
+  .context-chip {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 10px;
+    background: var(--bg-primary);
+    border: 1px solid var(--border-primary);
+    border-radius: 4px;
+    font-size: 11px;
+  }
+
+  .context-chip.page { border-color: #56b6c2; }
+  .context-chip.component { border-color: #c678dd; }
+  .context-chip.endpoint { border-color: #61afef; }
+  .context-chip.entity { border-color: #98c379; }
+  .context-chip.table { border-color: #e5c07b; }
+
+  .chip-type {
+    font-size: 9px;
+    font-weight: 600;
+    text-transform: uppercase;
+    color: var(--text-tertiary);
+  }
+
+  .chip-name {
+    color: var(--text-primary);
+    font-weight: 500;
+  }
+
+  .instruction-section {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .instruction-label {
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--text-primary);
+    margin-bottom: 8px;
+  }
+
+  .instruction-input {
+    flex: 1;
+    min-height: 120px;
+    padding: 12px;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-primary);
+    border-radius: 4px;
+    font-size: 13px;
+    color: var(--text-primary);
+    resize: none;
+    font-family: inherit;
+  }
+
+  .instruction-input:focus {
+    outline: none;
+    border-color: var(--accent-primary);
+  }
+
+  .instruction-input::placeholder {
+    color: var(--text-tertiary);
+  }
+
+  .preview-label {
+    font-size: 10px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--text-tertiary);
+    padding: 10px 12px;
+    border-bottom: 1px solid var(--border-secondary);
+    background: var(--bg-primary);
+  }
+
+  .prompt-preview {
+    flex: 1;
+    margin: 0;
+    padding: 12px;
+    font-family: 'SF Mono', Monaco, 'Courier New', monospace;
+    font-size: 11px;
+    line-height: 1.5;
+    color: var(--text-secondary);
+    white-space: pre-wrap;
+    word-break: break-word;
+    overflow: auto;
+  }
+
+  /* Prompt sections */
+  .prompt-section {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .section-label {
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--text-primary);
+  }
+
+  .label-hint {
+    font-weight: 400;
+    color: var(--text-tertiary);
+    font-size: 11px;
+  }
+
+  .prompt-textarea {
+    padding: 10px 12px;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-primary);
+    border-radius: 4px;
+    font-size: 13px;
+    color: var(--text-primary);
+    resize: none;
+    font-family: inherit;
+    line-height: 1.4;
+  }
+
+  .prompt-textarea.small {
+    min-height: auto;
+  }
+
+  .prompt-textarea:focus {
+    outline: none;
+    border-color: var(--accent-primary);
+  }
+
+  .prompt-textarea::placeholder {
+    color: var(--text-tertiary);
+  }
+
+  /* Options grid */
+  .prompt-options {
+    background: var(--bg-secondary);
+    border-radius: 4px;
+    padding: 12px;
+  }
+
+  .options-label {
+    font-size: 10px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--text-tertiary);
+    margin-bottom: 10px;
+  }
+
+  .options-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 8px;
+  }
+
+  .option-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 12px;
+    color: var(--text-secondary);
+    cursor: pointer;
+    padding: 4px 0;
+  }
+
+  .option-item:hover {
+    color: var(--text-primary);
+  }
+
+  .option-item input[type="checkbox"] {
+    width: 14px;
+    height: 14px;
+    accent-color: var(--accent-primary);
+    cursor: pointer;
+  }
+
+  .option-item span {
+    user-select: none;
+  }
+
+  @media (max-width: 768px) {
+    .prompt-builder-layout {
+      grid-template-columns: 1fr;
+    }
+
+    .prompt-builder-right {
+      min-height: 200px;
+    }
   }
 </style>
