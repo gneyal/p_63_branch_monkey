@@ -256,13 +256,13 @@
   <section class="hero" bind:this={heroRef}>
     <div class="hero-content">
       <h1 class="headline">
-        A framework for<br/>
-        <span class="highlight">today</span>
+        The slow stuff<br/>
+        <span class="highlight">matters</span>
       </h1>
       <p class="tagline">
-        Software dev has changed and we need tools to be faster, cleaner,<br/>
-        with little context switching and much speed.<br/>
-        Branch Monkey is an opinionated version of what we think is needed for today's devs.
+        Frameworks rise and fall. AI rewrites the rules weekly.<br/>
+        But you'll always need to go back, see the big picture, set standards, and give context.<br/>
+        Switch AI providers without losing your team's memory. Learn from your prompts. Teach your teammates.
       </p>
       <div class="hero-buttons">
         <button class="cta-button secondary" on:click={onGetStarted}>
