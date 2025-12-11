@@ -47,8 +47,6 @@
   let generatedPrompt = '';
 
   // Prompt builder options
-  let prePrompt = '';
-  let postPrompt = '';
   let promptOptions = {
     noOtherFiles: true,
     keepItSimple: false,
@@ -530,10 +528,7 @@
 
   function handleOpenPromptBuilder() {
     promptInstruction = '';
-    prePrompt = '';
-    postPrompt = '';
     showPromptBuilder = true;
-    // Generate initial prompt with default options
     generateContextPrompt();
   }
 
@@ -553,16 +548,11 @@
 
     let parts = [];
 
-    // Pre-prompt
-    if (prePrompt.trim()) {
-      parts.push(prePrompt.trim());
-    }
-
     // Context section
     parts.push(`## Context\n\nWork with these specific parts of the codebase:\n\n${context}`);
 
     if (fileHints.length > 0) {
-      parts.push(`## Files to focus on\n\nOnly modify these files:\n${fileHints.map(f => `- ${f}`).join('\n')}`);
+      parts.push(`## Files to focus on\n\n${fileHints.map(f => `- ${f}`).join('\n')}`);
     }
 
     // Task section
@@ -593,11 +583,6 @@
 
     if (constraints.length > 0) {
       parts.push(`## Constraints\n\n${constraints.map(c => `- ${c}`).join('\n')}`);
-    }
-
-    // Post-prompt
-    if (postPrompt.trim()) {
-      parts.push(postPrompt.trim());
     }
 
     generatedPrompt = parts.join('\n\n');
@@ -1149,21 +1134,9 @@
       <div class="modal-body">
         <div class="prompt-builder-layout">
           <div class="prompt-builder-left">
-            <!-- Pre-prompt -->
-            <div class="prompt-section">
-              <label class="section-label">Pre-prompt <span class="label-hint">(optional intro or role)</span></label>
-              <textarea
-                class="prompt-textarea small"
-                bind:value={prePrompt}
-                on:input={generateContextPrompt}
-                placeholder="e.g., You are a senior developer reviewing this codebase..."
-                rows="2"
-              ></textarea>
-            </div>
-
-            <!-- Context summary -->
+            <!-- Context summary at top -->
             <div class="context-summary">
-              <div class="context-label">Selected context ({selectedNodes.length})</div>
+              <div class="context-label">Context ({selectedNodes.length} selected)</div>
               <div class="context-chips">
                 {#each selectedNodes as node}
                   <div class="context-chip" class:page={node.data?.layerType === 'page'} class:component={node.data?.layerType === 'component'} class:endpoint={node.data?.layerType === 'endpoint'} class:entity={node.data?.layerType === 'entity'} class:table={node.data?.layerType === 'table'}>
@@ -1174,19 +1147,18 @@
               </div>
             </div>
 
-            <!-- Main instruction -->
-            <div class="prompt-section">
-              <label class="section-label">Task <span class="label-hint">(what should be done)</span></label>
+            <!-- Main task textarea -->
+            <div class="prompt-section task-section">
+              <label class="section-label">Task</label>
               <textarea
-                class="prompt-textarea"
+                class="prompt-textarea task-textarea"
                 bind:value={promptInstruction}
                 on:input={generateContextPrompt}
-                placeholder="e.g., Add error handling to these endpoints..."
-                rows="3"
+                placeholder="What do you want to do with these components?"
               ></textarea>
             </div>
 
-            <!-- Options checkboxes -->
+            <!-- Constraints checkboxes -->
             <div class="prompt-options">
               <div class="options-label">Constraints</div>
               <div class="options-grid">
@@ -1216,22 +1188,10 @@
                 </label>
               </div>
             </div>
-
-            <!-- Post-prompt -->
-            <div class="prompt-section">
-              <label class="section-label">Post-prompt <span class="label-hint">(additional notes)</span></label>
-              <textarea
-                class="prompt-textarea small"
-                bind:value={postPrompt}
-                on:input={generateContextPrompt}
-                placeholder="e.g., After making changes, summarize what was done..."
-                rows="2"
-              ></textarea>
-            </div>
           </div>
           <div class="prompt-builder-right">
             <div class="preview-label">Generated prompt</div>
-            <pre class="prompt-preview">{generatedPrompt || 'Configure your prompt on the left...'}</pre>
+            <pre class="prompt-preview">{generatedPrompt || 'Enter a task to generate prompt...'}</pre>
           </div>
         </div>
       </div>
@@ -2922,10 +2882,6 @@
     line-height: 1.4;
   }
 
-  .prompt-textarea.small {
-    min-height: auto;
-  }
-
   .prompt-textarea:focus {
     outline: none;
     border-color: var(--accent-primary);
@@ -2933,6 +2889,15 @@
 
   .prompt-textarea::placeholder {
     color: var(--text-tertiary);
+  }
+
+  .task-section {
+    flex: 1;
+  }
+
+  .task-textarea {
+    flex: 1;
+    min-height: 100px;
   }
 
   /* Options grid */
