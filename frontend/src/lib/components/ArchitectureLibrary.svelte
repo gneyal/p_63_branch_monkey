@@ -56,6 +56,38 @@
     noNewDeps: false
   };
 
+  // Draggable modal state
+  let modalPosition = { x: 0, y: 0 };
+  let isDragging = false;
+  let dragOffset = { x: 0, y: 0 };
+  let showConstraintsPopup = false;
+
+  function handleDragStart(e) {
+    if (e.target.closest('button') || e.target.closest('textarea') || e.target.closest('input')) return;
+    isDragging = true;
+    const rect = e.currentTarget.closest('.prompt-builder').getBoundingClientRect();
+    dragOffset = {
+      x: e.clientX - rect.left,
+      y: e.clientY - rect.top
+    };
+    document.addEventListener('mousemove', handleDragMove);
+    document.addEventListener('mouseup', handleDragEnd);
+  }
+
+  function handleDragMove(e) {
+    if (!isDragging) return;
+    modalPosition = {
+      x: e.clientX - dragOffset.x - window.innerWidth / 2 + 450,
+      y: e.clientY - dragOffset.y - window.innerHeight / 2 + 250
+    };
+  }
+
+  function handleDragEnd() {
+    isDragging = false;
+    document.removeEventListener('mousemove', handleDragMove);
+    document.removeEventListener('mouseup', handleDragEnd);
+  }
+
   // Handle node click for selection
   // Click to add to selection, click again to remove (no modifier key needed)
   function handleNodeClick(eventDetail) {
@@ -528,6 +560,7 @@
 
   function handleOpenPromptBuilder() {
     promptInstruction = '';
+    modalPosition = { x: 0, y: 0 };
     showPromptBuilder = true;
     generateContextPrompt();
   }
@@ -591,8 +624,6 @@
   function handleCopyContextPrompt() {
     navigator.clipboard.writeText(generatedPrompt);
     showToast('Prompt copied to clipboard!', 'success');
-    showPromptBuilder = false;
-    clearSelection();
   }
 </script>
 
@@ -1123,86 +1154,95 @@
   </div>
 {/if}
 
-<!-- Prompt Builder Modal -->
+<!-- Prompt Builder Modal (no backdrop - floating window) -->
 {#if showPromptBuilder}
-  <div class="modal-backdrop" on:click={() => showPromptBuilder = false}>
-    <div class="modal prompt-builder" on:click|stopPropagation>
-      <div class="modal-header">
-        <h4>Write Prompt with Context</h4>
-        <button class="close-btn" on:click={() => showPromptBuilder = false}>X</button>
-      </div>
-      <div class="modal-body">
-        <div class="prompt-builder-layout">
-          <div class="prompt-builder-left">
-            <!-- Context summary at top -->
-            <div class="context-summary">
-              <div class="context-label">Context ({selectedNodes.length} selected)</div>
-              <div class="context-chips">
-                {#each selectedNodes as node}
-                  <div class="context-chip" class:page={node.data?.layerType === 'page'} class:component={node.data?.layerType === 'component'} class:endpoint={node.data?.layerType === 'endpoint'} class:entity={node.data?.layerType === 'entity'} class:table={node.data?.layerType === 'table'}>
-                    <span class="chip-type">{node.data?.layerType || 'node'}</span>
-                    <span class="chip-name">{node.data?.name || node.id}</span>
-                  </div>
-                {/each}
-              </div>
+  <div
+    class="modal prompt-builder floating"
+    class:dragging={isDragging}
+    style="transform: translate({modalPosition.x}px, {modalPosition.y}px)"
+  >
+    <div class="modal-header draggable" on:mousedown={handleDragStart}>
+      <h4>Write Prompt with Context</h4>
+      <button class="close-btn" on:click={() => showPromptBuilder = false}>X</button>
+    </div>
+    <div class="modal-body">
+      <!-- Context chips -->
+      <div class="context-summary compact">
+        <div class="context-chips">
+          {#each selectedNodes as node}
+            <div class="context-chip" class:page={node.data?.layerType === 'page'} class:component={node.data?.layerType === 'component'} class:endpoint={node.data?.layerType === 'endpoint'} class:entity={node.data?.layerType === 'entity'} class:table={node.data?.layerType === 'table'}>
+              <span class="chip-type">{node.data?.layerType || 'node'}</span>
+              <span class="chip-name">{node.data?.name || node.id}</span>
             </div>
-
-            <!-- Main task textarea -->
-            <div class="prompt-section task-section">
-              <label class="section-label">Task</label>
-              <textarea
-                class="prompt-textarea task-textarea"
-                bind:value={promptInstruction}
-                on:input={generateContextPrompt}
-                placeholder="What do you want to do with these components?"
-              ></textarea>
-            </div>
-
-            <!-- Constraints checkboxes -->
-            <div class="prompt-options">
-              <div class="options-label">Constraints</div>
-              <div class="options-grid">
-                <label class="option-item">
-                  <input type="checkbox" bind:checked={promptOptions.noOtherFiles} on:change={generateContextPrompt} />
-                  <span>Only modify listed files</span>
-                </label>
-                <label class="option-item">
-                  <input type="checkbox" bind:checked={promptOptions.preserveStyle} on:change={generateContextPrompt} />
-                  <span>Preserve code style</span>
-                </label>
-                <label class="option-item">
-                  <input type="checkbox" bind:checked={promptOptions.keepItSimple} on:change={generateContextPrompt} />
-                  <span>Keep it simple</span>
-                </label>
-                <label class="option-item">
-                  <input type="checkbox" bind:checked={promptOptions.noNewDeps} on:change={generateContextPrompt} />
-                  <span>No new dependencies</span>
-                </label>
-                <label class="option-item">
-                  <input type="checkbox" bind:checked={promptOptions.addTests} on:change={generateContextPrompt} />
-                  <span>Add/update tests</span>
-                </label>
-                <label class="option-item">
-                  <input type="checkbox" bind:checked={promptOptions.explainChanges} on:change={generateContextPrompt} />
-                  <span>Explain changes</span>
-                </label>
-              </div>
-            </div>
-          </div>
-          <div class="prompt-builder-right">
-            <div class="preview-label">Generated prompt</div>
-            <pre class="prompt-preview">{generatedPrompt || 'Enter a task to generate prompt...'}</pre>
-          </div>
+          {/each}
         </div>
       </div>
-      <div class="modal-footer">
-        <button class="action-btn" on:click={() => showPromptBuilder = false}>
-          Cancel
-        </button>
-        <button class="action-btn primary" on:click={handleCopyContextPrompt} disabled={!generatedPrompt}>
-          Copy Prompt
-        </button>
+
+      <!-- Task input row with constraints button -->
+      <div class="task-row">
+        <textarea
+          class="prompt-textarea task-input"
+          bind:value={promptInstruction}
+          on:input={generateContextPrompt}
+          placeholder="What do you want to do with these components?"
+          rows="2"
+        ></textarea>
+        <div class="constraints-wrapper">
+          <button
+            class="constraints-btn"
+            class:has-constraints={Object.values(promptOptions).some(v => v)}
+            on:click={() => showConstraintsPopup = !showConstraintsPopup}
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="12" cy="12" r="3"/>
+              <path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-2 2 2 2 0 01-2-2v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83 0 2 2 0 010-2.83l.06-.06a1.65 1.65 0 00.33-1.82 1.65 1.65 0 00-1.51-1H3a2 2 0 01-2-2 2 2 0 012-2h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 010-2.83 2 2 0 012.83 0l.06.06a1.65 1.65 0 001.82.33H9a1.65 1.65 0 001-1.51V3a2 2 0 012-2 2 2 0 012 2v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 0 2 2 0 010 2.83l-.06.06a1.65 1.65 0 00-.33 1.82V9a1.65 1.65 0 001.51 1H21a2 2 0 012 2 2 2 0 01-2 2h-.09a1.65 1.65 0 00-1.51 1z"/>
+            </svg>
+          </button>
+          {#if showConstraintsPopup}
+            <div class="constraints-popup">
+              <div class="constraints-popup-header">Constraints</div>
+              <label class="option-item">
+                <input type="checkbox" bind:checked={promptOptions.noOtherFiles} on:change={generateContextPrompt} />
+                <span>Only modify listed files</span>
+              </label>
+              <label class="option-item">
+                <input type="checkbox" bind:checked={promptOptions.preserveStyle} on:change={generateContextPrompt} />
+                <span>Preserve code style</span>
+              </label>
+              <label class="option-item">
+                <input type="checkbox" bind:checked={promptOptions.keepItSimple} on:change={generateContextPrompt} />
+                <span>Keep it simple</span>
+              </label>
+              <label class="option-item">
+                <input type="checkbox" bind:checked={promptOptions.noNewDeps} on:change={generateContextPrompt} />
+                <span>No new dependencies</span>
+              </label>
+              <label class="option-item">
+                <input type="checkbox" bind:checked={promptOptions.addTests} on:change={generateContextPrompt} />
+                <span>Add/update tests</span>
+              </label>
+              <label class="option-item">
+                <input type="checkbox" bind:checked={promptOptions.explainChanges} on:change={generateContextPrompt} />
+                <span>Explain changes</span>
+              </label>
+            </div>
+          {/if}
+        </div>
       </div>
+
+      <!-- Generated prompt preview -->
+      <div class="prompt-preview-section">
+        <div class="preview-label">Generated prompt</div>
+        <pre class="prompt-preview">{generatedPrompt || 'Enter a task to generate prompt...'}</pre>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="action-btn" on:click={() => showPromptBuilder = false}>
+        Cancel
+      </button>
+      <button class="action-btn primary" on:click={handleCopyContextPrompt} disabled={!generatedPrompt}>
+        Copy Prompt
+      </button>
     </div>
   </div>
 {/if}
@@ -2717,29 +2757,139 @@
 
   /* Prompt Builder Modal */
   .modal.prompt-builder {
-    max-width: 900px;
-    max-height: 80vh;
+    max-width: 500px;
+    width: 500px;
+    transition: box-shadow 0.15s ease;
   }
 
-  .prompt-builder-layout {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 20px;
-    min-height: 400px;
-  }
-
-  .prompt-builder-left {
+  .modal.prompt-builder .modal-body {
     display: flex;
     flex-direction: column;
-    gap: 16px;
+    gap: 12px;
+    flex: 1;
+    min-height: 0;
+    overflow: hidden;
   }
 
-  .prompt-builder-right {
+  .modal.prompt-builder.floating {
+    position: fixed;
+    top: 0;
+    left: 0;
+    z-index: 1000;
+    height: 100vh;
+    max-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+  }
+
+  .modal.prompt-builder.dragging {
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.4);
+    user-select: none;
+  }
+
+  .modal-header.draggable {
+    cursor: grab;
+  }
+
+  .modal-header.draggable:active {
+    cursor: grabbing;
+  }
+
+  .context-summary.compact {
+    padding: 8px;
+    background: var(--bg-secondary);
+    border-radius: 4px;
+  }
+
+  .task-row {
+    display: flex;
+    gap: 8px;
+    align-items: flex-start;
+  }
+
+  .task-input {
+    flex: 1;
+    min-height: 50px;
+    resize: vertical;
+  }
+
+  .constraints-wrapper {
+    position: relative;
+  }
+
+  .constraints-btn {
+    width: 36px;
+    height: 36px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-primary);
+    border-radius: 4px;
+    color: var(--text-secondary);
+    cursor: pointer;
+    transition: all 0.15s ease;
+  }
+
+  .constraints-btn:hover {
+    background: var(--bg-tertiary);
+    color: var(--text-primary);
+  }
+
+  .constraints-btn.has-constraints {
+    border-color: var(--accent-primary);
+    color: var(--accent-primary);
+  }
+
+  .constraints-popup {
+    position: absolute;
+    top: 100%;
+    right: 0;
+    margin-top: 4px;
+    background: var(--bg-primary);
+    border: 1px solid var(--border-primary);
+    border-radius: 6px;
+    padding: 12px;
+    min-width: 200px;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
+    z-index: 10;
+  }
+
+  .constraints-popup-header {
+    font-size: 10px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--text-tertiary);
+    margin-bottom: 8px;
+    padding-bottom: 6px;
+    border-bottom: 1px solid var(--border-secondary);
+  }
+
+  .constraints-popup .option-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 12px;
+    color: var(--text-secondary);
+    cursor: pointer;
+    padding: 4px 0;
+  }
+
+  .prompt-preview-section {
     display: flex;
     flex-direction: column;
     background: var(--bg-secondary);
     border-radius: 4px;
     overflow: hidden;
+    flex: 1;
+    min-height: 100px;
+  }
+
+  .prompt-preview-section .prompt-preview {
+    flex: 1;
+    overflow: auto;
   }
 
   .context-summary {
